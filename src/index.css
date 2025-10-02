@@ -1,0 +1,246 @@
+@tailwind base;
+@tailwind components; 
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: #374151;
+  }
+  
+  body {
+    background: linear-gradient(135deg, #0B0B1A 0%, #1A1A2E 100%);
+    color: #f3f4f6;
+    font-family: system-ui, -apple-system, 'Orbitron', sans-serif;
+    min-height: 100vh;
+  }
+  
+  html {
+    color-scheme: dark;
+  }
+}
+
+@layer components {
+  .card {
+    background: rgba(22, 33, 62, 0.8);
+    border-radius: 1rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #2A2F5F;
+    padding: 1.5rem;
+    backdrop-filter: blur(4px);
+  }
+  
+  .btn-primary {
+    background: #7c3aed;
+    color: white;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    transition: all 0.2s;
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+  }
+  
+  .btn-primary:hover {
+    background: #6d28d9;
+    box-shadow: 0 0 30px rgba(124, 58, 237, 0.5);
+  }
+  
+  .btn-secondary {
+    background: #1A1A2E;
+    color: #e5e7eb;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    transition: all 0.2s;
+    border: 1px solid #2A2F5F;
+  }
+  
+  .btn-secondary:hover {
+    background: #374151;
+  }
+  
+  .progress-bar {
+    width: 100%;
+    background: #1A1A2E;
+    border-radius: 9999px;
+    height: 0.75rem;
+    overflow: hidden;
+    border: 1px solid #2A2F5F;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(to right, #06b6d4, #0891b2);
+    transition: all 0.5s ease-out;
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+  
+  .evolution-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 1px solid;
+  }
+  
+  .identity-card {
+    background: rgba(22, 33, 62, 0.9);
+    border-radius: 1rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #2A2F5F;
+    padding: 1.5rem;
+    transition: all 0.3s;
+    backdrop-filter: blur(4px);
+  }
+  
+  .identity-card:hover {
+    box-shadow: 0 0 30px rgba(124, 58, 237, 0.3);
+    transform: translateY(-0.25rem);
+  }
+  
+  .xp-animation {
+    animation: xp-gain 0.6s ease-out;
+    color: #06b6d4;
+    font-weight: 700;
+  }
+  
+  .level-up-animation {
+    animation: level-up 1s ease-out;
+  }
+  
+  .glow-text {
+    color: #67e8f9;
+    text-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+  }
+  
+  .nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    transition: all 0.2s;
+    color: #d1d5db;
+  }
+  
+  .nav-link:hover {
+    color: #67e8f9;
+    background: #1A1A2E;
+  }
+  
+  .nav-link.active {
+    color: #67e8f9;
+    background: #1A1A2E;
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+  }
+  
+  /* Cultivator-specific styles */
+  .cultivator-card {
+    transition: all 0.3s;
+    cursor: pointer;
+  }
+  
+  .cultivator-card:hover {
+    transform: translateY(-0.25rem);
+    filter: brightness(1.1);
+  }
+  
+  .tier-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 1px solid;
+  }
+  
+  .tier-d { 
+    background: rgba(75, 85, 99, 0.2);
+    color: #d1d5db;
+    border-color: #6b7280;
+  }
+  
+  .tier-c { 
+    background: rgba(34, 197, 94, 0.2);
+    color: #86efac;
+    border-color: #10b981;
+  }
+  
+  .tier-b { 
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    border-color: #3b82f6;
+  }
+  
+  .tier-a { 
+    background: rgba(147, 51, 234, 0.2);
+    color: #c4b5fd;
+    border-color: #9333ea;
+  }
+  
+  .tier-s { 
+    background: rgba(234, 179, 8, 0.2);
+    color: #fde047;
+    border-color: #eab308;
+  }
+  
+  .tier-glow-base {
+    font-family: 'Orbitron', system-ui, sans-serif;
+    letter-spacing: 0.08em;
+    position: relative;
+    display: inline-block;
+    isolation: isolate;
+  }
+  .tier-glow-base::after {
+    content: attr(data-text);
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    filter: blur(8px) brightness(1.4) saturate(1.3);
+    opacity: 0.65;
+    color: inherit;
+    pointer-events: none;
+  }
+  .tier-glow-pulse {
+    animation: tierGlowPulse 3s ease-in-out infinite;
+  }
+  .tier-glow-D { color:#c4b5fd; text-shadow: 0 0 4px #8b5cf6, 0 0 10px #6d28d9; }
+  .tier-glow-C { color:#67e8f9; text-shadow: 0 0 4px #06b6d4, 0 0 10px #0891b2; }
+  .tier-glow-B { color:#a5f3fc; text-shadow: 0 0 5px #06b6d4, 0 0 12px #0ea5e9; }
+  .tier-glow-A { color:#e9d5ff; text-shadow: 0 0 5px #a855f7, 0 0 14px #7e22ce; }
+  .tier-glow-S { color:#f0fdfa; text-shadow: 0 0 6px #22d3ee, 0 0 16px #8b5cf6, 0 0 24px #22d3ee; }
+
+  .tier-grad-D { background: linear-gradient(90deg,#a78bfa 0%,#7c3aed 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .tier-grad-C { background: linear-gradient(90deg,#22d3ee 0%,#0ea5e9 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .tier-grad-B { background: linear-gradient(90deg,#5eead4 0%,#06b6d4 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .tier-grad-A { background: linear-gradient(90deg,#d8b4fe 0%,#a855f7 50%,#6366f1 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .tier-grad-S { background: linear-gradient(90deg,#f0fdfa 0%,#67e8f9 30%,#8b5cf6 70%,#22d3ee 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+}
+
+@keyframes glow {
+  0% { box-shadow: 0 0 10px rgba(6, 182, 212, 0.3); }
+  100% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.6); }
+}
+
+@keyframes xp-gain {
+  0% { transform: scale(1) translateY(0); opacity: 1; }
+  50% { transform: scale(1.2) translateY(-10px); opacity: 0.8; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes level-up {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes tierGlowPulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
