@@ -1,6 +1,6 @@
 import { User, Trophy, TrendingUp, Calendar, Award, Target, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { PieChart, Pie, Cell, ResponsiveContainer, RadialBarChart, RadialBar } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useGameStore } from '@/store/gameStore';
 import { formatXP } from '@/utils/gameLogic';
 
@@ -73,7 +73,6 @@ const CharacterProfile = () => {
   ];
 
   const unlockedAchievements = achievements.filter(a => a.unlocked);
-  const lockedAchievements = achievements.filter(a => !a.unlocked);
 
   const getAchievementStyle = (color: string, unlocked: boolean) => {
     if (!unlocked) return 'bg-gray-800/40 border-gray-600 opacity-60';
