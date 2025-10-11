@@ -194,8 +194,18 @@ export const useCultivatorStore = create<CultivatorState>()(
             for (const t of requiredTypes) {
               if (!existingTypes.has(t)) {
                 console.log(`✨ Creating missing identity type: ${t}`);
-                await CultivatorDatabase.createIdentity({ userID, identityType: t });
-                created = true;
+                try {
+                  await CultivatorDatabase.createIdentity({ userID, identityType: t });
+                  created = true;
+                } catch (e: any) {
+                  // Ignore duplicate error and continue; any other error should be logged but not block
+                  const msg = e?.message || String(e);
+                  if (msg.includes('Only one of each type')) {
+                    console.warn('Duplicate identity type detected during migration, continuing:', t);
+                  } else {
+                    console.error('Failed creating missing identity type, continuing with what we have:', t, e);
+                  }
+                }
               }
             }
             if (created) {
@@ -226,6 +236,7 @@ export const useCultivatorStore = create<CultivatorState>()(
           }
         } catch (error) {
           console.error('❌ Failed to load user data:', error);
+          // Do not block the UI. Surface a toast, but ensure initialized stays true.
           set({ error: 'Failed to load user data', isLoading: false });
         }
       },

@@ -24,6 +24,48 @@ export class CultivatorDatabase {
     USER_PROGRESS: 'cultivator-user-progress',
   };
 
+  // Local-only helpers (ignore Supabase config)
+  private static readLocalUsers(): User[] {
+    const stored = localStorage.getItem(this.STORAGE_KEYS.USERS);
+    if (!stored) return [];
+    try {
+      return JSON.parse(stored).map((user: any) => ({
+        ...user,
+        createdAt: new Date(user.createdAt),
+        lastActiveDate: new Date(user.lastActiveDate),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  private static readLocalIdentities(): Identity[] {
+    const stored = localStorage.getItem(this.STORAGE_KEYS.IDENTITIES);
+    if (!stored) return [];
+    try {
+      return JSON.parse(stored).map((identity: any) => ({
+        ...identity,
+        createdAt: new Date(identity.createdAt),
+        lastCompletedDate: identity.lastCompletedDate ? new Date(identity.lastCompletedDate) : undefined,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  private static readLocalProgress(): UserProgress[] {
+    const stored = localStorage.getItem(this.STORAGE_KEYS.USER_PROGRESS);
+    if (!stored) return [];
+    try {
+      return JSON.parse(stored).map((progress: any) => ({
+        ...progress,
+        lastUpdatedDate: new Date(progress.lastUpdatedDate),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
   // User Management
   static async createUser(name: string, authUserId?: string): Promise<User> {
     if (isSupabaseConfigured() && authUserId) {
@@ -46,8 +88,9 @@ export class CultivatorDatabase {
       }
     }
 
+    // Local fallback: use provided authUserId if available to keep IDs consistent across modes
     const user: User = {
-      userID: this.generateID(),
+      userID: authUserId || this.generateID(),
       name,
       tier: 'D',
       totalDaysActive: 0,
@@ -64,23 +107,32 @@ export class CultivatorDatabase {
 
   static async getUser(userID: string): Promise<User | null> {
     if (isSupabaseConfigured()) {
-      // Try to get user from Supabase
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userID)
-        .single();
+      try {
+        // Try to get user from Supabase
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userID)
+          .single();
 
-      if (error || !data) return null;
-
-      return {
-        userID: data.id,
-        name: data.name,
-        tier: data.tier,
-        totalDaysActive: data.total_days_active,
-        createdAt: new Date(data.created_at),
-        lastActiveDate: new Date(data.last_active_date),
-      };
+        if (!error && data) {
+          return {
+            userID: data.id,
+            name: data.name,
+            tier: data.tier,
+            totalDaysActive: data.total_days_active,
+            createdAt: new Date(data.created_at),
+            lastActiveDate: new Date(data.last_active_date),
+          };
+        }
+      } catch (e) {
+        // ignore and fall through to local
+      }
+      // Fallback to local store if Supabase is misconfigured/unavailable
+      const localUsers = await this.getUsers();
+      const local = localUsers.find(u => u.userID === userID) || null;
+      if (local) return local;
+      return null;
     }
 
     const users = await this.getUsers();
@@ -138,26 +190,13 @@ export class CultivatorDatabase {
 
   // Identity Management  
   static async createIdentity(request: CreateIdentityRequest): Promise<Identity> {
-    // Check if user already has this identity type
-    const existingIdentities = await this.getIdentitiesForUser(request.userID);
-    const hasType = existingIdentities.some(i => i.identityType === request.identityType);
-    
-    if (hasType) {
-      throw new Error(`User already has a ${request.identityType} identity. Only one of each type is allowed.`);
-    }
-    
-    const definition = this.getIdentityDefinition(request.identityType);
-    const startingTier: IdentityTier = 'D';
-    const startingLevel = 1;
-    
-    // Get the first sublevel to determine initial days required
-    const tierDetail = definition.tiers.find(t => t.tier === startingTier);
-    const subLevel = tierDetail?.subLevels[startingLevel - 1];
-    const initialDaysRequired = subLevel?.daysToComplete || TIER_CONFIGS[startingTier].requiredDaysPerLevel;
-    
+    // When Supabase is configured, create there first (DB will enforce uniqueness)
     if (isSupabaseConfigured()) {
       try {
-        // Use supabase service to create identity + progress
+        const definition = this.getIdentityDefinition(request.identityType);
+        const startingTier: IdentityTier = 'D';
+        const startingLevel = 1;
+        const tierDetail = definition.tiers.find(t => t.tier === startingTier);
         const created = await supabaseDB.createIdentity(
           request.userID,
           request.customTitle || `${tierDetail?.title || definition.name} ${startingLevel}`,
@@ -171,6 +210,22 @@ export class CultivatorDatabase {
       }
     }
 
+    // Local mode or Supabase fallback: prevent duplicates using local storage
+    const existingIdentities = await this.getIdentitiesForUser(request.userID);
+    const hasType = existingIdentities.some(i => i.identityType === request.identityType);
+    if (hasType) {
+      throw new Error(`User already has a ${request.identityType} identity. Only one of each type is allowed.`);
+    }
+
+    const definition = this.getIdentityDefinition(request.identityType);
+    const startingTier: IdentityTier = 'D';
+    const startingLevel = 1;
+    
+    // Get the first sublevel to determine initial days required
+    const tierDetail = definition.tiers.find(t => t.tier === startingTier);
+    const subLevel = tierDetail?.subLevels[startingLevel - 1];
+    const initialDaysRequired = subLevel?.daysToComplete || TIER_CONFIGS[startingTier].requiredDaysPerLevel;
+    
     const identity: Identity = {
       identityID: this.generateID(),
       userID: request.userID,
@@ -370,30 +425,27 @@ export class CultivatorDatabase {
     if (isSupabaseConfigured()) {
       try {
         const res = await supabaseDB.fetchUserIdentities(userID);
-        // supabaseDB returns identities and progress arrays
-        return {
-          user: { userID, name: '', tier: 'D', totalDaysActive: 0, createdAt: new Date(), lastActiveDate: new Date() },
-          identities: res.identities,
-          progress: res.progress,
-        } as unknown as GetUserDataResponse;
+        // If Supabase returns arrays, use them; otherwise fall back to local
+        if (res && Array.isArray(res.identities) && Array.isArray(res.progress)) {
+          return {
+            user: { userID, name: '', tier: 'D', totalDaysActive: 0, createdAt: new Date(), lastActiveDate: new Date() },
+            identities: res.identities,
+            progress: res.progress,
+          } as unknown as GetUserDataResponse;
+        }
+        // Fall through to local if malformed
       } catch (err) {
-        console.error('Supabase fetchUserIdentities failed, continuing with empty data:', err);
-        // Continue with empty arrays so caller can create defaults
-        return {
-          user: { userID, name: '', tier: 'D', totalDaysActive: 0, createdAt: new Date(), lastActiveDate: new Date() },
-          identities: [],
-          progress: [],
-        } as unknown as GetUserDataResponse;
+        console.error('Supabase fetchUserIdentities failed, falling back to local data:', err);
+        // Fall through to local
       }
     }
 
-    const user = await this.getUser(userID);
-    if (!user) return null;
-
-    const identities = await this.getIdentitiesForUser(userID);
-    const progress = await this.getProgressForUser(userID);
-
-    return { user, identities, progress };
+  // Local fallback path: read everything from localStorage regardless of Supabase config
+  const user = this.readLocalUsers().find(u => u.userID === userID) || null;
+  if (!user) return null;
+  const identities = this.readLocalIdentities().filter(i => i.userID === userID);
+  const progress = this.readLocalProgress().filter(p => p.userID === userID);
+  return { user, identities, progress };
   }
 
   // Progress Update Logic

@@ -1,13 +1,47 @@
--- Cultivator Identity System - Supabase Schema
+-- Cultivator Identity System - Supabase Schema (updated for 13-tier + 3 identity types)
 -- PostgreSQL compatible schema for Supabase
 -- Run this in Supabase SQL Editor after creating your project
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Custom types
-CREATE TYPE identity_tier AS ENUM ('D', 'C', 'B', 'A', 'S', 'SS', 'SSS');
-CREATE TYPE identity_type AS ENUM ('CULTIVATOR', 'FITNESS', 'LEARNING', 'CREATIVE', 'SOCIAL');
+-- 13-tier system used by the app
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'identity_tier') THEN
+        CREATE TYPE identity_tier AS ENUM ('D','D+','C','C+','B','B+','A','A+','S','S+','SS','SS+','SSS');
+    END IF;
+END$$;
+
+-- Identity types used by the app
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'identity_type') THEN
+        CREATE TYPE identity_type AS ENUM ('CULTIVATOR','BODYSMITH','PATHWEAVER');
+    END IF;
+END$$;
+
+-- If enums already exist from an earlier version, add missing labels
+DO $$
+DECLARE v TEXT;
+BEGIN
+    FOR v IN SELECT unnest(ARRAY['D+','C+','B+','A+','S+','SS','SS+','SSS']) LOOP
+        BEGIN
+            EXECUTE format('ALTER TYPE identity_tier ADD VALUE IF NOT EXISTS %L', v);
+        EXCEPTION WHEN duplicate_object THEN
+            -- ignore
+        END;
+    END LOOP;
+
+    FOR v IN SELECT unnest(ARRAY['CULTIVATOR','BODYSMITH','PATHWEAVER']) LOOP
+        BEGIN
+            EXECUTE format('ALTER TYPE identity_type ADD VALUE IF NOT EXISTS %L', v);
+        EXCEPTION WHEN duplicate_object THEN
+        END;
+    END LOOP;
+END$$;
 
 -- Users table (extends Supabase auth.users)
 CREATE TABLE public.users (
@@ -34,8 +68,8 @@ CREATE POLICY "Users can insert own profile" ON public.users
     FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Identities table
-CREATE TABLE public.identities (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE IF NOT EXISTS public.identities (
+    id UUID PRIMARY KEY DEFAULT COALESCE(uuid_generate_v4(), gen_random_uuid()),
     user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     title VARCHAR(200) NOT NULL,
     image_url VARCHAR(500),
@@ -67,8 +101,8 @@ CREATE POLICY "Users can delete own identities" ON public.identities
     FOR DELETE USING (auth.uid() = user_id);
 
 -- User Progress table
-CREATE TABLE public.user_progress (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE IF NOT EXISTS public.user_progress (
+    id UUID PRIMARY KEY DEFAULT COALESCE(uuid_generate_v4(), gen_random_uuid()),
     user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     identity_id UUID NOT NULL REFERENCES public.identities(id) ON DELETE CASCADE,
     days_completed INT DEFAULT 0,
@@ -96,8 +130,8 @@ CREATE POLICY "Users can update own progress" ON public.user_progress
     FOR UPDATE USING (auth.uid() = user_id);
 
 -- Task Completions (History) table
-CREATE TABLE public.task_completions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE IF NOT EXISTS public.task_completions (
+    id UUID PRIMARY KEY DEFAULT COALESCE(uuid_generate_v4(), gen_random_uuid()),
     user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     identity_id UUID NOT NULL REFERENCES public.identities(id) ON DELETE CASCADE,
     completion_date DATE NOT NULL,
