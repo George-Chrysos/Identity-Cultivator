@@ -120,19 +120,40 @@ export const useCultivatorStore = create<CultivatorState>()(
           console.log('📝 Using userID:', desiredUserID);
           
           // Check if user already exists
-          let user = await CultivatorDatabase.getUser(desiredUserID);
+          let user = await CultivatorDatabase.getUser(desiredUserID).catch((err) => {
+            console.warn('getUser failed, continuing with null:', err);
+            return null;
+          });
           console.log('👤 Existing user found:', !!user);
           
           if (!user) {
             console.log('🆕 Creating new user...');
             // Create user using CultivatorDatabase which will handle Supabase properly
-            user = await CultivatorDatabase.createUser(name, desiredUserID);
+            user = await CultivatorDatabase.createUser(name, desiredUserID).catch((err) => {
+              console.error('createUser failed:', err);
+              return null;
+            });
+            if (!user) {
+              // Fallback to a minimal local user to avoid blocking UI
+              user = {
+                userID: desiredUserID,
+                name,
+                tier: 'D',
+                totalDaysActive: 0,
+                createdAt: new Date(),
+                lastActiveDate: new Date(),
+              } as User;
+            }
             
             // Create 3 default identities for new users
             console.log('✨ Creating 3 default identities for new user...');
             const defaultTypes: IdentityType[] = ['CULTIVATOR', 'BODYSMITH', 'PATHWEAVER'];
             for (const identityType of defaultTypes) {
-              await CultivatorDatabase.createIdentity({ userID: desiredUserID, identityType });
+              try {
+                await CultivatorDatabase.createIdentity({ userID: desiredUserID, identityType });
+              } catch (err) {
+                console.error('Failed to create identity', identityType, err);
+              }
             }
             console.log('✅ Default identities created');
           }
@@ -144,7 +165,8 @@ export const useCultivatorStore = create<CultivatorState>()(
           set({ isInitialized: true, isLoading: false });
         } catch (error) {
           console.error('❌ Failed to initialize user:', error);
-          set({ error: `Failed to initialize user: ${error}`, isLoading: false, isInitialized: false });
+          // Do not block the UI; mark initialized to let user proceed, but surface error
+          set({ error: `Failed to initialize user: ${error}`, isLoading: false, isInitialized: true });
         }
       },
 
@@ -159,7 +181,10 @@ export const useCultivatorStore = create<CultivatorState>()(
             console.log(`🧹 Removed ${duplicatesRemoved} duplicate identities`);
           }
           
-          let userData = await CultivatorDatabase.getUserData(userID);
+          let userData = await CultivatorDatabase.getUserData(userID).catch((err) => {
+            console.warn('getUserData failed, using empty dataset:', err);
+            return null;
+          });
           console.log('📊 User data retrieved:', !!userData, userData?.identities?.length || 0, 'identities');
           if (userData) {
             // Migration: ensure all three core identities exist
@@ -196,6 +221,7 @@ export const useCultivatorStore = create<CultivatorState>()(
             });
           } else {
             console.log('⚠️ No user data found');
+            // proceed with empty state but not loading
             set({ isLoading: false });
           }
         } catch (error) {
@@ -466,8 +492,8 @@ export const useCultivatorStore = create<CultivatorState>()(
           }
         }
 
-        // Derive tier/level from total completed days
-        const tierOrder: IdentityTier[] = ['D','C','B','A','S'];
+  // Derive tier/level from total completed days (13-tier system)
+  const tierOrder: IdentityTier[] = ['D','D+','C','C+','B','B+','A','A+','S','S+','SS','SS+','SSS'];
         let tier: IdentityTier = 'D';
         let level = 1;
         let remaining = totalCompleted; // remaining days to distribute
@@ -512,7 +538,11 @@ export const useCultivatorStore = create<CultivatorState>()(
         // Persist minimal updates
         CultivatorDatabase.updateIdentity(identity);
         CultivatorDatabase.updateUserProgress(progress);
-        if (updatedUser) CultivatorDatabase.updateUser(updatedUser);
+        if (updatedUser) {
+          // Avoid hammering remote DB; this path is derived from local calendar tweaks.
+          // Best-effort; ignore failure.
+          try { CultivatorDatabase.updateUser(updatedUser); } catch (e) { /* non-blocking */ }
+        }
 
         set(state => ({
           identities: state.identities.map(i => i.identityID === identity.identityID ? { ...identity } : i),

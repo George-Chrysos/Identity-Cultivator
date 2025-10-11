@@ -27,18 +27,23 @@ export class CultivatorDatabase {
   // User Management
   static async createUser(name: string, authUserId?: string): Promise<User> {
     if (isSupabaseConfigured() && authUserId) {
-      // Ensure user exists in Supabase public.users table
-      await supabaseDB.ensureUser(authUserId, name);
-      
-      const user: User = {
-        userID: authUserId,  // Use auth user ID
-        name,
-        tier: 'D',
-        totalDaysActive: 0,
-        createdAt: new Date(),
-        lastActiveDate: new Date(),
-      };
-      return user;
+      try {
+        // Ensure user exists in Supabase public.users table
+        await supabaseDB.ensureUser(authUserId, name);
+
+        const user: User = {
+          userID: authUserId,  // Use auth user ID
+          name,
+          tier: 'D',
+          totalDaysActive: 0,
+          createdAt: new Date(),
+          lastActiveDate: new Date(),
+        };
+        return user;
+      } catch (err) {
+        console.error('Supabase ensureUser failed, falling back to local user:', err);
+        // Fall through to local creation below
+      }
     }
 
     const user: User = {
@@ -151,9 +156,19 @@ export class CultivatorDatabase {
     const initialDaysRequired = subLevel?.daysToComplete || TIER_CONFIGS[startingTier].requiredDaysPerLevel;
     
     if (isSupabaseConfigured()) {
-      // Use supabase service to create identity + progress
-      const created = await supabaseDB.createIdentity(request.userID, request.customTitle || `${tierDetail?.title || definition.name} ${startingLevel}`, request.identityType, startingTier);
-      return created;
+      try {
+        // Use supabase service to create identity + progress
+        const created = await supabaseDB.createIdentity(
+          request.userID,
+          request.customTitle || `${tierDetail?.title || definition.name} ${startingLevel}`,
+          request.identityType,
+          startingTier
+        );
+        return created;
+      } catch (err) {
+        console.error('Supabase createIdentity failed, falling back to local identity:', err);
+        // Fall through to local creation below
+      }
     }
 
     const identity: Identity = {
@@ -353,14 +368,23 @@ export class CultivatorDatabase {
   // Combined Data Queries
   static async getUserData(userID: string): Promise<GetUserDataResponse | null> {
     if (isSupabaseConfigured()) {
-      const res = await supabaseDB.fetchUserIdentities(userID).catch(() => null);
-      if (!res) return null;
-      // supabaseDB returns identities and progress arrays
-      return {
-        user: { userID, name: '', tier: 'D', totalDaysActive: 0, createdAt: new Date(), lastActiveDate: new Date() },
-        identities: res.identities,
-        progress: res.progress,
-      } as unknown as GetUserDataResponse;
+      try {
+        const res = await supabaseDB.fetchUserIdentities(userID);
+        // supabaseDB returns identities and progress arrays
+        return {
+          user: { userID, name: '', tier: 'D', totalDaysActive: 0, createdAt: new Date(), lastActiveDate: new Date() },
+          identities: res.identities,
+          progress: res.progress,
+        } as unknown as GetUserDataResponse;
+      } catch (err) {
+        console.error('Supabase fetchUserIdentities failed, continuing with empty data:', err);
+        // Continue with empty arrays so caller can create defaults
+        return {
+          user: { userID, name: '', tier: 'D', totalDaysActive: 0, createdAt: new Date(), lastActiveDate: new Date() },
+          identities: [],
+          progress: [],
+        } as unknown as GetUserDataResponse;
+      }
     }
 
     const user = await this.getUser(userID);

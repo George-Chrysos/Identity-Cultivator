@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Plus, Sparkles, X } from 'lucide-react';
 import { useCultivatorStore } from '@/store/cultivatorStore';
@@ -24,6 +24,8 @@ const CultivatorHomepage = () => {
   } = useCultivatorStore();
 
   // Initialize cultivator data when user logs in
+  const initStartedRef = useRef(false);
+
   useEffect(() => {
     console.log('🔄 useEffect triggered:', { 
       isAuthenticated, 
@@ -34,10 +36,18 @@ const CultivatorHomepage = () => {
     });
     
     const initializeCultivatorData = async () => {
-      if (isAuthenticated && authUser && !currentUser && !isLoading && !isInitialized) {
+      if (!isAuthenticated) {
+        initStartedRef.current = false; // reset when logged out
+        return;
+      }
+
+      if (initStartedRef.current) return; // prevent duplicate inits
+
+      if (isAuthenticated && !currentUser && !isInitialized) {
+        initStartedRef.current = true;
         // Use the actual Supabase auth user ID if available, otherwise create a deterministic ID
-        const userID = authUser.id || (authUser.email ? `user-${authUser.email.split('@')[0]}` : `user-${authUser.name || 'cultivator'}`);
-        const userName = authUser.name || authUser.email || 'Cultivator';
+        const userID = authUser?.id || (authUser?.email ? `user-${authUser.email.split('@')[0]}` : `user-${authUser?.name || 'cultivator'}`);
+        const userName = authUser?.name || authUser?.email || 'Cultivator';
         
         console.log('🚀 Starting cultivator data initialization:', { userID, userName });
         await initializeUser(userName, userID);
@@ -54,7 +64,7 @@ const CultivatorHomepage = () => {
     };
     
     initializeCultivatorData();
-  }, [isAuthenticated, authUser, currentUser, isLoading, isInitialized]); // Added isInitialized to prevent re-runs
+  }, [isAuthenticated, authUser?.id, isInitialized, currentUser?.userID]);
 
   // Active identities list
   const sortedIdentities = getSortedIdentities();
@@ -146,7 +156,7 @@ const CultivatorHomepage = () => {
   }
 
   // Show loading spinner when initializing cultivator data
-  if (isAuthenticated && (isLoading || !isInitialized || !currentUser)) {
+  if (isAuthenticated && (isLoading || (!isInitialized && !currentUser))) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
         <Header />
