@@ -3,7 +3,6 @@ import { CultivatorDatabase } from '@/api/cultivatorDatabase';
 async function run() {
   // Create a temporary identity
   const identity = await CultivatorDatabase.createIdentity({ userID: 'test-user', identityType: 'CULTIVATOR' });
-  const progress = await CultivatorDatabase.getProgressForIdentity(identity.identityID);
   console.log('Initial', { level: identity.level, daysCompleted: identity.daysCompleted, required: identity.requiredDaysPerLevel });
 
   // Simulate completing required days in quick succession

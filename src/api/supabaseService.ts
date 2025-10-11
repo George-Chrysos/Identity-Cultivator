@@ -290,6 +290,27 @@ export const supabaseDB = {
       .eq('identity_id', identityId);
   },
 
+  // Get progress for a specific identity
+  async getProgressForIdentity(identityId: string): Promise<UserProgress | null> {
+    const { data: progressData, error: progError } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('identity_id', identityId)
+      .single();
+
+    if (progError) return null;
+
+    const { data: identityData } = await supabase
+      .from('identities')
+      .select('*')
+      .eq('id', identityId)
+      .single();
+
+    if (!identityData || !progressData) return null;
+
+    return toUserProgress(identityData, progressData);
+  },
+
   // Get completion history
   async getCompletionHistory(userId: string, identityId: string): Promise<SupabaseTaskCompletion[]> {
     const { data, error } = await supabase

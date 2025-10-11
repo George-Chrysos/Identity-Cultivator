@@ -10,13 +10,38 @@
   body {
     background: linear-gradient(135deg, #0B0B1A 0%, #1A1A2E 100%);
     color: #f3f4f6;
-    font-family: 'Copse', system-ui, -apple-system, sans-serif;
+    font-family: 'Exo 2', system-ui, -apple-system, sans-serif;
     font-weight: 400;
     min-height: 100vh;
   }
   
   html {
     color-scheme: dark;
+  }
+
+  /* Primary Title Font - Orbitron for titles, identity names, tier names */
+  h1, h2, h3, h4, h5, h6,
+  .font-title,
+  .identity-name,
+  .tier-name,
+  .app-title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  h1 {
+    font-weight: 800;
+  }
+
+  /* Accent Font - Cinzel Decorative for special moments */
+  .font-accent,
+  .evolution-text,
+  .achievement-text,
+  .lore-text,
+  .modal-special-title {
+    font-family: 'Cinzel Decorative', serif;
+    font-weight: 700;
   }
 }
 

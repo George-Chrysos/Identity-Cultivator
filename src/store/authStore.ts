@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { signInWithGoogle, signOut as supabaseSignOut, getCurrentUser, onAuthStateChange } from '@/lib/supabase';
 
+// Localhost bypass for testing
+const IS_LOCALHOST = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
 interface AuthUser {
   name?: string;
   email?: string;
@@ -20,12 +23,18 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      currentUser: null,
-      isAuthenticated: false,
+      currentUser: IS_LOCALHOST ? { name: 'Test User', email: 'test@localhost.dev' } : null,
+      isAuthenticated: IS_LOCALHOST,
 
       login: async () => {
+        // Auto-login on localhost
+        if (IS_LOCALHOST) {
+          set({ currentUser: { name: 'Test User', email: 'test@localhost.dev' }, isAuthenticated: true });
+          return true;
+        }
+
         try {
-          const { data, error } = await signInWithGoogle();
+          const { error } = await signInWithGoogle();
           if (error) {
             console.error('Supabase sign-in error', error);
             return false;
@@ -39,6 +48,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        // Skip logout on localhost (for testing)
+        if (IS_LOCALHOST) {
+          console.log('Logout disabled on localhost for testing');
+          return;
+        }
+
         try {
           await supabaseSignOut();
         } catch (err) {
@@ -61,18 +76,20 @@ export const useAuthStore = create<AuthState>()(
   )
 );
 
-// Initialize auth state from Supabase if available
-getCurrentUser().then(({ user }) => {
-  if (user) {
-    useAuthStore.setState({ currentUser: { name: user.user_metadata?.full_name || user.email, email: user.email }, isAuthenticated: true });
-  }
-});
+// Initialize auth state from Supabase if available (skip on localhost)
+if (!IS_LOCALHOST) {
+  getCurrentUser().then(({ user }) => {
+    if (user) {
+      useAuthStore.setState({ currentUser: { name: user.user_metadata?.full_name || user.email, email: user.email }, isAuthenticated: true });
+    }
+  });
 
-// Listen for auth state changes (keeps store in sync)
-onAuthStateChange((authUser) => {
-  if (authUser) {
-    useAuthStore.setState({ currentUser: { name: authUser.user_metadata?.full_name || authUser.email, email: authUser.email }, isAuthenticated: true });
-  } else {
-    useAuthStore.setState({ currentUser: null, isAuthenticated: false });
-  }
-});
+  // Listen for auth state changes (keeps store in sync)
+  onAuthStateChange((authUser) => {
+    if (authUser) {
+      useAuthStore.setState({ currentUser: { name: authUser.user_metadata?.full_name || authUser.email, email: authUser.email }, isAuthenticated: true });
+    } else {
+      useAuthStore.setState({ currentUser: null, isAuthenticated: false });
+    }
+  });
+}

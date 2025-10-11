@@ -34,8 +34,8 @@ const Navbar = ({ onCreateClick }: NavbarProps) => {
                 </motion.div>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">Identity</h1>
-                <p className="text-sm text-cyan-300 font-medium">Evolution</p>
+                <h1 className="text-xl font-bold text-white font-title tracking-wide">Identity</h1>
+                <p className="text-sm text-cyan-300 font-medium font-title">Evolution</p>
               </div>
             </div>
           </div>
@@ -49,7 +49,7 @@ const Navbar = ({ onCreateClick }: NavbarProps) => {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`nav-link ${active ? 'active' : ''}`}
+                  className={`nav-link ${active ? 'active' : ''} font-body`}
                 >
                   <Icon className="h-5 w-5 mr-3" />
                   <span className="font-medium">{item.name}</span>
@@ -70,7 +70,7 @@ const Navbar = ({ onCreateClick }: NavbarProps) => {
               onClick={onCreateClick}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full btn-primary flex items-center justify-center gap-2"
+              className="w-full btn-primary flex items-center justify-center gap-2 font-body"
             >
               <Plus className="h-5 w-5" />
               Create Identity

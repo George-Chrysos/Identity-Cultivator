@@ -7,6 +7,14 @@ export default {
   darkMode: 'class', // Enable dark mode with class strategy
   theme: {
     extend: {
+      fontFamily: {
+        // Primary Title Font - Orbitron (futuristic, geometric)
+        title: ['Orbitron', 'sans-serif'],
+        // Body/UI Font - Exo 2 (sci-fi sans-serif with warmth)
+        body: ['Exo 2', 'system-ui', 'sans-serif'],
+        // Accent/Special Font - Cinzel Decorative (arcane, ancient)
+        accent: ['Cinzel Decorative', 'serif'],
+      },
       colors: {
         // Dark futuristic theme
         dark: {

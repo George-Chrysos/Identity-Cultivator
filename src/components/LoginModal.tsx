@@ -29,7 +29,7 @@ const LoginModal = ({ isOpen, onClose }: LoginModalProps) => {
         className="bg-dark-surface border border-dark-border rounded-xl p-6 w-full max-w-md shadow-2xl"
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">Sign In</h2>
+          <h2 className="text-2xl font-bold text-white font-accent">Sign In</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
@@ -38,22 +38,26 @@ const LoginModal = ({ isOpen, onClose }: LoginModalProps) => {
           </button>
         </div>
 
-        <div className="space-y-4">
-          <div className="text-center mb-4">
-            <p className="text-gray-400 text-sm">Sign in with your Google account to start your cultivation journey</p>
+        <div className="space-y-6">
+          <div className="text-center mb-6">
+            <p className="text-gray-300 text-base leading-relaxed font-body">
+              Sign in with your Google account to start your cultivation journey
+            </p>
           </div>
 
-          <GoogleAuth
-            onSignInStart={() => {
-              setError(null);
-            }}
-            onSignInEnd={(errMsg) => {
-              if (errMsg) setError(errMsg);
-            }}
-          />
+          <div className="flex justify-center">
+            <GoogleAuth
+              onSignInStart={() => {
+                setError(null);
+              }}
+              onSignInEnd={(errMsg) => {
+                if (errMsg) setError(errMsg);
+              }}
+            />
+          </div>
 
           {error && (
-            <div className="bg-red-600/80 text-white px-4 py-2 rounded-md">
+            <div className="bg-red-600/80 text-white px-4 py-3 rounded-md text-center">
               <strong className="block font-semibold">Login failed</strong>
               <p className="text-sm mt-1">{error}</p>
             </div>

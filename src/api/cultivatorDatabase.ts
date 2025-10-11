@@ -278,10 +278,8 @@ export class CultivatorDatabase {
 
   static async getProgressForIdentity(identityID: string): Promise<UserProgress | null> {
     if (isSupabaseConfigured()) {
-      const prog = await supabaseDB.getCompletionHistory('', identityID).catch(() => null);
-      // supabaseDB.fetchUserIdentities returns progress; use that instead when possible
-      const p = await supabaseDB.fetchUserIdentities('').then(r => r.progress.find((x: any) => x.identityID === identityID)).catch(() => null);
-      return p || null;
+      const progress = await supabaseDB.getProgressForIdentity(identityID).catch(() => null);
+      return progress;
     }
 
     const allProgress = await this.getUserProgress();

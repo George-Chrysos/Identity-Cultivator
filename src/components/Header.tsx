@@ -19,13 +19,13 @@ const Header = () => {
             isAuthenticated && currentUser ? (
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 bg-dark-surface/80 backdrop-blur-sm border border-dark-border rounded-lg px-4 py-2">
-                  <span className="text-white font-medium">{currentUser.name}</span>
+                  <span className="text-white font-medium font-body">{currentUser.name}</span>
                 </div>
                 <motion.button
                   onClick={logout}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="bg-red-600/80 backdrop-blur-sm hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2"
+                  className="bg-red-600/80 backdrop-blur-sm hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 font-body font-medium"
                 >
                   Logout
                 </motion.button>
@@ -35,7 +35,7 @@ const Header = () => {
                 onClick={() => setShowLoginModal(true)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 shadow-lg backdrop-blur-sm"
+                className="bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 shadow-lg backdrop-blur-sm font-body font-medium"
               >
                 <LogIn className="h-4 w-4" />
                 Login
@@ -45,13 +45,13 @@ const Header = () => {
             // Local auth (legacy)
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 bg-dark-surface/80 backdrop-blur-sm border border-dark-border rounded-lg px-4 py-2">
-                <span className="text-white font-medium">{currentUser.name}</span>
+                <span className="text-white font-medium font-body">{currentUser.name}</span>
               </div>
               <motion.button
                 onClick={logout}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="bg-red-600/80 backdrop-blur-sm hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2"
+                className="bg-red-600/80 backdrop-blur-sm hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 font-body font-medium"
               >
                 Logout
               </motion.button>
@@ -61,7 +61,7 @@ const Header = () => {
               onClick={() => setShowLoginModal(true)}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 shadow-lg backdrop-blur-sm"
+              className="bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 shadow-lg backdrop-blur-sm font-body font-medium"
             >
               <LogIn className="h-4 w-4" />
               Login
