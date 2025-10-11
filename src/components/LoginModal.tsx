@@ -10,7 +10,7 @@ interface LoginModalProps {
 }
 
 const LoginModal = ({ isOpen, onClose }: LoginModalProps) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { currentUser } = useAuthStore();
 
   // Close modal when auth state becomes authenticated
@@ -29,7 +29,7 @@ const LoginModal = ({ isOpen, onClose }: LoginModalProps) => {
         className="bg-dark-surface border border-dark-border rounded-xl p-6 w-full max-w-md shadow-2xl"
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">Login</h2>
+          <h2 className="text-2xl font-bold text-white">Sign In</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
@@ -39,10 +39,26 @@ const LoginModal = ({ isOpen, onClose }: LoginModalProps) => {
         </div>
 
         <div className="space-y-4">
-          <GoogleAuth />
-        </div>
+          <div className="text-center mb-4">
+            <p className="text-gray-400 text-sm">Sign in with your Google account to start your cultivation journey</p>
+          </div>
 
-        {/* Using Google Sign-In only */}
+          <GoogleAuth
+            onSignInStart={() => {
+              setError(null);
+            }}
+            onSignInEnd={(errMsg) => {
+              if (errMsg) setError(errMsg);
+            }}
+          />
+
+          {error && (
+            <div className="bg-red-600/80 text-white px-4 py-2 rounded-md">
+              <strong className="block font-semibold">Login failed</strong>
+              <p className="text-sm mt-1">{error}</p>
+            </div>
+          )}
+        </div>
       </motion.div>
     </div>
   );

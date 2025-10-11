@@ -120,8 +120,8 @@ const CultivatorHomepage = () => {
               System
             </h1>
             <p className="text-xl md:text-2xl text-gray-400 mb-8 leading-relaxed">
-              Master yourself through the ancient art of cultivation.<br />
-              Build identities, track progress, and evolve beyond limits.
+              Master yourself througha the ancient art of cultivation.<br />
+              Build identities, track progressssss, and evolve beyond limits.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">

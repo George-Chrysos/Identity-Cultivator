@@ -3,7 +3,6 @@ import { persist } from 'zustand/middleware';
 import { signInWithGoogle, signOut as supabaseSignOut, getCurrentUser, onAuthStateChange } from '@/lib/supabase';
 
 interface AuthUser {
-  username?: string;
   name?: string;
   email?: string;
 }

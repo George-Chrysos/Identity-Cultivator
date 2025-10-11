@@ -6,9 +6,11 @@ import { LogOut, Loader2 } from 'lucide-react';
 
 interface GoogleAuthProps {
   onAuthChange?: (user: User | null) => void;
+  onSignInStart?: () => void;
+  onSignInEnd?: (errorMessage?: string | null) => void;
 }
 
-const GoogleAuth = ({ onAuthChange }: GoogleAuthProps) => {
+const GoogleAuth = ({ onAuthChange, onSignInStart, onSignInEnd }: GoogleAuthProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
@@ -27,16 +29,23 @@ const GoogleAuth = ({ onAuthChange }: GoogleAuthProps) => {
   }, [onAuthChange]);
 
   const handleSignIn = async () => {
-    setSigningIn(true);
     try {
+      setSigningIn(true);
+      onSignInStart?.();
+
       const { error } = await signInWithGoogle();
       if (error) {
         console.error('Sign in error:', error);
-        alert(`Login failed: ${error.message}`);
+        onSignInEnd?.(error.message);
+        return;
       }
-      // Note: The actual sign-in happens via redirect, so we don't need to handle success here
-    } catch (err) {
+
+      // Note: The actual sign-in happens via redirect, so we don't need to handle success here.
+      // We still notify the parent that sign-in flow finished (no immediate error).
+      onSignInEnd?.(null);
+    } catch (err: any) {
       console.error('Unexpected error:', err);
+      onSignInEnd?.(err?.message || String(err));
     } finally {
       setSigningIn(false);
     }
