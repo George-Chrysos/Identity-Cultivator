@@ -10,7 +10,8 @@
   body {
     background: linear-gradient(135deg, #0B0B1A 0%, #1A1A2E 100%);
     color: #f3f4f6;
-    font-family: system-ui, -apple-system, 'Orbitron', sans-serif;
+    font-family: 'Copse', system-ui, -apple-system, sans-serif;
+    font-weight: 400;
     min-height: 100vh;
   }
   
@@ -32,7 +33,7 @@
   .btn-primary {
     background: #7c3aed;
     color: white;
-    font-weight: 500;
+    font-weight: 700;
     padding: 0.75rem 1.5rem;
     border-radius: 0.75rem;
     transition: all 0.2s;
@@ -47,7 +48,7 @@
   .btn-secondary {
     background: #1A1A2E;
     color: #e5e7eb;
-    font-weight: 500;
+    font-weight: 700;
     padding: 0.75rem 1.5rem;
     border-radius: 0.75rem;
     transition: all 0.2s;
@@ -81,7 +82,7 @@
     padding: 0.25rem 0.75rem;
     border-radius: 9999px;
     font-size: 0.75rem;
-    font-weight: 700;
+  font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     border: 1px solid;
@@ -154,7 +155,7 @@
     padding: 0.25rem 0.75rem;
     border-radius: 9999px;
     font-size: 0.75rem;
-    font-weight: 700;
+  font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     border: 1px solid;
@@ -191,7 +192,7 @@
   }
   
   .tier-glow-base {
-    font-family: 'Orbitron', system-ui, sans-serif;
+    font-family: 'Copse', system-ui, -apple-system, sans-serif;
     letter-spacing: 0.08em;
     position: relative;
     display: inline-block;

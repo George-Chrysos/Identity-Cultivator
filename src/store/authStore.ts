@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { useCultivatorStore } from '@/store/cultivatorStore';
+import { signInWithGoogle, signOut as supabaseSignOut, getCurrentUser, onAuthStateChange } from '@/lib/supabase';
 
 interface AuthUser {
-  username: string;
-  name: string;
+  username?: string;
+  name?: string;
+  email?: string;
 }
 
 interface AuthState {
@@ -12,16 +13,10 @@ interface AuthState {
   isAuthenticated: boolean;
   
   // Actions
-  login: (username: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  login: () => Promise<boolean>;
+  logout: () => Promise<void>;
+  setUser: (user: AuthUser | null) => void;
 }
-
-// Default demo user
-const DEMO_USER = {
-  username: 'joji32',
-  password: 'demo',
-  name: 'Magician'
-};
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -29,30 +24,33 @@ export const useAuthStore = create<AuthState>()(
       currentUser: null,
       isAuthenticated: false,
 
-      login: async (username: string, password: string) => {
-        // Simple demo authentication
-        if (username === DEMO_USER.username && password === DEMO_USER.password) {
-          const user = { username: DEMO_USER.username, name: DEMO_USER.name };
-          set({ currentUser: user, isAuthenticated: true });
-
-          // Sync cultivator store user name if already initialized with a different name
-          const cultivatorState = useCultivatorStore.getState();
-          if (cultivatorState.currentUser && cultivatorState.currentUser.name !== user.name) {
-            useCultivatorStore.setState({
-              currentUser: { ...cultivatorState.currentUser, name: user.name }
-            });
+      login: async () => {
+        try {
+          const { data, error } = await signInWithGoogle();
+          if (error) {
+            console.error('Supabase sign-in error', error);
+            return false;
           }
+          // signInWithGoogle triggers a redirect; return true if call succeeded
           return true;
+        } catch (err) {
+          console.error('Login error', err);
+          return false;
         }
-        return false;
       },
 
-      logout: () => {
+      logout: async () => {
+        try {
+          await supabaseSignOut();
+        } catch (err) {
+          console.error('Sign out error', err);
+        }
         set({ currentUser: null, isAuthenticated: false });
-        
         // Clear localStorage to reset cultivator data
         localStorage.removeItem('cultivator-store');
       },
+
+      setUser: (user: AuthUser | null) => set({ currentUser: user, isAuthenticated: Boolean(user) }),
     }),
     {
       name: 'auth-store',
@@ -63,3 +61,19 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+// Initialize auth state from Supabase if available
+getCurrentUser().then(({ user }) => {
+  if (user) {
+    useAuthStore.setState({ currentUser: { name: user.user_metadata?.full_name || user.email, email: user.email }, isAuthenticated: true });
+  }
+});
+
+// Listen for auth state changes (keeps store in sync)
+onAuthStateChange((authUser) => {
+  if (authUser) {
+    useAuthStore.setState({ currentUser: { name: authUser.user_metadata?.full_name || authUser.email, email: authUser.email }, isAuthenticated: true });
+  } else {
+    useAuthStore.setState({ currentUser: null, isAuthenticated: false });
+  }
+});

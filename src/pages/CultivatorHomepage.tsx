@@ -35,8 +35,9 @@ const CultivatorHomepage = () => {
     
     const initializeCultivatorData = async () => {
       if (isAuthenticated && authUser && !currentUser && !isLoading && !isInitialized) {
-        console.log('🚀 Starting cultivator data initialization for:', authUser.name);
-        await initializeUser(authUser.name, `cultivator-${authUser.username}`);
+        const userKey = authUser.email ? authUser.email.split('@')[0] : (authUser.name || 'user');
+        console.log('🚀 Starting cultivator data initialization for:', authUser.name || authUser.email);
+        await initializeUser(authUser.name || authUser.email || 'Cultivator', `cultivator-${userKey}`);
         console.log('✅ Cultivator data initialization complete');
       } else {
         console.log('⏭️ Skipping initialization:', {

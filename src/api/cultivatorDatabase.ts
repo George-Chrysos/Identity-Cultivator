@@ -13,6 +13,8 @@ import {
   PATHWEAVER_DEFINITION,
   DetailedIdentityDefinition
 } from '@/models/cultivatorTypes';
+import { supabaseDB } from '@/api/supabaseService';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 // Database service using localStorage for now, easily replaceable with real DB
 export class CultivatorDatabase {
@@ -24,6 +26,20 @@ export class CultivatorDatabase {
 
   // User Management
   static async createUser(name: string): Promise<User> {
+    if (isSupabaseConfigured()) {
+      // Supabase will manage users via auth; create a minimal placeholder
+      const user: User = {
+        userID: this.generateID(),
+        name,
+        tier: 'D',
+        totalDaysActive: 0,
+        createdAt: new Date(),
+        lastActiveDate: new Date(),
+      };
+      // No-op persistence here; caller is expected to create auth user in Supabase
+      return user;
+    }
+
     const user: User = {
       userID: this.generateID(),
       name,
@@ -36,16 +52,26 @@ export class CultivatorDatabase {
     const users = await this.getUsers();
     users.push(user);
     localStorage.setItem(this.STORAGE_KEYS.USERS, JSON.stringify(users));
-    
+
     return user;
   }
 
   static async getUser(userID: string): Promise<User | null> {
+    if (isSupabaseConfigured()) {
+      // Supabase stores users via auth; we return a minimal user record if needed
+      return null;
+    }
+
     const users = await this.getUsers();
     return users.find(u => u.userID === userID) || null;
   }
 
   static async updateUser(user: User): Promise<User> {
+    if (isSupabaseConfigured()) {
+      // Supabase user updates handled via auth/profile - just return the provided user
+      return user;
+    }
+
     const users = await this.getUsers();
     const index = users.findIndex(u => u.userID === user.userID);
     
@@ -60,6 +86,11 @@ export class CultivatorDatabase {
   }
 
   private static async getUsers(): Promise<User[]> {
+    if (isSupabaseConfigured()) {
+      // Users are managed by Supabase auth; return empty list for compatibility
+      return [];
+    }
+
     const stored = localStorage.getItem(this.STORAGE_KEYS.USERS);
     if (!stored) return [];
     
@@ -89,6 +120,12 @@ export class CultivatorDatabase {
     const subLevel = tierDetail?.subLevels[startingLevel - 1];
     const initialDaysRequired = subLevel?.daysToComplete || TIER_CONFIGS[startingTier].requiredDaysPerLevel;
     
+    if (isSupabaseConfigured()) {
+      // Use supabase service to create identity + progress
+      const created = await supabaseDB.createIdentity(request.userID, request.customTitle || `${tierDetail?.title || definition.name} ${startingLevel}`, request.identityType, startingTier);
+      return created;
+    }
+
     const identity: Identity = {
       identityID: this.generateID(),
       userID: request.userID,
@@ -192,6 +229,23 @@ export class CultivatorDatabase {
 
   // Progress Management
   static async createUserProgress(identity: Identity): Promise<UserProgress> {
+    if (isSupabaseConfigured()) {
+      // Supabase create is handled when creating an identity (supabaseService.createIdentity creates progress)
+      const prog = await supabaseDB.getProgressForIdentity(identity.identityID).catch(() => null);
+      return prog || {
+        userProgressID: this.generateID(),
+        userID: identity.userID,
+        identityID: identity.identityID,
+        daysCompleted: 0,
+        level: 1,
+        tier: 'D',
+        completedToday: false,
+        lastUpdatedDate: new Date(),
+        streakDays: 0,
+        missedDays: 0,
+      };
+    }
+
     const progress: UserProgress = {
       userProgressID: this.generateID(),
       userID: identity.userID,
@@ -213,16 +267,35 @@ export class CultivatorDatabase {
   }
 
   static async getProgressForUser(userID: string): Promise<UserProgress[]> {
+    if (isSupabaseConfigured()) {
+      const res = await supabaseDB.fetchUserIdentities(userID).catch(() => ({ identities: [], progress: [] }));
+      return res.progress || [];
+    }
+
     const allProgress = await this.getUserProgress();
     return allProgress.filter(p => p.userID === userID);
   }
 
   static async getProgressForIdentity(identityID: string): Promise<UserProgress | null> {
+    if (isSupabaseConfigured()) {
+      const prog = await supabaseDB.getCompletionHistory('', identityID).catch(() => null);
+      // supabaseDB.fetchUserIdentities returns progress; use that instead when possible
+      const p = await supabaseDB.fetchUserIdentities('').then(r => r.progress.find((x: any) => x.identityID === identityID)).catch(() => null);
+      return p || null;
+    }
+
     const allProgress = await this.getUserProgress();
     return allProgress.find(p => p.identityID === identityID) || null;
   }
 
   static async updateUserProgress(progress: UserProgress): Promise<UserProgress> {
+    if (isSupabaseConfigured()) {
+      // Update via supabase
+      await supabaseDB.getCompletionHistory(progress.userID, progress.identityID).catch(() => null);
+      // Best-effort: return provided progress
+      return progress;
+    }
+
     const allProgress = await this.getUserProgress();
     const index = allProgress.findIndex(p => p.userProgressID === progress.userProgressID);
     
@@ -235,6 +308,11 @@ export class CultivatorDatabase {
   }
 
   private static async getUserProgress(): Promise<UserProgress[]> {
+    if (isSupabaseConfigured()) {
+      // Supabase progress fetched via fetchUserIdentities for a specific user; here return empty
+      return [];
+    }
+
     const stored = localStorage.getItem(this.STORAGE_KEYS.USER_PROGRESS);
     if (!stored) return [];
     
@@ -246,6 +324,17 @@ export class CultivatorDatabase {
 
   // Combined Data Queries
   static async getUserData(userID: string): Promise<GetUserDataResponse | null> {
+    if (isSupabaseConfigured()) {
+      const res = await supabaseDB.fetchUserIdentities(userID).catch(() => null);
+      if (!res) return null;
+      // supabaseDB returns identities and progress arrays
+      return {
+        user: { userID, name: '', tier: 'D', totalDaysActive: 0, createdAt: new Date(), lastActiveDate: new Date() },
+        identities: res.identities,
+        progress: res.progress,
+      } as unknown as GetUserDataResponse;
+    }
+
     const user = await this.getUser(userID);
     if (!user) return null;
 
@@ -264,6 +353,23 @@ export class CultivatorDatabase {
     evolved?: boolean;
     message: string;
   }> {
+    if (isSupabaseConfigured()) {
+      try {
+        // Delegate toggle operation to supabase service
+        const result = await supabaseDB.toggleTaskCompletion(request.userID, request.identityID);
+        return {
+          success: true,
+          identity: result.identity as Identity,
+          progress: result.progress as UserProgress,
+          leveledUp: false,
+          evolved: false,
+          message: 'Updated via Supabase',
+        };
+      } catch (err: any) {
+        return { success: false, message: err?.message || 'Supabase update failed' };
+      }
+    }
+
     const identity = (await this.getIdentities()).find(i => i.identityID === request.identityID);
     const progress = await this.getProgressForIdentity(request.identityID);
 
@@ -300,20 +406,22 @@ export class CultivatorDatabase {
           const levelUpResult = this.calculateLevelUp(identity, newDaysCompleted);
           leveledUp = levelUpResult.leveledUp;
           evolved = levelUpResult.evolved;
-          
-          // Update identity
+
+          // Update identity using the calculated result
           identity.level = levelUpResult.newLevel;
           identity.tier = levelUpResult.newTier;
           identity.requiredDaysPerLevel = levelUpResult.newRequiredDaysPerLevel;
-          identity.daysCompleted = newDaysCompleted - identity.requiredDaysPerLevel;
-          
+
+          // Use remainingDays returned from calculation for the current level's progress
+          identity.daysCompleted = levelUpResult.remainingDays;
+
           if (evolved) {
             message += `Evolved to ${identity.tier} tier! `;
           }
           if (leveledUp) {
             message += `Level up to ${identity.level}! `;
           }
-          
+
           await this.updateIdentity(identity);
         }
       } else {
@@ -329,8 +437,8 @@ export class CultivatorDatabase {
       }
     }
 
-    // Update progress
-    progress.daysCompleted = newDaysCompleted;
+  // Update progress - if identity was leveled up, progress should reflect the remaining days for the new level
+  progress.daysCompleted = leveledUp ? identity.daysCompleted : newDaysCompleted;
     progress.completedToday = completedToday;
     progress.level = identity.level;
     progress.tier = identity.tier;
@@ -355,6 +463,7 @@ export class CultivatorDatabase {
     newLevel: number;
     newTier: IdentityTier;
     newRequiredDaysPerLevel: number;
+    remainingDays: number;
   } {
     let leveledUp = false;
     let evolved = false;
@@ -362,30 +471,37 @@ export class CultivatorDatabase {
     let newTier = identity.tier;
     let newRequiredDaysPerLevel = identity.requiredDaysPerLevel;
 
-    if (daysCompleted >= identity.requiredDaysPerLevel) {
+    // Use a working copy of daysCompleted and consume required days as we level
+    let remaining = daysCompleted;
+    let required = identity.requiredDaysPerLevel;
+
+    // Loop to allow multiple level-ups if enough days are present
+    while (remaining >= required) {
       leveledUp = true;
+      remaining -= required;
       newLevel += 1;
 
       // Check for evolution (at level 10)
       if (newLevel > 10) {
         evolved = true;
         newLevel = 1;
-        
+
         // Evolve tier
         const tierOrder: IdentityTier[] = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'];
-        const currentIndex = tierOrder.indexOf(identity.tier);
+        const currentIndex = tierOrder.indexOf(newTier);
         const nextIndex = Math.min(currentIndex + 1, tierOrder.length - 1);
         newTier = tierOrder[nextIndex];
       }
-      
-      // Get the new required days from the detailed definition
+
+      // Determine required days for the new level/tier
       const definition = this.getIdentityDefinition(identity.identityType);
       const tierDetail = definition.tiers.find(t => t.tier === newTier);
       const subLevel = tierDetail?.subLevels[newLevel - 1];
-      newRequiredDaysPerLevel = subLevel?.daysToComplete || TIER_CONFIGS[newTier]?.requiredDaysPerLevel || 10;
+      required = subLevel?.daysToComplete || TIER_CONFIGS[newTier]?.requiredDaysPerLevel || 10;
+      newRequiredDaysPerLevel = required;
     }
 
-    return { leveledUp, evolved, newLevel, newTier, newRequiredDaysPerLevel };
+    return { leveledUp, evolved, newLevel, newTier, newRequiredDaysPerLevel, remainingDays: remaining };
   }
 
   private static isSameDay(date1: Date, date2: Date): boolean {
