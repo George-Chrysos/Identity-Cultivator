@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Plus, Sparkles, X } from 'lucide-react';
 import { useCultivatorStore } from '@/store/cultivatorStore';
 import { useAuthStore } from '@/store/authStore';
 import CultivatorCard from '@/components/CultivatorCard';
 import Header from '@/components/Header';
-import { IdentityTier } from '@/models/cultivatorTypes';
+import { IdentityTier, IdentityType } from '@/models/cultivatorTypes';
 
 const CultivatorHomepage = () => {
   const { isAuthenticated, currentUser: authUser } = useAuthStore();
@@ -89,8 +89,23 @@ const CultivatorHomepage = () => {
     return colors[tier];
   };
 
+  // Create the three default identities once
+  const [creatingDefaults, setCreatingDefaults] = useState(false);
   const handleCreateNewIdentity = async () => {
-    await createNewIdentity('CULTIVATOR', 'Core Awakener');
+    if (creatingDefaults) return;
+    if (!currentUser) return;
+    setCreatingDefaults(true);
+    try {
+      const defaultTypes: IdentityType[] = ['CULTIVATOR', 'BODYSMITH', 'PATHWEAVER'];
+      const existingTypes = new Set(useCultivatorStore.getState().identities.map(i => i.identityType));
+      for (const t of defaultTypes) {
+        if (!existingTypes.has(t)) {
+          await createNewIdentity(t);
+        }
+      }
+    } finally {
+      setCreatingDefaults(false);
+    }
   };
 
   // Debug logging
@@ -321,10 +336,20 @@ const CultivatorHomepage = () => {
                 onClick={handleCreateNewIdentity}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="btn-primary inline-flex items-center gap-2 bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 shadow-[0_0_25px_-6px_rgba(139,92,246,0.6),0_0_25px_-6px_rgba(56,189,248,0.6)]"
+                disabled={creatingDefaults}
+                className={`btn-primary inline-flex items-center gap-2 bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 shadow-[0_0_25px_-6px_rgba(139,92,246,0.6),0_0_25px_-6px_rgba(56,189,248,0.6)] ${creatingDefaults ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
-                <Plus className="h-5 w-5" />
-                Start Cultivating
+                {creatingDefaults ? (
+                  <>
+                    <span className="h-5 w-5 inline-block border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Creating Identities...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-5 w-5" />
+                    Start Cultivating
+                  </>
+                )}
               </motion.button>
             </motion.div>
           ) : (
