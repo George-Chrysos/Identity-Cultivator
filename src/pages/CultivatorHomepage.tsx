@@ -35,9 +35,12 @@ const CultivatorHomepage = () => {
     
     const initializeCultivatorData = async () => {
       if (isAuthenticated && authUser && !currentUser && !isLoading && !isInitialized) {
-        const userKey = authUser.email ? authUser.email.split('@')[0] : (authUser.name || 'user');
-        console.log('🚀 Starting cultivator data initialization for:', authUser.name || authUser.email);
-        await initializeUser(authUser.name || authUser.email || 'Cultivator', `cultivator-${userKey}`);
+        // Use the actual Supabase auth user ID if available, otherwise create a deterministic ID
+        const userID = authUser.id || (authUser.email ? `user-${authUser.email.split('@')[0]}` : `user-${authUser.name || 'cultivator'}`);
+        const userName = authUser.name || authUser.email || 'Cultivator';
+        
+        console.log('🚀 Starting cultivator data initialization:', { userID, userName });
+        await initializeUser(userName, userID);
         console.log('✅ Cultivator data initialization complete');
       } else {
         console.log('⏭️ Skipping initialization:', {
@@ -60,11 +63,17 @@ const CultivatorHomepage = () => {
   const getTierColor = (tier: IdentityTier) => {
     const colors: Record<IdentityTier, string> = {
       'D': 'text-violet-300',
+      'D+': 'text-violet-300',
       'C': 'text-cyan-300',
+      'C+': 'text-cyan-300',
       'B': 'text-cyan-200',
+      'B+': 'text-cyan-200',
       'A': 'text-violet-200',
+      'A+': 'text-violet-200',
       'S': 'text-cyan-100',
+      'S+': 'text-cyan-100',
       'SS': 'text-amber-200',
+      'SS+': 'text-amber-200',
       'SSS': 'text-amber-100',
     };
     return colors[tier];

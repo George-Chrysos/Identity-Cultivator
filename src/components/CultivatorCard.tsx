@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Zap, Calendar, X } from 'lucide-react';
+import { Crown, Zap, Calendar, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Identity, UserProgress, IdentityTier } from '@/models/cultivatorTypes';
 import { useCultivatorStore } from '@/store/cultivatorStore';
 import { useState, useMemo, useEffect } from 'react';
@@ -28,6 +28,8 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
   const effectiveProgress = liveProgress || progress; // ensure we always have latest
 
   const [showCalendar, setShowCalendar] = useState(false);
+  const [isTasksExpanded, setIsTasksExpanded] = useState(true); // Default: expanded to show current tasks
+  
   // lock body scroll when calendar open
   useEffect(() => {
     if (showCalendar) {
@@ -87,13 +89,19 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
   const getTierColor = (tier: IdentityTier) => {
     // Unified theme: base card gradient always violet->cyan, tier only affects subtle ring
     const map: Record<IdentityTier,string> = {
-      D: 'ring-1 ring-violet-400/30',
-      C: 'ring-1 ring-cyan-400/40',
-      B: 'ring-2 ring-cyan-300/50',
-      A: 'ring-2 ring-violet-300/60',
-      S: 'ring-2 ring-cyan-200/70',
-      SS: 'ring-2 ring-amber-200/75',
-      SSS: 'ring-3 ring-amber-100/80',
+      'D': 'ring-1 ring-violet-400/30',
+      'D+': 'ring-1 ring-violet-400/35',
+      'C': 'ring-1 ring-cyan-400/40',
+      'C+': 'ring-1 ring-cyan-400/45',
+      'B': 'ring-2 ring-cyan-300/50',
+      'B+': 'ring-2 ring-cyan-300/55',
+      'A': 'ring-2 ring-violet-300/60',
+      'A+': 'ring-2 ring-violet-300/65',
+      'S': 'ring-2 ring-cyan-200/70',
+      'S+': 'ring-2 ring-cyan-200/72',
+      'SS': 'ring-2 ring-amber-200/75',
+      'SS+': 'ring-3 ring-amber-200/77',
+      'SSS': 'ring-3 ring-amber-100/80',
     };
     return map[tier];
   };
@@ -102,11 +110,17 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
   const tierBadgeClass = (() => {
     switch (identity.tier) {
       case 'SSS': return 'bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-300 text-transparent bg-clip-text drop-shadow-[0_0_8px_rgba(251,191,36,0.9)] border-amber-300/70';
+      case 'SS+': return 'bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-300 text-transparent bg-clip-text drop-shadow-[0_0_7.5px_rgba(251,191,36,0.85)] border-amber-300/65';
       case 'SS': return 'bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-400 text-transparent bg-clip-text drop-shadow-[0_0_7px_rgba(251,191,36,0.8)] border-amber-400/60';
+      case 'S+': return 'bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-transparent bg-clip-text drop-shadow-[0_0_6.5px_rgba(251,191,36,0.77)] border-amber-400/55';
       case 'S': return 'bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-transparent bg-clip-text drop-shadow-[0_0_6px_rgba(251,191,36,0.75)] border-amber-400/50';
+      case 'A+': return 'bg-gradient-to-r from-fuchsia-300 via-violet-300 to-purple-300 text-transparent bg-clip-text drop-shadow-[0_0_6.5px_rgba(192,132,252,0.73)] border-violet-400/52';
       case 'A': return 'bg-gradient-to-r from-fuchsia-300 via-violet-300 to-purple-400 text-transparent bg-clip-text drop-shadow-[0_0_6px_rgba(192,132,252,0.7)] border-violet-400/50';
+      case 'B+': return 'bg-gradient-to-r from-emerald-300 via-green-300 to-teal-300 text-transparent bg-clip-text drop-shadow-[0_0_6.3px_rgba(52,211,153,0.63)] border-emerald-400/52';
       case 'B': return 'bg-gradient-to-r from-emerald-300 via-green-300 to-teal-300 text-transparent bg-clip-text drop-shadow-[0_0_6px_rgba(52,211,153,0.6)] border-emerald-400/50';
+      case 'C+': return 'bg-gradient-to-r from-cyan-300 via-sky-300 to-teal-300 text-transparent bg-clip-text drop-shadow-[0_0_6px_rgba(103,232,249,0.58)] border-cyan-400/42';
       case 'C': return 'bg-gradient-to-r from-cyan-300 via-sky-300 to-teal-300 text-transparent bg-clip-text drop-shadow-[0_0_6px_rgba(103,232,249,0.55)] border-cyan-400/40';
+      case 'D+': return 'bg-gradient-to-r from-slate-300 via-gray-300 to-zinc-300 text-transparent bg-clip-text drop-shadow-[0_0_5.5px_rgba(209,213,219,0.48)] border-gray-400/42';
       default: return 'bg-gradient-to-r from-slate-300 via-gray-300 to-zinc-200 text-transparent bg-clip-text drop-shadow-[0_0_5px_rgba(209,213,219,0.45)] border-gray-400/40'; // D
     }
   })();
@@ -168,19 +182,54 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
           </h3>
           <p className="text-cyan-200/70 text-xs tracking-wide uppercase">{identity.identityType} Path</p>
         </div>
-        {/* Daily Tasks */}
+        
+        {/* Daily Tasks Accordion */}
         <div className="mb-6">
-          <h4 className="text-sm font-semibold text-cyan-200 mb-3 tracking-wide uppercase">Daily Tasks</h4>
-          <ul className="space-y-3">
-            {tasks.map((taskText, idx) => (
-              <li key={`task-${idx}`} className="flex items-start gap-3">
-                <div className="mt-1 w-2 h-2 rounded-full bg-gradient-to-r from-violet-400 to-cyan-400 shadow-[0_0_6px_2px_rgba(56,189,248,0.5)]" />
-                <div>
-                  <p className="text-sm font-medium text-white">{taskText}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <button
+            onClick={() => setIsTasksExpanded(!isTasksExpanded)}
+            className="w-full flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-violet-900/20 to-cyan-900/20 border border-violet-400/30 hover:border-cyan-400/50 transition-all duration-200 group"
+          >
+            <div className="flex items-center gap-3">
+              {isTasksExpanded ? (
+                <ChevronDown className="h-5 w-5 text-cyan-300 group-hover:text-cyan-200 transition-colors" />
+              ) : (
+                <ChevronRight className="h-5 w-5 text-violet-300 group-hover:text-cyan-200 transition-colors" />
+              )}
+              <h4 className="text-sm font-semibold text-cyan-200 tracking-wide uppercase">
+                Daily Tasks
+              </h4>
+            </div>
+            <div className="text-xs text-cyan-300/70 font-medium">
+              Level {identity.level}/10
+            </div>
+          </button>
+          
+          <AnimatePresence>
+            {isTasksExpanded && (
+              <motion.ul
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="space-y-3 mt-3 overflow-hidden"
+              >
+                {tasks.map((taskText, idx) => (
+                  <motion.li
+                    key={`task-${idx}`}
+                    initial={{ x: -10, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: idx * 0.03, duration: 0.2 }}
+                    className="flex items-start gap-3"
+                  >
+                    <div className="mt-1 w-2 h-2 rounded-full bg-gradient-to-r from-violet-400 to-cyan-400 shadow-[0_0_6px_2px_rgba(56,189,248,0.5)]" />
+                    <div>
+                      <p className="text-sm font-medium text-white">{taskText}</p>
+                    </div>
+                  </motion.li>
+                ))}
+              </motion.ul>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Progress Bar */}

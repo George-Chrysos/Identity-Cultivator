@@ -14,7 +14,7 @@ import {
   DetailedIdentityDefinition
 } from '@/models/cultivatorTypes';
 import { supabaseDB } from '@/api/supabaseService';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 // Database service using localStorage for now, easily replaceable with real DB
 export class CultivatorDatabase {
@@ -25,18 +25,19 @@ export class CultivatorDatabase {
   };
 
   // User Management
-  static async createUser(name: string): Promise<User> {
-    if (isSupabaseConfigured()) {
-      // Supabase will manage users via auth; create a minimal placeholder
+  static async createUser(name: string, authUserId?: string): Promise<User> {
+    if (isSupabaseConfigured() && authUserId) {
+      // Ensure user exists in Supabase public.users table
+      await supabaseDB.ensureUser(authUserId, name);
+      
       const user: User = {
-        userID: this.generateID(),
+        userID: authUserId,  // Use auth user ID
         name,
         tier: 'D',
         totalDaysActive: 0,
         createdAt: new Date(),
         lastActiveDate: new Date(),
       };
-      // No-op persistence here; caller is expected to create auth user in Supabase
       return user;
     }
 
@@ -58,8 +59,23 @@ export class CultivatorDatabase {
 
   static async getUser(userID: string): Promise<User | null> {
     if (isSupabaseConfigured()) {
-      // Supabase stores users via auth; we return a minimal user record if needed
-      return null;
+      // Try to get user from Supabase
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userID)
+        .single();
+
+      if (error || !data) return null;
+
+      return {
+        userID: data.id,
+        name: data.name,
+        tier: data.tier,
+        totalDaysActive: data.total_days_active,
+        createdAt: new Date(data.created_at),
+        lastActiveDate: new Date(data.last_active_date),
+      };
     }
 
     const users = await this.getUsers();
@@ -68,7 +84,21 @@ export class CultivatorDatabase {
 
   static async updateUser(user: User): Promise<User> {
     if (isSupabaseConfigured()) {
-      // Supabase user updates handled via auth/profile - just return the provided user
+      // Update user in Supabase
+      const { error } = await supabase
+        .from('users')
+        .upsert({
+          id: user.userID,
+          name: user.name,
+          tier: user.tier,
+          total_days_active: user.totalDaysActive,
+          last_active_date: user.lastActiveDate.toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error updating user:', error);
+      }
       return user;
     }
 

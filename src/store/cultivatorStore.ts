@@ -19,7 +19,10 @@ const MAX_ACTIVE_IDENTITIES = 5;
 
 // Helper functions
 const getBestIdentity = (identities: Identity[]): Identity | null => {
-  const tierOrder: Record<IdentityTier, number> = { 'SSS': 7, 'SS': 6, 'S': 5, 'A': 4, 'B': 3, 'C': 2, 'D': 1 };
+  const tierOrder: Record<IdentityTier, number> = { 
+    'SSS': 13, 'SS+': 12, 'SS': 11, 'S+': 10, 'S': 9, 
+    'A+': 8, 'A': 7, 'B+': 6, 'B': 5, 'C+': 4, 'C': 3, 'D+': 2, 'D': 1 
+  };
   return identities.reduce((best, current) => {
     if (!best) return current;
     const bestScore = tierOrder[best.tier] * 100 + best.level;
@@ -113,7 +116,7 @@ export const useCultivatorStore = create<CultivatorState>()(
 
         try {
           // Use provided userId or create a default one (deterministic)
-            let desiredUserID = userId || `user-${name.toLowerCase().replace(/\s+/g, '-')}`;
+          let desiredUserID = userId || `user-${name.toLowerCase().replace(/\s+/g, '-')}`;
           console.log('📝 Using userID:', desiredUserID);
           
           // Check if user already exists
@@ -121,18 +124,9 @@ export const useCultivatorStore = create<CultivatorState>()(
           console.log('👤 Existing user found:', !!user);
           
           if (!user) {
-            console.log('🆕 Creating new user with deterministic ID...');
-            // Manually create the user object instead of createUser()+override (prevents orphan record)
-            const newUser: User = {
-              userID: desiredUserID,
-              name,
-              tier: 'D',
-              totalDaysActive: 0,
-              createdAt: new Date(),
-              lastActiveDate: new Date(),
-            };
-            await CultivatorDatabase.updateUser(newUser); // updateUser will insert if not present (assumes implementation adjusted or existing user not found)
-            user = newUser;
+            console.log('🆕 Creating new user...');
+            // Create user using CultivatorDatabase which will handle Supabase properly
+            user = await CultivatorDatabase.createUser(name, desiredUserID);
             
             // Create 3 default identities for new users
             console.log('✨ Creating 3 default identities for new user...');
@@ -150,7 +144,7 @@ export const useCultivatorStore = create<CultivatorState>()(
           set({ isInitialized: true, isLoading: false });
         } catch (error) {
           console.error('❌ Failed to initialize user:', error);
-          set({ error: 'Failed to initialize user', isLoading: false, isInitialized: false });
+          set({ error: `Failed to initialize user: ${error}`, isLoading: false, isInitialized: false });
         }
       },
 
@@ -338,7 +332,10 @@ export const useCultivatorStore = create<CultivatorState>()(
       },
 
       getSortedIdentities: () => {
-        const tierOrder: Record<IdentityTier, number> = { 'SSS': 7, 'SS': 6, 'S': 5, 'A': 4, 'B': 3, 'C': 2, 'D': 1 };
+        const tierOrder: Record<IdentityTier, number> = { 
+          'SSS': 13, 'SS+': 12, 'SS': 11, 'S+': 10, 'S': 9, 
+          'A+': 8, 'A': 7, 'B+': 6, 'B': 5, 'C+': 4, 'C': 3, 'D+': 2, 'D': 1 
+        };
         return get().identities
           .filter(identity => identity.isActive)
           .sort((a, b) => {

@@ -6,6 +6,7 @@ import { signInWithGoogle, signOut as supabaseSignOut, getCurrentUser, onAuthSta
 const IS_LOCALHOST = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 interface AuthUser {
+  id?: string;  // Supabase auth user ID
   name?: string;
   email?: string;
 }
@@ -80,14 +81,28 @@ export const useAuthStore = create<AuthState>()(
 if (!IS_LOCALHOST) {
   getCurrentUser().then(({ user }) => {
     if (user) {
-      useAuthStore.setState({ currentUser: { name: user.user_metadata?.full_name || user.email, email: user.email }, isAuthenticated: true });
+      useAuthStore.setState({ 
+        currentUser: { 
+          id: user.id,  // Include user ID
+          name: user.user_metadata?.full_name || user.email, 
+          email: user.email 
+        }, 
+        isAuthenticated: true 
+      });
     }
   });
 
   // Listen for auth state changes (keeps store in sync)
   onAuthStateChange((authUser) => {
     if (authUser) {
-      useAuthStore.setState({ currentUser: { name: authUser.user_metadata?.full_name || authUser.email, email: authUser.email }, isAuthenticated: true });
+      useAuthStore.setState({ 
+        currentUser: { 
+          id: authUser.id,  // Include user ID
+          name: authUser.user_metadata?.full_name || authUser.email, 
+          email: authUser.email 
+        }, 
+        isAuthenticated: true 
+      });
     } else {
       useAuthStore.setState({ currentUser: null, isAuthenticated: false });
     }

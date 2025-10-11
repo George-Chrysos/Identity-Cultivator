@@ -74,6 +74,35 @@ export const supabaseDB = {
   // Check if using Supabase or local mode
   isOnline: () => isSupabaseConfigured(),
 
+  // Create or get user in public.users table
+  async ensureUser(authUserId: string, name: string): Promise<void> {
+    // Check if user exists
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', authUserId)
+      .single();
+
+    if (!existingUser) {
+      // Create user record
+      const { error } = await supabase
+        .from('users')
+        .insert({
+          id: authUserId,
+          name: name,
+          tier: 'D',
+          total_days_active: 0,
+          created_at: new Date().toISOString(),
+          last_active_date: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error creating user:', error);
+        throw error;
+      }
+    }
+  },
+
   // Fetch all active identities with progress for current user
   async fetchUserIdentities(userId: string): Promise<{ identities: Identity[], progress: UserProgress[] }> {
     if (!isSupabaseConfigured()) {
@@ -359,13 +388,19 @@ export const supabaseDB = {
 
   getRequiredDaysForTier(tier: IdentityTier): number {
     const tierDays: Record<IdentityTier, number> = {
-      D: 5,
-      C: 10,
-      B: 15,
-      A: 20,
-      S: 30,
-      SS: 40,
-      SSS: 50
+      'D': 5,
+      'D+': 6,
+      'C': 8,
+      'C+': 10,
+      'B': 12,
+      'B+': 14,
+      'A': 17,
+      'A+': 19,
+      'S': 22,
+      'S+': 24,
+      'SS': 27,
+      'SS+': 30,
+      'SSS': 33
     };
     return tierDays[tier] || 5;
   }
