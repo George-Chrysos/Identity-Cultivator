@@ -138,7 +138,7 @@ export const useCultivatorStore = create<CultivatorState>()(
       // Initialize or load user
       initializeUser: async (name: string, userId?: string) => {
         console.log('🔄 initializeUser called with:', { name, userId });
-        set({ isLoading: true, error: null, isInitialized: false });
+        set({ isLoading: true, isInitialized: false });
 
         try {
           // Use provided userId or create a default one (deterministic)
@@ -191,14 +191,18 @@ export const useCultivatorStore = create<CultivatorState>()(
           set({ isInitialized: true, isLoading: false });
         } catch (error) {
           console.error('❌ Failed to initialize user:', error);
-          // Do not block the UI; mark initialized to let user proceed, but surface error
-          set({ error: `Failed to initialize user: ${error}`, isLoading: false, isInitialized: true });
+          // Do not block the UI; mark initialized to let user proceed, but show error toast
+          set({ isLoading: false, isInitialized: true });
+          
+          // Show error toast
+          const { toast } = await import('@/store/toastStore');
+          toast.error(`Failed to initialize user: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       },
 
       loadUserData: async (userID: string) => {
         console.log('📖 loadUserData called for userID:', userID);
-        set({ isLoading: true, error: null });
+        set({ isLoading: true });
 
         try {
           // First, cleanup any duplicate identities
@@ -263,8 +267,12 @@ export const useCultivatorStore = create<CultivatorState>()(
           }
         } catch (error) {
           console.error('❌ Failed to load user data:', error);
-          // Do not block the UI. Surface a toast, but ensure initialized stays true.
-          set({ error: 'Failed to load user data', isLoading: false });
+          // Do not block the UI. Show toast, but ensure initialized stays true.
+          set({ isLoading: false });
+          
+          // Show error toast
+          const { toast } = await import('@/store/toastStore');
+          toast.error('Failed to load user data');
         }
       },
 
@@ -275,18 +283,39 @@ export const useCultivatorStore = create<CultivatorState>()(
         // Check if user already has this identity type
         const hasType = get().identities.some(i => i.identityType === identityType);
         if (hasType) {
-          set({ error: `You already have a ${identityType} identity. Only one of each type is allowed.` });
+          const { toast } = await import('@/store/toastStore');
+          toast.error(`You already have a ${identityType} identity. Only one of each type is allowed.`);
           return;
         }
 
         // Enforce max active identities before creation
         const activeCount = get().identities.filter(i => i.isActive).length;
         if (activeCount >= MAX_ACTIVE_IDENTITIES) {
-          set({ error: `Maximum of ${MAX_ACTIVE_IDENTITIES} active identities reached. Deactivate one to create a new path.` });
+          const { toast } = await import('@/store/toastStore');
+          toast.error(`Maximum of ${MAX_ACTIVE_IDENTITIES} active identities reached. Deactivate one to create a new path.`);
           return;
         }
 
-        set({ isLoading: true, error: null });
+        // Create optimistic placeholder identity
+        const optimisticIdentity: Identity = {
+          identityID: `temp-${Date.now()}`,
+          userID: currentUser.userID,
+          title: customTitle || `${identityType} 1`,
+          imageUrl: `/images/${identityType.toLowerCase()}-base.png`,
+          tier: 'D',
+          level: 1,
+          daysCompleted: 0,
+          requiredDaysPerLevel: 10,
+          isActive: true,
+          createdAt: new Date(),
+          identityType,
+        };
+
+        // OPTIMISTIC UPDATE: Add immediately to UI
+        set((state) => ({
+          identities: [...state.identities, optimisticIdentity],
+          isLoading: true,
+        }));
 
         try {
           const newIdentity = await CultivatorDatabase.createIdentity({
@@ -295,24 +324,37 @@ export const useCultivatorStore = create<CultivatorState>()(
             customTitle,
           });
 
+          // Replace optimistic identity with real one
           set((state) => ({
-            identities: [...state.identities, newIdentity],
+            identities: state.identities.map(i => 
+              i.identityID === optimisticIdentity.identityID ? newIdentity : i
+            ),
             isLoading: false,
           }));
 
           // Reload to get updated progress
           await get().loadUserData(currentUser.userID);
+          
+          // Show success toast
+          const { toast } = await import('@/store/toastStore');
+          toast.success(`${identityType} identity created successfully!`);
         } catch (error) {
           console.error('Failed to create identity:', error);
-          set({ 
-            error: error instanceof Error ? error.message : 'Failed to create new identity', 
-            isLoading: false 
-          });
+          
+          // ROLLBACK: Remove optimistic identity
+          set((state) => ({
+            identities: state.identities.filter(i => i.identityID !== optimisticIdentity.identityID),
+            isLoading: false,
+          }));
+          
+          // Show error toast
+          const { toast } = await import('@/store/toastStore');
+          toast.error(error instanceof Error ? error.message : 'Failed to create new identity');
         }
       },
 
       toggleTaskCompletion: async (identityID: string) => {
-        const { currentUser } = get();
+        const { currentUser, identities } = get();
         if (!currentUser) return;
 
         // Concurrency guard: if this identity is already updating, ignore
@@ -321,26 +363,57 @@ export const useCultivatorStore = create<CultivatorState>()(
         }
 
         const progress = get().getProgressForIdentity(identityID);
-        if (!progress) return;
+        const identity = identities.find(i => i.identityID === identityID);
+        if (!progress || !identity) return;
 
-        // Add to updating list (no global isLoading to prevent page re-render)
-        set((state) => ({ progressUpdating: [...state.progressUpdating, identityID], error: null }));
+        // Capture original state for rollback
+        const originalProgress = { ...progress };
+        const originalIdentity = { ...identity };
+        const action = progress.completedToday ? 'REVERSE' : 'COMPLETE';
+
+        // OPTIMISTIC UPDATE: Update UI immediately
+        const today = new Date();
+        const todayISO = getLocalDateKey(today);
+        const optimisticProgress = {
+          ...progress,
+          completedToday: action === 'COMPLETE',
+          lastUpdatedDate: today,
+        };
+
+        // Update state optimistically
+        set((state) => ({
+          userProgress: state.userProgress.map(p => 
+            p.identityID === identityID ? optimisticProgress : p
+          ),
+          progressUpdating: [...state.progressUpdating, identityID],
+        }));
+
+        // Update local history optimistically
+        const existingRaw = localStorage.getItem(`identity-history-${identityID}`);
+        const history = existingRaw ? JSON.parse(existingRaw) : [];
+        const idx = history.findIndex((h: any) => h.date === todayISO);
+        if (idx >= 0) {
+          history[idx].completed = action === 'COMPLETE';
+        } else {
+          history.push({ date: todayISO, completed: action === 'COMPLETE' });
+        }
+        localStorage.setItem(`identity-history-${identityID}`, JSON.stringify(history));
+        set(state => ({ historyVersion: state.historyVersion + 1 }));
 
         try {
-          const action = progress.completedToday ? 'REVERSE' : 'COMPLETE';
+          // Make the actual database call
           const result = await CultivatorDatabase.updateProgress({
             userID: currentUser.userID,
             identityID,
             action,
           });
 
-            if (result.success) {
+          if (result.success) {
             const events: AnimationEvent[] = [];
             if (result.leveledUp) {
               events.push({
                 type: 'LEVEL_UP',
                 identityID,
-                // oldLevel best-effort: if we leveled up, previous level is current - 1 (bounds-safe)
                 oldLevel: Math.max(1, result.identity!.level - 1),
                 newLevel: result.identity!.level,
                 message: `Level up to ${result.identity!.level}!`,
@@ -356,40 +429,55 @@ export const useCultivatorStore = create<CultivatorState>()(
               });
             }
 
-            // Update identity & progress locally without full reload
+            // Update with actual server data
             set((state) => ({
               identities: state.identities.map(i => i.identityID === result.identity!.identityID ? result.identity! : i),
               userProgress: state.userProgress.map(p => p.identityID === result.progress!.identityID ? result.progress! : p),
               animationEvents: [...state.animationEvents, ...events],
               progressUpdating: state.progressUpdating.filter(id => id !== identityID),
             }));
-            // Recompute streak/day grid from local history for consistency across level-ups in LOCAL mode only
+
+            // Recompute streak/day grid from local history for consistency in LOCAL mode
             try {
               if (!isSupabaseConfigured()) {
                 get().recomputeProgressFromHistory(identityID);
               }
             } catch {}
-            // Record history for today (local date key)
-            const today = new Date();
-            const todayISO = getLocalDateKey(today);
-            const existingRaw = localStorage.getItem(`identity-history-${identityID}`);
-            const history = existingRaw ? JSON.parse(existingRaw) : [];
-            const idx = history.findIndex((h: any) => h.date === todayISO);
-            if (idx >= 0) history[idx].completed = result.progress!.completedToday; else history.push({ date: todayISO, completed: result.progress!.completedToday });
-            localStorage.setItem(`identity-history-${identityID}`, JSON.stringify(history));
-            set(state => ({ historyVersion: state.historyVersion + 1 }));
           } else {
+            // ROLLBACK on failure
             set((state) => ({
-              error: result.message,
+              identities: state.identities.map(i => i.identityID === identityID ? originalIdentity : i),
+              userProgress: state.userProgress.map(p => p.identityID === identityID ? originalProgress : p),
               progressUpdating: state.progressUpdating.filter(id => id !== identityID),
             }));
+            
+            // Restore history
+            const revertedHistory = existingRaw ? JSON.parse(existingRaw) : [];
+            localStorage.setItem(`identity-history-${identityID}`, JSON.stringify(revertedHistory));
+            set(state => ({ historyVersion: state.historyVersion + 1 }));
+            
+            // Show error toast
+            const { toast } = await import('@/store/toastStore');
+            toast.error(result.message || 'Failed to update task');
           }
         } catch (error) {
           console.error('Failed to update progress:', error);
+          
+          // ROLLBACK on error
           set((state) => ({
-            error: 'Failed to update task progress',
+            identities: state.identities.map(i => i.identityID === identityID ? originalIdentity : i),
+            userProgress: state.userProgress.map(p => p.identityID === identityID ? originalProgress : p),
             progressUpdating: state.progressUpdating.filter(id => id !== identityID),
           }));
+          
+          // Restore history
+          const revertedHistory = existingRaw ? JSON.parse(existingRaw) : [];
+          localStorage.setItem(`identity-history-${identityID}`, JSON.stringify(revertedHistory));
+          set(state => ({ historyVersion: state.historyVersion + 1 }));
+          
+          // Show error toast
+          const { toast } = await import('@/store/toastStore');
+          toast.error('Failed to update task progress');
         }
       },
 
@@ -534,6 +622,9 @@ export const useCultivatorStore = create<CultivatorState>()(
           const oldIdentity = get().identities.find(i => i.identityID === identityID);
           const oldProgress = get().userProgress.find(p => p.identityID === identityID);
           
+          // OPTIMISTIC UPDATE: Update history version immediately for UI refresh
+          set(state => ({ historyVersion: state.historyVersion + 1 }));
+          
           // Use Supabase for history management
           supabaseDB.setDateCompletion(currentUser.userID, identityID, date, completed)
             .then(() => {
@@ -598,26 +689,51 @@ export const useCultivatorStore = create<CultivatorState>()(
                 animationEvents: [...get().animationEvents, ...events],
               });
             })
-            .catch(err => {
+            .catch(async err => {
               console.error('Failed to set history entry:', err);
-              set({ error: 'Failed to update calendar entry' });
+              
+              // ROLLBACK: trigger another history version update to revert UI
+              set(state => ({ historyVersion: state.historyVersion + 1 }));
+              
+              // Show error toast
+              const { toast } = await import('@/store/toastStore');
+              toast.error('Failed to update calendar entry');
             });
           return;
         }
 
         // Local mode fallback
         const raw = localStorage.getItem(`identity-history-${identityID}`);
-        const history = raw ? (()=>{try{return JSON.parse(raw);}catch{return[]}})() : [];
+        const oldHistory = raw ? (()=>{try{return JSON.parse(raw);}catch{return[]}})() : [];
+        const history = [...oldHistory];
         const idx = history.findIndex((h: any)=>h.date===date);
+        
         if (idx>=0) {
           history[idx].completed = completed;
         } else {
           history.push({ date, completed });
         }
+        
+        // OPTIMISTIC UPDATE: Apply immediately
         localStorage.setItem(`identity-history-${identityID}`, JSON.stringify(history));
-        // Recompute + re-render
-        get().recomputeProgressFromHistory(identityID);
-        set(state => ({ historyVersion: state.historyVersion + 1 }));
+        
+        try {
+          // Recompute + re-render
+          get().recomputeProgressFromHistory(identityID);
+          set(state => ({ historyVersion: state.historyVersion + 1 }));
+        } catch (error) {
+          console.error('Failed to recompute progress:', error);
+          
+          // ROLLBACK: Restore old history
+          localStorage.setItem(`identity-history-${identityID}`, JSON.stringify(oldHistory));
+          set(state => ({ historyVersion: state.historyVersion + 1 }));
+          
+          // Show error toast
+          (async () => {
+            const { toast } = await import('@/store/toastStore');
+            toast.error('Failed to update calendar entry');
+          })();
+        }
       },
 
       recomputeProgressFromHistory: (identityID: string) => {

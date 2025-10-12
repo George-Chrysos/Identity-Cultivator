@@ -17,8 +17,6 @@ const CultivatorHomepage = () => {
     clearAnimationEvent,
     isLoading,
     isInitialized,
-    error,
-    clearError,
     initializeUser,
     createNewIdentity,
   } = useCultivatorStore();
@@ -114,8 +112,7 @@ const CultivatorHomepage = () => {
     authUser: !!authUser, 
     currentUser: !!currentUser, 
     isLoading,
-    isInitialized,
-    error 
+    isInitialized
   });
 
   // Show welcome page if not authenticated
@@ -198,28 +195,6 @@ const CultivatorHomepage = () => {
     <div className="min-h-screen bg-gradient-to-br from-[#0a0612] via-[#0e0a18] to-[#071d26]">
       <Header />
       
-      {/* Error Display */}
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-4 right-4 z-50 bg-red-600/90 text-white px-6 py-3 rounded-lg shadow-lg"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <span>{error}</span>
-              <button
-                onClick={clearError}
-                className="text-white/80 hover:text-white text-xl leading-none"
-              >
-                ×
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Animation Events */}
       <AnimatePresence>
         {animationEvents.map((event, index) => (
