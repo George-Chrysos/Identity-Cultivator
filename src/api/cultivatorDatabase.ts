@@ -459,15 +459,33 @@ export class CultivatorDatabase {
   }> {
     if (isSupabaseConfigured()) {
       try {
+        // Before toggling, capture current identity state to detect level/tier changes
+        const { data: beforeIdentity } = await supabase
+          .from('identities')
+          .select('level,tier')
+          .eq('id', request.identityID)
+          .single();
+
         // Delegate toggle operation to supabase service
         const result = await supabaseDB.toggleTaskCompletion(request.userID, request.identityID);
+
+        // Compare with previous to detect level up / evolution
+        const prevLevel = beforeIdentity?.level ?? result.identity.level;
+        const prevTier = beforeIdentity?.tier ?? result.identity.tier;
+        const leveledUp = result.identity.level !== prevLevel;
+        const evolved = result.identity.tier !== prevTier;
+
         return {
           success: true,
           identity: result.identity as Identity,
           progress: result.progress as UserProgress,
-          leveledUp: false,
-          evolved: false,
-          message: 'Updated via Supabase',
+          leveledUp,
+          evolved,
+          message: evolved
+            ? `Evolved to ${result.identity.tier} tier!`
+            : leveledUp
+              ? `Level up to ${result.identity.level}!`
+              : 'Updated via Supabase',
         };
       } catch (err: any) {
         return { success: false, message: err?.message || 'Supabase update failed' };
@@ -497,6 +515,11 @@ export class CultivatorDatabase {
       const decayDays = Math.min(daysSinceUpdate, progress.daysCompleted);
       newDaysCompleted = Math.max(0, progress.daysCompleted - decayDays);
       message += `Lost ${decayDays} days due to inactivity. `;
+    }
+
+    // If last update wasn't today, treat as not completed today (rollover reset)
+    if (!isToday && completedToday) {
+      completedToday = false;
     }
 
     if (request.action === 'COMPLETE') {

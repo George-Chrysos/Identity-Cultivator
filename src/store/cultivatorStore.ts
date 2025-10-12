@@ -14,6 +14,7 @@ import {
   TIER_CONFIGS,
 } from '@/models/cultivatorTypes';
 import { CultivatorDatabase } from '@/api/cultivatorDatabase';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 const MAX_ACTIVE_IDENTITIES = 5;
 
@@ -288,6 +289,11 @@ export const useCultivatorStore = create<CultivatorState>()(
         const { currentUser } = get();
         if (!currentUser) return;
 
+        // Concurrency guard: if this identity is already updating, ignore
+        if (get().progressUpdating.includes(identityID)) {
+          return;
+        }
+
         const progress = get().getProgressForIdentity(identityID);
         if (!progress) return;
 
@@ -308,7 +314,8 @@ export const useCultivatorStore = create<CultivatorState>()(
               events.push({
                 type: 'LEVEL_UP',
                 identityID,
-                oldLevel: result.identity!.level - 1,
+                // oldLevel best-effort: if we leveled up, previous level is current - 1 (bounds-safe)
+                oldLevel: Math.max(1, result.identity!.level - 1),
                 newLevel: result.identity!.level,
                 message: `Level up to ${result.identity!.level}!`,
               });
@@ -330,6 +337,12 @@ export const useCultivatorStore = create<CultivatorState>()(
               animationEvents: [...state.animationEvents, ...events],
               progressUpdating: state.progressUpdating.filter(id => id !== identityID),
             }));
+            // Recompute streak/day grid from local history for consistency across level-ups in LOCAL mode only
+            try {
+              if (!isSupabaseConfigured()) {
+                get().recomputeProgressFromHistory(identityID);
+              }
+            } catch {}
             // Record history for today (local date key)
             const today = new Date();
             const todayISO = getLocalDateKey(today);
@@ -443,7 +456,11 @@ export const useCultivatorStore = create<CultivatorState>()(
 
       canCompleteTaskToday: (identityID: string) => {
         const progress = get().getProgressForIdentity(identityID);
-        return progress ? !progress.completedToday : false;
+        if (!progress) return false;
+        const today = new Date();
+        const lastUpdate = new Date(progress.lastUpdatedDate);
+        const doneToday = isSameDay(today, lastUpdate) && progress.completedToday;
+        return !doneToday;
       },
 
       canReverseTaskToday: (identityID: string) => {

@@ -27,6 +27,12 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
   );
   const effectiveProgress = liveProgress || progress; // ensure we always have latest
 
+  // Determine if the task is completed for TODAY (guard against previous-day completedToday flag)
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const now = new Date();
+  const doneToday = effectiveProgress.completedToday && isSameDay(new Date(effectiveProgress.lastUpdatedDate), now);
+
   const [showCalendar, setShowCalendar] = useState(false);
   const [isTasksExpanded, setIsTasksExpanded] = useState(true); // Default: expanded to show current tasks
   
@@ -65,10 +71,10 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
   const toggleDay = (iso: string) => {
     const current = historyMap.get(iso) || false;
     setHistoryEntry(identity.identityID, iso, !current);
-    if (iso === todayISO && current === false && !effectiveProgress.completedToday) {
+    if (iso === todayISO && current === false && !doneToday) {
       // mark progress as done via main action for consistency
       toggleTaskCompletion(identity.identityID);
-    } else if (iso === todayISO && current === true && effectiveProgress.completedToday) {
+    } else if (iso === todayISO && current === true && doneToday) {
       // reverse completion if user unchecks today in calendar
       toggleTaskCompletion(identity.identityID);
     }
@@ -130,7 +136,7 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
   const tasks = getIdentityTasks(identity); // Get dynamic tasks from detailed definition
 
   const getButtonStyles = () => {
-    if (effectiveProgress.completedToday) {
+    if (doneToday) {
       return 'bg-green-500/25 text-green-200 border-2 border-green-400 hover:bg-green-500/35';
     }
     if (isClickable) {
@@ -271,7 +277,7 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
             ) : (
               <>
                 <Calendar className="h-5 w-5" />
-                {effectiveProgress.completedToday ? 'Completed' : 'Complete'}
+                {doneToday ? 'Completed' : 'Complete'}
               </>
             )}
           </div>
