@@ -14,6 +14,7 @@ import {
   TIER_CONFIGS,
 } from '@/models/cultivatorTypes';
 import { CultivatorDatabase } from '@/api/cultivatorDatabase';
+import { supabaseDB } from '@/api/supabaseService';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
 const MAX_ACTIVE_IDENTITIES = 5;
@@ -479,6 +480,26 @@ export const useCultivatorStore = create<CultivatorState>()(
       },
 
       setHistoryEntry: (identityID: string, date: string, completed: boolean) => {
+        const { currentUser } = get();
+        
+        if (isSupabaseConfigured() && currentUser) {
+          // Use Supabase for history management
+          supabaseDB.setDateCompletion(currentUser.userID, identityID, date, completed)
+            .then(() => {
+              // Reload identity and progress after recalculation
+              return supabaseDB.fetchUserIdentities(currentUser.userID);
+            })
+            .then(({ identities, progress }) => {
+              set({ identities, userProgress: progress, historyVersion: get().historyVersion + 1 });
+            })
+            .catch(err => {
+              console.error('Failed to set history entry:', err);
+              set({ error: 'Failed to update calendar entry' });
+            });
+          return;
+        }
+
+        // Local mode fallback
         const raw = localStorage.getItem(`identity-history-${identityID}`);
         const history = raw ? (()=>{try{return JSON.parse(raw);}catch{return[]}})() : [];
         const idx = history.findIndex((h: any)=>h.date===date);
