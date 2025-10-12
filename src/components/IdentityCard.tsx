@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { CheckCircle, Play, Pause, Calendar, Zap, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useState } from 'react';
 import { Identity } from '@/models/types';
 import { useIdentityStore } from '@/store/identityStore';
 import { toast } from '@/store/toastStore';
@@ -14,18 +15,39 @@ interface IdentityCardProps {
 }
 
 const IdentityCard = ({ identity, isCompletedToday, index = 0 }: IdentityCardProps) => {
-  const { completeDailyTask, activateIdentity, deactivateIdentity, canActivateMoreIdentities } = useIdentityStore();
+  const { completeDailyTask, uncompleteDailyTask, activateIdentity, deactivateIdentity, canActivateMoreIdentities } = useIdentityStore();
+  const [isCompleting, setIsCompleting] = useState(false);
 
   const handleCompleteTask = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!isCompletedToday && identity.isActive) {
-      const result = await completeDailyTask(identity.id);
-      if (result.success) {
-        toast.success(result.message);
+    
+    // Prevent multiple clicks while processing
+    if (!identity.isActive || isCompleting) {
+      return;
+    }
+    
+    setIsCompleting(true);
+    try {
+      if (isCompletedToday) {
+        // Uncomplete the task
+        const result = await uncompleteDailyTask(identity.id);
+        if (result.success) {
+          toast.info(result.message);
+        } else {
+          toast.error(result.message);
+        }
       } else {
-        toast.error(result.message);
+        // Complete the task
+        const result = await completeDailyTask(identity.id);
+        if (result.success) {
+          toast.success(result.message);
+        } else {
+          toast.error(result.message);
+        }
       }
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -123,15 +145,17 @@ const IdentityCard = ({ identity, isCompletedToday, index = 0 }: IdentityCardPro
             {identity.isActive && (
               <motion.button
                 onClick={handleCompleteTask}
-                disabled={isCompletedToday}
-                whileHover={!isCompletedToday ? { scale: 1.1 } : {}}
-                whileTap={!isCompletedToday ? { scale: 0.95 } : {}}
+                disabled={isCompleting}
+                whileHover={!isCompleting ? { scale: 1.1 } : {}}
+                whileTap={!isCompleting ? { scale: 0.95 } : {}}
                 className={`p-2 rounded-xl transition-all duration-200 ${
-                  isCompletedToday
-                    ? 'text-green-400 bg-green-900/40 shadow-glow cursor-not-allowed'
+                  isCompleting
+                    ? 'text-gray-400 bg-gray-800/30 cursor-wait opacity-50'
+                    : isCompletedToday
+                    ? 'text-green-400 bg-green-900/40 shadow-glow hover:bg-green-800/50'
                     : 'text-gray-400 hover:text-cyan-300 hover:bg-cyan-900/30 hover:shadow-glow'
                 }`}
-                title={isCompletedToday ? 'Completed' : 'Complete'}
+                title={isCompleting ? 'Processing...' : isCompletedToday ? 'Click to uncomplete' : 'Complete task'}
               >
                 <CheckCircle className="h-5 w-5" />
               </motion.button>

@@ -27,6 +27,7 @@ interface IdentityState {
   activateIdentity: (id: string) => Promise<{ success: boolean; message: string }>;
   deactivateIdentity: (id: string) => Promise<{ success: boolean; message: string }>;
   completeDailyTask: (identityId: string) => Promise<{ success: boolean; message: string; levelUp?: boolean; evolution?: boolean }>;
+  uncompleteDailyTask: (identityId: string) => Promise<{ success: boolean; message: string }>;
   
   // Internal actions
   loadData: () => Promise<void>;
@@ -415,6 +416,112 @@ export const useIdentityStore = create<IdentityState>()(
           return {
             success: false,
             message: 'Failed to complete task',
+          };
+        }
+      },
+
+      // Uncomplete daily task (remove today's completion)
+      uncompleteDailyTask: async (identityId) => {
+        const identity = get().getIdentityById(identityId);
+        
+        if (!identity) {
+          return {
+            success: false,
+            message: 'Identity not found',
+          };
+        }
+
+        if (!identity.isActive) {
+          return {
+            success: false,
+            message: 'Identity must be active to uncomplete tasks',
+          };
+        }
+
+        // Check if completed today
+        const completedToday = await IdentityService.wasTaskCompletedToday(identityId);
+        if (!completedToday.success || !completedToday.data) {
+          return {
+            success: false,
+            message: 'Task not completed today',
+          };
+        }
+
+        set({ isLoading: true, error: null });
+
+        try {
+          // Remove today's completion
+          const removeResponse = await IdentityService.removeTodayTaskCompletion(identityId);
+
+          if (!removeResponse.success || !removeResponse.data) {
+            throw new Error('Failed to remove task completion');
+          }
+
+          const removedCompletion = removeResponse.data;
+
+          // Calculate XP to remove (reverse of what was gained)
+          const xpToRemove = removedCompletion.xpGained;
+
+          // Calculate new XP (but don't go below 0)
+          const newXP = Math.max(0, identity.xp - xpToRemove);
+          
+          // We need to recalculate level based on new XP
+          // This is a simplified version - might need to handle level-downs properly
+          let newLevel = identity.level;
+          let currentLevelXP = newXP;
+          
+          // Simple recalculation: keep subtracting level thresholds until we find the right level
+          while (newLevel > 1 && currentLevelXP < 0) {
+            newLevel--;
+            const prevLevelThreshold = 50 * newLevel;
+            currentLevelXP += prevLevelThreshold;
+          }
+
+          // Calculate XP to next level
+          const xpToNextLevel = (50 * newLevel) - currentLevelXP;
+
+          // Update identity stats
+          const updateResponse = await IdentityService.updateIdentity({
+            id: identityId,
+            updates: {
+              xp: newXP,
+              level: newLevel,
+              xpToNextLevel: xpToNextLevel,
+            },
+          });
+
+          if (!updateResponse.success) {
+            throw new Error('Failed to update identity');
+          }
+
+          // Update store state
+          set((state) => ({
+            identities: state.identities.map((i) =>
+              i.id === identityId ? updateResponse.data : i
+            ),
+            taskCompletions: state.taskCompletions.filter(
+              (c) => c.id !== removedCompletion.id
+            ),
+            gameStats: {
+              ...state.gameStats,
+              totalTasksCompleted: Math.max(0, state.gameStats.totalTasksCompleted - 1),
+            },
+            isLoading: false,
+          }));
+
+          get().recalculateCharacter();
+
+          return {
+            success: true,
+            message: `Task uncompleted! -${xpToRemove} XP`,
+          };
+
+        } catch (error) {
+          console.error('Uncomplete task error:', error);
+          set({ isLoading: false, error: 'Failed to uncomplete task' });
+          return {
+            success: false,
+            message: 'Failed to uncomplete task',
           };
         }
       },

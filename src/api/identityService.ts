@@ -291,4 +291,51 @@ export class IdentityService {
       };
     }
   }
+
+  /**
+   * Remove today's task completion for an identity
+   */
+  static async removeTodayTaskCompletion(identityId: string): Promise<ApiResponse<TaskCompletion | null>> {
+    try {
+      const completionsResponse = await this.getTaskCompletions();
+      const allCompletions = completionsResponse.data;
+      const today = new Date();
+      
+      // Find today's completion for this identity
+      const todayCompletionIndex = allCompletions.findIndex(completion => {
+        const completionDate = new Date(completion.date);
+        return (
+          completion.identityId === identityId &&
+          completionDate.getDate() === today.getDate() &&
+          completionDate.getMonth() === today.getMonth() &&
+          completionDate.getFullYear() === today.getFullYear()
+        );
+      });
+
+      if (todayCompletionIndex === -1) {
+        return {
+          data: null,
+          success: false,
+          message: 'No completion found for today',
+        };
+      }
+
+      const removedCompletion = allCompletions[todayCompletionIndex];
+      const updatedCompletions = allCompletions.filter((_, index) => index !== todayCompletionIndex);
+      localStorage.setItem(STORAGE_KEYS.TASK_COMPLETIONS, JSON.stringify(updatedCompletions));
+
+      return {
+        data: removedCompletion,
+        success: true,
+        message: 'Task completion removed',
+      };
+    } catch (error) {
+      console.error('Failed to remove task completion:', error);
+      return {
+        data: null,
+        success: false,
+        message: 'Failed to remove task completion',
+      };
+    }
+  }
 }
