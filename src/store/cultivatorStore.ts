@@ -670,67 +670,47 @@ export const useCultivatorStore = create<CultivatorState>()(
               // Find the updated identity and progress
               const newIdentity = identities.find(i => i.identityID === identityID);
               const newProgress = progress.find(p => p.identityID === identityID);
-              
+
               // Detect level-up or evolution
               const events: AnimationEvent[] = [];
               if (oldIdentity && newIdentity && oldProgress && newProgress) {
                 const tierChanged = oldIdentity.tier !== newIdentity.tier;
-                const levelChanged = oldProgress.level !== newProgress.level;
-                
-                logger.debug('Checking for level-up/evolution', {
-                  identityID,
-                  tierChanged,
-                  levelChanged,
-                  oldTier: oldIdentity.tier,
-                  newTier: newIdentity.tier,
-                  oldLevel: oldProgress.level,
-                  newLevel: newProgress.level
-                });
-                
+                const levelIncreased = newProgress.level > oldProgress.level;
+
                 if (tierChanged) {
-                  // Evolution occurred
-                  const event: AnimationEvent = {
+                  events.push({
                     type: 'EVOLUTION',
                     identityID,
                     oldTier: oldIdentity.tier,
                     newTier: newIdentity.tier,
                     message: `Evolved to ${newIdentity.tier} tier!`,
-                  };
-                  events.push(event);
-                  logger.info('Evolution event created', event);
+                  });
                 }
-                
-                if (levelChanged && newProgress.level > oldProgress.level) {
-                  // Level-up occurred
-                  const event: AnimationEvent = {
+                if (levelIncreased) {
+                  events.push({
                     type: 'LEVEL_UP',
                     identityID,
                     oldLevel: oldProgress.level,
                     newLevel: newProgress.level,
                     message: `Level up to ${newProgress.level}!`,
-                  };
-                  events.push(event);
-                  logger.info('Level-up event created', event);
+                  });
                 }
               }
-              
-              logger.debug('Total animation events created', { count: events.length });
-              
-              // PRESERVE SORT ORDER: Only recalculate if level/tier changed significantly
+
+              // PRESERVE SORT ORDER: Recalculate only if level/tier changed
               let newSortOrderMap = oldSortOrderMap;
               if (events.length > 0) {
-                // Recalculate sort order only on level-up/evolution
                 newSortOrderMap = calculateSortOrderMap(identities);
               }
-              
-              // Update state with new data and animation events
-              set({ 
-                identities, 
-                userProgress: progress, 
-                historyVersion: get().historyVersion + 1,
-                animationEvents: [...get().animationEvents, ...events],
+
+              // Merge only the affected identity/progress to avoid list reorder flicker
+              set(state => ({
+                identities: state.identities.map(i => i.identityID === identityID && newIdentity ? newIdentity : i),
+                userProgress: state.userProgress.map(p => p.identityID === identityID && newProgress ? newProgress : p),
+                historyVersion: state.historyVersion + 1,
+                animationEvents: [...state.animationEvents, ...events],
                 sortOrderMap: newSortOrderMap,
-              });
+              }));
             })
             .catch(async err => {
               logger.error('Failed to set history entry', err);

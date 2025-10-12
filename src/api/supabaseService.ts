@@ -74,6 +74,11 @@ export const supabaseDB = {
   // Check if using Supabase or local mode
   isOnline: () => isSupabaseConfigured(),
 
+  // Use local calendar day for all day-based operations to avoid UTC shifts
+  toLocalDateStr(d: Date = new Date()): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  },
+
   // Create or get user in public.users table
   async ensureUser(authUserId: string, name: string): Promise<void> {
     // Check if user exists
@@ -199,7 +204,7 @@ export const supabaseDB = {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = this.toLocalDateStr(today);
     const todayCompleted = completionDates.has(todayStr);
     
     let streak = 0;
@@ -212,7 +217,7 @@ export const supabaseDB = {
 
     // Count backwards from checkDate
     while (true) {
-      const dateStr = checkDate.toISOString().split('T')[0];
+      const dateStr = this.toLocalDateStr(checkDate);
       
       if (completionDates.has(dateStr)) {
         streak++;
@@ -231,7 +236,7 @@ export const supabaseDB = {
 
   // Toggle task completion
   async toggleTaskCompletion(userId: string, identityId: string): Promise<{ progress: UserProgress, identity: Identity }> {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.toLocalDateStr(new Date());
 
     // Get current progress
     const { data: currentProgress, error: progError } = await supabase
@@ -475,10 +480,10 @@ export const supabaseDB = {
     if (completionsError) throw completionsError;
 
     const totalDaysCompleted = completions?.length || 0;
-    const streak = await this.calculateStreak(userId, identityId);
+  const streak = await this.calculateStreak(userId, identityId);
     
     // Check if today is completed
-    const today = new Date().toISOString().split('T')[0];
+  const today = this.toLocalDateStr(new Date());
     const completedToday = completions?.some(c => c.completion_date === today) || false;
 
     // Get current identity to know required days
