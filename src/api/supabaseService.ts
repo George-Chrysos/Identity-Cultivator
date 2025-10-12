@@ -190,39 +190,40 @@ export const supabaseDB = {
       .eq('reversed', false)
       .order('completion_date', { ascending: false });
 
-    if (error || !completions) return 0;
+    if (error || !completions || completions.length === 0) return 0;
 
-    // Calculate consecutive days UP TO today (not including today necessarily)
+    // Create a Set of completion date strings for fast lookup
+    const completionDates = new Set(completions.map(c => c.completion_date));
+    
+    // Calculate consecutive days UP TO today (not including today if not completed)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Check if today is completed
     const todayStr = today.toISOString().split('T')[0];
-    const todayCompleted = completions.some(c => c.completion_date === todayStr);
+    const todayCompleted = completionDates.has(todayStr);
     
     let streak = 0;
     let checkDate = new Date(today);
     
-    // If today is completed, start counting from today
-    // If not, start from yesterday
+    // If today is not completed, start from yesterday
     if (!todayCompleted) {
       checkDate.setDate(checkDate.getDate() - 1);
     }
 
-    for (const completion of completions) {
-      const completionDate = new Date(completion.completion_date);
-      completionDate.setHours(0, 0, 0, 0);
+    // Count backwards from checkDate
+    while (true) {
+      const dateStr = checkDate.toISOString().split('T')[0];
       
-      const expectedDate = new Date(checkDate);
-      expectedDate.setHours(0, 0, 0, 0);
-
-      if (completionDate.getTime() === expectedDate.getTime()) {
+      if (completionDates.has(dateStr)) {
         streak++;
         checkDate.setDate(checkDate.getDate() - 1); // Move back one day
-      } else if (completionDate.getTime() < expectedDate.getTime()) {
+      } else {
         // Gap found, streak is broken
         break;
       }
+      
+      // Safety check - don't go back more than 1000 days
+      if (streak > 1000) break;
     }
 
     return streak;

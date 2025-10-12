@@ -38,6 +38,7 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
   const [showCalendar, setShowCalendar] = useState(false);
   const [isTasksExpanded, setIsTasksExpanded] = useState(true); // Default: expanded to show current tasks
   const [supabaseHistory, setSupabaseHistory] = useState<{ date: string; completed: boolean }[]>([]);
+  const [optimisticUpdates, setOptimisticUpdates] = useState<Map<string, boolean>>(new Map());
   const { currentUser: authUser } = useAuthStore();
   
   // Fetch history from Supabase when calendar is opened
@@ -81,7 +82,15 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
     return getHistory(identity.identityID);
   }, [identity.identityID, historyVersion, supabaseHistory]);
   
-  const historyMap = useMemo(() => new Map(identityHistory.map(h => [h.date, h.completed])), [identityHistory]);
+  // Merge actual history with optimistic updates
+  const historyMap = useMemo(() => {
+    const map = new Map(identityHistory.map(h => [h.date, h.completed]));
+    // Apply optimistic updates on top
+    optimisticUpdates.forEach((completed, date) => {
+      map.set(date, completed);
+    });
+    return map;
+  }, [identityHistory, optimisticUpdates]);
 
   const viewDate = useMemo(() => new Date(calendarToday.getFullYear(), calendarToday.getMonth() + monthOffset, 1), [calendarToday, monthOffset]);
   const year = viewDate.getFullYear();
@@ -102,11 +111,24 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
     const current = historyMap.get(iso) || false;
     const newState = !current;
     
-    // Always update via setHistoryEntry (which syncs with Supabase)
+    // Optimistically update the UI immediately
+    setOptimisticUpdates(prev => {
+      const next = new Map(prev);
+      next.set(iso, newState);
+      return next;
+    });
+    
+    // Update via setHistoryEntry (which syncs with Supabase)
     setHistoryEntry(identity.identityID, iso, newState);
     
-    // If this is today's date, it should sync with the completion button
-    // The setHistoryEntry will trigger a full recalculation which updates everything
+    // Clear the optimistic update after a delay to let real data come in
+    setTimeout(() => {
+      setOptimisticUpdates(prev => {
+        const next = new Map(prev);
+        next.delete(iso);
+        return next;
+      });
+    }, 3000);
   };
 
   const isUpdating = progressUpdating.includes(identity.identityID);
