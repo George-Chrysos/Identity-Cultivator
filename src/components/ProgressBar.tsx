@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { formatXP } from '@/utils/gameLogic';
+import { formatXP } from '@/utils/formatters';
 
 interface ProgressBarProps {
   currentXP: number;

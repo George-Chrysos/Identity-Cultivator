@@ -194,15 +194,20 @@ export const supabaseDB = {
 
     if (progError) throw progError;
 
-    // Check if already completed today
-    const { data: existingCompletion } = await supabase
+    // Check if already completed today - use maybeSingle() to avoid errors if not found
+    const { data: existingCompletion, error: checkError } = await supabase
       .from('task_completions')
       .select('*')
       .eq('user_id', userId)
       .eq('identity_id', identityId)
       .eq('completion_date', today)
       .eq('reversed', false)
-      .single();
+      .maybeSingle();
+
+    // Log any check errors but don't throw - we'll handle it below
+    if (checkError) {
+      console.warn('Error checking existing completion:', checkError);
+    }
 
     let updatedProgress;
 
@@ -230,13 +235,24 @@ export const supabaseDB = {
       if (error) throw error;
       updatedProgress = data;
     } else {
-      // Mark as completed
-      await supabase.from('task_completions').insert({
-        user_id: userId,
-        identity_id: identityId,
-        completion_date: today,
-        reversed: false
-      });
+      // Mark as completed - use upsert to handle conflicts
+      const { error: insertError } = await supabase
+        .from('task_completions')
+        .upsert({
+          user_id: userId,
+          identity_id: identityId,
+          completion_date: today,
+          reversed: false,
+          completed_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,identity_id,completion_date',
+          ignoreDuplicates: false
+        });
+
+      if (insertError) {
+        console.error('Error inserting completion:', insertError);
+        throw insertError;
+      }
 
       // Update progress
       const { data, error } = await supabase
