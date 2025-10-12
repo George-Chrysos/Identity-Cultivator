@@ -192,11 +192,22 @@ export const supabaseDB = {
 
     if (error || !completions) return 0;
 
-    // Calculate consecutive days from today backwards
+    // Calculate consecutive days UP TO today (not including today necessarily)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    
+    // Check if today is completed
+    const todayStr = today.toISOString().split('T')[0];
+    const todayCompleted = completions.some(c => c.completion_date === todayStr);
+    
     let streak = 0;
     let checkDate = new Date(today);
+    
+    // If today is completed, start counting from today
+    // If not, start from yesterday
+    if (!todayCompleted) {
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
 
     for (const completion of completions) {
       const completionDate = new Date(completion.completion_date);

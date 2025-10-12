@@ -4,6 +4,9 @@ import { Identity, UserProgress, IdentityTier } from '@/models/cultivatorTypes';
 import { useCultivatorStore } from '@/store/cultivatorStore';
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { supabaseDB } from '@/api/supabaseService';
+import { useAuthStore } from '@/store/authStore';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 interface CultivatorCardProps {
   identity: Identity;
@@ -13,7 +16,6 @@ interface CultivatorCardProps {
 
 const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) => {
   // Split store selectors to reduce re-renders
-  const toggleTaskCompletion = useCultivatorStore(state => state.toggleTaskCompletion);
   const getIdentityTitle = useCultivatorStore(state => state.getIdentityTitle);
   const getIdentityTasks = useCultivatorStore(state => state.getIdentityTasks);
   const canCompleteTaskToday = useCultivatorStore(state => state.canCompleteTaskToday);
@@ -35,6 +37,27 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
 
   const [showCalendar, setShowCalendar] = useState(false);
   const [isTasksExpanded, setIsTasksExpanded] = useState(true); // Default: expanded to show current tasks
+  const [supabaseHistory, setSupabaseHistory] = useState<{ date: string; completed: boolean }[]>([]);
+  const { currentUser: authUser } = useAuthStore();
+  
+  // Fetch history from Supabase when calendar is opened
+  useEffect(() => {
+    if (showCalendar && isSupabaseConfigured() && authUser?.id) {
+      supabaseDB.getCompletionHistory(authUser.id, identity.identityID)
+        .then(completions => {
+          const history = completions
+            .filter(c => !c.reversed)
+            .map(c => ({
+              date: c.completion_date,
+              completed: true
+            }));
+          setSupabaseHistory(history);
+        })
+        .catch(err => {
+          console.error('Failed to fetch completion history:', err);
+        });
+    }
+  }, [showCalendar, identity.identityID, authUser, historyVersion]);
   
   // lock body scroll when calendar open
   useEffect(() => {
@@ -50,7 +73,14 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
   const localDateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const todayISO = localDateKey(calendarToday);
 
-  const identityHistory = useMemo(() => getHistory(identity.identityID), [identity.identityID, historyVersion]);
+  // Use Supabase history if available, otherwise use localStorage
+  const identityHistory = useMemo(() => {
+    if (isSupabaseConfigured() && supabaseHistory.length > 0) {
+      return supabaseHistory;
+    }
+    return getHistory(identity.identityID);
+  }, [identity.identityID, historyVersion, supabaseHistory]);
+  
   const historyMap = useMemo(() => new Map(identityHistory.map(h => [h.date, h.completed])), [identityHistory]);
 
   const viewDate = useMemo(() => new Date(calendarToday.getFullYear(), calendarToday.getMonth() + monthOffset, 1), [calendarToday, monthOffset]);
@@ -70,21 +100,23 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
 
   const toggleDay = (iso: string) => {
     const current = historyMap.get(iso) || false;
-    setHistoryEntry(identity.identityID, iso, !current);
-    if (iso === todayISO && current === false && !doneToday) {
-      // mark progress as done via main action for consistency
-      toggleTaskCompletion(identity.identityID);
-    } else if (iso === todayISO && current === true && doneToday) {
-      // reverse completion if user unchecks today in calendar
-      toggleTaskCompletion(identity.identityID);
-    }
+    const newState = !current;
+    
+    // Always update via setHistoryEntry (which syncs with Supabase)
+    setHistoryEntry(identity.identityID, iso, newState);
+    
+    // If this is today's date, it should sync with the completion button
+    // The setHistoryEntry will trigger a full recalculation which updates everything
   };
 
   const isUpdating = progressUpdating.includes(identity.identityID);
 
   const handleToggleTask = async () => {
     if (!isUpdating) {
-      await toggleTaskCompletion(identity.identityID);
+      // Toggle today's completion through the calendar system
+      // This ensures consistency between the button and calendar
+      const newState = !doneToday;
+      setHistoryEntry(identity.identityID, todayISO, newState);
     }
   };
 

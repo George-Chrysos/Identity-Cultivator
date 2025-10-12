@@ -474,6 +474,13 @@ export const useCultivatorStore = create<CultivatorState>()(
       },
 
       getHistory: (identityID: string) => {
+        if (isSupabaseConfigured()) {
+          // For Supabase, we'll rely on the calendar component to fetch
+          // For now, return empty and let it fetch async
+          // This is a temporary solution - ideally we'd cache this
+          return [];
+        }
+        
         const raw = localStorage.getItem(`identity-history-${identityID}`);
         if (!raw) return [];
         try { return JSON.parse(raw); } catch { return []; }
