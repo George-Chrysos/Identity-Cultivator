@@ -51,6 +51,28 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
 
 const getLocalDateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
+const calculateSortOrderMap = (identities: Identity[]): Record<string, number> => {
+  const tierOrder: Record<IdentityTier, number> = { 
+    'SSS': 13, 'SS+': 12, 'SS': 11, 'S+': 10, 'S': 9, 
+    'A+': 8, 'A': 7, 'B+': 6, 'B': 5, 'C+': 4, 'C': 3, 'D+': 2, 'D': 1 
+  };
+  
+  const sorted = identities
+    .filter(identity => identity.isActive)
+    .sort((a, b) => {
+      const tierDiff = tierOrder[b.tier] - tierOrder[a.tier];
+      if (tierDiff !== 0) return tierDiff;
+      return b.level - a.level;
+    });
+  
+  const sortOrderMap: Record<string, number> = {};
+  sorted.forEach((identity, index) => {
+    sortOrderMap[identity.identityID] = index;
+  });
+  
+  return sortOrderMap;
+};
+
 interface CultivatorState {
   // Current user data
   currentUser: User | null;
@@ -232,7 +254,7 @@ export const useCultivatorStore = create<CultivatorState>()(
               identities: userData.identities,
               userProgress: userData.progress,
               isLoading: false,
-              sortOrderMap: {}, // Clear sort order to recalculate on first getSortedIdentities call
+              sortOrderMap: calculateSortOrderMap(userData.identities), // Calculate initial sort order
             });
           } else {
             console.log('⚠️ No user data found');
@@ -400,12 +422,12 @@ export const useCultivatorStore = create<CultivatorState>()(
             .slice(0, MAX_ACTIVE_IDENTITIES);
         }
         
-        // Initial sort by tier and level (only happens on first load)
+        // Fallback: sort by tier and level (but don't save to avoid infinite loop)
         const tierOrder: Record<IdentityTier, number> = { 
           'SSS': 13, 'SS+': 12, 'SS': 11, 'S+': 10, 'S': 9, 
           'A+': 8, 'A': 7, 'B+': 6, 'B': 5, 'C+': 4, 'C': 3, 'D+': 2, 'D': 1 
         };
-        const sorted = identities
+        return identities
           .filter(identity => identity.isActive)
           .sort((a, b) => {
             const tierDiff = tierOrder[b.tier] - tierOrder[a.tier];
@@ -413,15 +435,6 @@ export const useCultivatorStore = create<CultivatorState>()(
             return b.level - a.level;
           })
           .slice(0, MAX_ACTIVE_IDENTITIES);
-        
-        // Save the sort order for future renders
-        const newSortOrderMap: Record<string, number> = {};
-        sorted.forEach((identity, index) => {
-          newSortOrderMap[identity.identityID] = index;
-        });
-        set({ sortOrderMap: newSortOrderMap });
-        
-        return sorted;
       },
 
       getProgressForIdentity: (identityID: string) => {
@@ -538,28 +551,44 @@ export const useCultivatorStore = create<CultivatorState>()(
                 const tierChanged = oldIdentity.tier !== newIdentity.tier;
                 const levelChanged = oldProgress.level !== newProgress.level;
                 
+                console.log('🔍 Checking for level-up/evolution:', {
+                  identityID,
+                  tierChanged,
+                  levelChanged,
+                  oldTier: oldIdentity.tier,
+                  newTier: newIdentity.tier,
+                  oldLevel: oldProgress.level,
+                  newLevel: newProgress.level
+                });
+                
                 if (tierChanged) {
                   // Evolution occurred
-                  events.push({
+                  const event: AnimationEvent = {
                     type: 'EVOLUTION',
                     identityID,
                     oldTier: oldIdentity.tier,
                     newTier: newIdentity.tier,
                     message: `Evolved to ${newIdentity.tier} tier!`,
-                  });
+                  };
+                  events.push(event);
+                  console.log('🐉 EVOLUTION EVENT CREATED:', event);
                 }
                 
                 if (levelChanged && newProgress.level > oldProgress.level) {
                   // Level-up occurred
-                  events.push({
+                  const event: AnimationEvent = {
                     type: 'LEVEL_UP',
                     identityID,
                     oldLevel: oldProgress.level,
                     newLevel: newProgress.level,
                     message: `Level up to ${newProgress.level}!`,
-                  });
+                  };
+                  events.push(event);
+                  console.log('⚡ LEVEL-UP EVENT CREATED:', event);
                 }
               }
+              
+              console.log('📊 Total animation events created:', events.length);
               
               // Update state with new data and animation events
               set({ 
