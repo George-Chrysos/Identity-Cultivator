@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Plus, Sparkles, X } from 'lucide-react';
 import { useCultivatorStore } from '@/store/cultivatorStore';
@@ -6,9 +6,13 @@ import { useAuthStore } from '@/store/authStore';
 import CultivatorCard from '@/components/CultivatorCard';
 import Header from '@/components/Header';
 import { IdentityTier, IdentityType } from '@/models/cultivatorTypes';
+import { logger } from '@/utils/logger';
+import { shallow } from 'zustand/shallow';
 
 const CultivatorHomepage = () => {
   const { isAuthenticated, currentUser: authUser } = useAuthStore();
+  
+  // ✅ OPTIMIZED: Combine selectors with shallow equality
   const {
     currentUser,
     getSortedIdentities,
@@ -19,13 +23,26 @@ const CultivatorHomepage = () => {
     isInitialized,
     initializeUser,
     createNewIdentity,
-  } = useCultivatorStore();
+  } = useCultivatorStore(
+    (state) => ({
+      currentUser: state.currentUser,
+      getSortedIdentities: state.getSortedIdentities,
+      getProgressForIdentity: state.getProgressForIdentity,
+      animationEvents: state.animationEvents,
+      clearAnimationEvent: state.clearAnimationEvent,
+      isLoading: state.isLoading,
+      isInitialized: state.isInitialized,
+      initializeUser: state.initializeUser,
+      createNewIdentity: state.createNewIdentity,
+    }),
+    shallow
+  );
 
   // Initialize cultivator data when user logs in
   const initStartedRef = useRef(false);
 
   useEffect(() => {
-    console.log('🔄 useEffect triggered:', { 
+    logger.debug('useEffect triggered', { 
       isAuthenticated, 
       hasAuthUser: !!authUser, 
       hasCultivatorUser: !!currentUser, 
@@ -47,11 +64,11 @@ const CultivatorHomepage = () => {
         const userID = authUser?.id || (authUser?.email ? `user-${authUser.email.split('@')[0]}` : `user-${authUser?.name || 'cultivator'}`);
         const userName = authUser?.name || authUser?.email || 'Cultivator';
         
-        console.log('🚀 Starting cultivator data initialization:', { userID, userName });
+        logger.info('Starting cultivator data initialization', { userID, userName });
         await initializeUser(userName, userID);
-        console.log('✅ Cultivator data initialization complete');
+        logger.info('Cultivator data initialization complete');
       } else {
-        console.log('⏭️ Skipping initialization:', {
+        logger.debug('Skipping initialization', {
           needsAuth: !isAuthenticated,
           needsAuthUser: !authUser,
           hasCurrentUser: !!currentUser,
@@ -89,7 +106,9 @@ const CultivatorHomepage = () => {
 
   // Create the three default identities once
   const [creatingDefaults, setCreatingDefaults] = useState(false);
-  const handleCreateNewIdentity = async () => {
+  
+  // ✅ OPTIMIZED: Memoize handler for creating default identities
+  const handleCreateNewIdentity = useCallback(async () => {
     if (creatingDefaults) return;
     if (!currentUser) return;
     setCreatingDefaults(true);
@@ -104,10 +123,10 @@ const CultivatorHomepage = () => {
     } finally {
       setCreatingDefaults(false);
     }
-  };
+  }, [creatingDefaults, currentUser, createNewIdentity]);
 
   // Debug logging
-  console.log('🎭 Render state:', { 
+  logger.debug('Render state', { 
     isAuthenticated, 
     authUser: !!authUser, 
     currentUser: !!currentUser, 

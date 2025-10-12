@@ -15,14 +15,15 @@ import {
 } from '@/models/cultivatorTypes';
 import { supabaseDB } from '@/api/supabaseService';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+// TODO: Use these imports when replacing localStorage calls
+// import { logger } from '@/utils/logger';
+// import { storage } from '@/services/storageService';
+import { DB_KEYS } from '@/constants/storage';
 
 // Database service using localStorage for now, easily replaceable with real DB
 export class CultivatorDatabase {
-  private static readonly STORAGE_KEYS = {
-    USERS: 'cultivator-users',
-    IDENTITIES: 'cultivator-identities', 
-    USER_PROGRESS: 'cultivator-user-progress',
-  };
+  // Use constants for storage keys
+  private static readonly STORAGE_KEYS = DB_KEYS;
 
   // Local-only helpers (ignore Supabase config)
   private static readLocalUsers(): User[] {

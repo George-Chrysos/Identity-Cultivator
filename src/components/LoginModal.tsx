@@ -28,11 +28,11 @@ const LoginModal = ({ isOpen, onClose }: LoginModalProps) => {
         exit={{ opacity: 0, scale: 0.9 }}
         className="bg-dark-surface border border-dark-border rounded-xl p-6 w-full max-w-md shadow-2xl"
       >
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-center mb-6 relative">
           <h2 className="text-2xl font-bold text-white font-accent">Sign In</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="absolute right-0 text-gray-400 hover:text-white transition-colors"
           >
             <X className="h-6 w-6" />
           </button>

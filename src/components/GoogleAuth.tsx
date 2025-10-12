@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { signInWithGoogle, signOut, onAuthStateChange } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { LogOut, Loader2 } from 'lucide-react';
+import { logger } from '@/utils/logger';
 
 interface GoogleAuthProps {
   onAuthChange?: (user: User | null) => void;
@@ -35,7 +36,7 @@ const GoogleAuth = ({ onAuthChange, onSignInStart, onSignInEnd }: GoogleAuthProp
 
       const { error } = await signInWithGoogle();
       if (error) {
-        console.error('Sign in error:', error);
+        logger.error('Sign in error', error);
         onSignInEnd?.(error.message);
         return;
       }
@@ -44,7 +45,7 @@ const GoogleAuth = ({ onAuthChange, onSignInStart, onSignInEnd }: GoogleAuthProp
       // We still notify the parent that sign-in flow finished (no immediate error).
       onSignInEnd?.(null);
     } catch (err: any) {
-      console.error('Unexpected error:', err);
+      logger.error('Unexpected error', err);
       onSignInEnd?.(err?.message || String(err));
     } finally {
       setSigningIn(false);
@@ -56,7 +57,7 @@ const GoogleAuth = ({ onAuthChange, onSignInStart, onSignInEnd }: GoogleAuthProp
       await signOut();
       setUser(null);
     } catch (err) {
-      console.error('Sign out error:', err);
+      logger.error('Sign out error', err);
     }
   };
 

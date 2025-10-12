@@ -16,31 +16,25 @@ import {
 import { CultivatorDatabase } from '@/api/cultivatorDatabase';
 import { supabaseDB } from '@/api/supabaseService';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { logger } from '@/utils/logger';
+import { TIER_ORDER, getOldTier as getOldTierUtil } from '@/constants/tiers';
+import { IDENTITY_LIMITS } from '@/constants/limits';
+import { getIdentityHistoryKey, STORE_KEYS } from '@/constants/storage';
 
-const MAX_ACTIVE_IDENTITIES = 5;
+const MAX_ACTIVE_IDENTITIES = IDENTITY_LIMITS.MAX_ACTIVE;
 
 // Helper functions
 const getBestIdentity = (identities: Identity[]): Identity | null => {
-  const tierOrder: Record<IdentityTier, number> = { 
-    'SSS': 13, 'SS+': 12, 'SS': 11, 'S+': 10, 'S': 9, 
-    'A+': 8, 'A': 7, 'B+': 6, 'B': 5, 'C+': 4, 'C': 3, 'D+': 2, 'D': 1 
-  };
   return identities.reduce((best, current) => {
     if (!best) return current;
-    const bestScore = tierOrder[best.tier] * 100 + best.level;
-    const currentScore = tierOrder[current.tier] * 100 + current.level;
+    const bestScore = TIER_ORDER[best.tier] * 100 + best.level;
+    const currentScore = TIER_ORDER[current.tier] * 100 + current.level;
     return currentScore > bestScore ? current : best;
   }, null as Identity | null);
 };
 
 const getOldTier = (currentTier: IdentityTier): IdentityTier => {
-  switch (currentTier) {
-    case 'C': return 'D';
-    case 'B': return 'C';
-    case 'A': return 'B';
-    case 'S': return 'A';
-    default: return 'D';
-  }
+  return getOldTierUtil(currentTier);
 };
 
 const isSameDay = (date1: Date, date2: Date): boolean => {
@@ -52,15 +46,10 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
 const getLocalDateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
 const calculateSortOrderMap = (identities: Identity[]): Record<string, number> => {
-  const tierOrder: Record<IdentityTier, number> = { 
-    'SSS': 13, 'SS+': 12, 'SS': 11, 'S+': 10, 'S': 9, 
-    'A+': 8, 'A': 7, 'B+': 6, 'B': 5, 'C+': 4, 'C': 3, 'D+': 2, 'D': 1 
-  };
-  
   const sorted = identities
     .filter(identity => identity.isActive)
     .sort((a, b) => {
-      const tierDiff = tierOrder[b.tier] - tierOrder[a.tier];
+      const tierDiff = TIER_ORDER[b.tier] - TIER_ORDER[a.tier];
       if (tierDiff !== 0) return tierDiff;
       return b.level - a.level;
     });
@@ -137,26 +126,26 @@ export const useCultivatorStore = create<CultivatorState>()(
 
       // Initialize or load user
       initializeUser: async (name: string, userId?: string) => {
-        console.log('🔄 initializeUser called with:', { name, userId });
+        logger.debug('initializeUser called', { name, userId });
         set({ isLoading: true, isInitialized: false });
 
         try {
           // Use provided userId or create a default one (deterministic)
           let desiredUserID = userId || `user-${name.toLowerCase().replace(/\s+/g, '-')}`;
-          console.log('📝 Using userID:', desiredUserID);
+          logger.debug('Using userID', { userID: desiredUserID });
           
           // Check if user already exists
           let user = await CultivatorDatabase.getUser(desiredUserID).catch((err) => {
-            console.warn('getUser failed, continuing with null:', err);
+            logger.warn('getUser failed, continuing with null', err);
             return null;
           });
-          console.log('👤 Existing user found:', !!user);
+          logger.debug('Existing user found', { found: !!user });
           
           if (!user) {
-            console.log('🆕 Creating new user...');
+            logger.info('Creating new user');
             // Create user using CultivatorDatabase which will handle Supabase properly
             user = await CultivatorDatabase.createUser(name, desiredUserID).catch((err) => {
-              console.error('createUser failed:', err);
+              logger.error('createUser failed', err);
               return null;
             });
             if (!user) {
@@ -172,25 +161,25 @@ export const useCultivatorStore = create<CultivatorState>()(
             }
             
             // Create 3 default identities for new users
-            console.log('✨ Creating 3 default identities for new user...');
+            logger.info('Creating 3 default identities for new user');
             const defaultTypes: IdentityType[] = ['CULTIVATOR', 'BODYSMITH', 'PATHWEAVER'];
             for (const identityType of defaultTypes) {
               try {
                 await CultivatorDatabase.createIdentity({ userID: desiredUserID, identityType });
               } catch (err) {
-                console.error('Failed to create identity', identityType, err);
+                logger.error(`Failed to create identity ${identityType}`, err);
               }
             }
-            console.log('✅ Default identities created');
+            logger.info('Default identities created');
           }
 
-          console.log('📖 Loading user data...');
+          logger.debug('Loading user data');
           await get().loadUserData(desiredUserID);
-          console.log('✅ User initialization complete');
+          logger.info('User initialization complete');
           
           set({ isInitialized: true, isLoading: false });
         } catch (error) {
-          console.error('❌ Failed to initialize user:', error);
+          logger.error('Failed to initialize user', error);
           // Do not block the UI; mark initialized to let user proceed, but show error toast
           set({ isLoading: false, isInitialized: true });
           
@@ -201,21 +190,24 @@ export const useCultivatorStore = create<CultivatorState>()(
       },
 
       loadUserData: async (userID: string) => {
-        console.log('📖 loadUserData called for userID:', userID);
+        logger.debug('loadUserData called', { userID });
         set({ isLoading: true });
 
         try {
           // First, cleanup any duplicate identities
           const duplicatesRemoved = await CultivatorDatabase.cleanupDuplicateIdentities(userID);
           if (duplicatesRemoved > 0) {
-            console.log(`🧹 Removed ${duplicatesRemoved} duplicate identities`);
+            logger.info(`Removed ${duplicatesRemoved} duplicate identities`);
           }
           
           let userData = await CultivatorDatabase.getUserData(userID).catch((err) => {
-            console.warn('getUserData failed, using empty dataset:', err);
+            logger.warn('getUserData failed, using empty dataset', err);
             return null;
           });
-          console.log('📊 User data retrieved:', !!userData, userData?.identities?.length || 0, 'identities');
+          logger.debug('User data retrieved', { 
+            hasData: !!userData, 
+            identityCount: userData?.identities?.length || 0 
+          });
           if (userData) {
             // Migration: ensure all three core identities exist
             const requiredTypes: IdentityType[] = ['CULTIVATOR','BODYSMITH','PATHWEAVER'];
@@ -223,7 +215,7 @@ export const useCultivatorStore = create<CultivatorState>()(
             let created = false;
             for (const t of requiredTypes) {
               if (!existingTypes.has(t)) {
-                console.log(`✨ Creating missing identity type: ${t}`);
+                logger.info(`Creating missing identity type: ${t}`);
                 try {
                   await CultivatorDatabase.createIdentity({ userID, identityType: t });
                   created = true;
@@ -231,9 +223,9 @@ export const useCultivatorStore = create<CultivatorState>()(
                   // Ignore duplicate error and continue; any other error should be logged but not block
                   const msg = e?.message || String(e);
                   if (msg.includes('Only one of each type')) {
-                    console.warn('Duplicate identity type detected during migration, continuing:', t);
+                    logger.warn(`Duplicate identity type detected during migration: ${t}`);
                   } else {
-                    console.error('Failed creating missing identity type, continuing with what we have:', t, e);
+                    logger.error(`Failed creating missing identity type: ${t}`, e);
                   }
                 }
               }
@@ -251,7 +243,9 @@ export const useCultivatorStore = create<CultivatorState>()(
               lastActiveDate: new Date(),
             };
             await CultivatorDatabase.updateUser(updatedUser);
-            console.log('✅ User data loaded successfully with', userData.identities.length, 'identities');
+            logger.info('User data loaded successfully', { 
+              identityCount: userData.identities.length 
+            });
 
             set({
               currentUser: updatedUser,
@@ -261,12 +255,12 @@ export const useCultivatorStore = create<CultivatorState>()(
               sortOrderMap: calculateSortOrderMap(userData.identities), // Calculate initial sort order
             });
           } else {
-            console.log('⚠️ No user data found');
+            logger.warn('No user data found');
             // proceed with empty state but not loading
             set({ isLoading: false });
           }
         } catch (error) {
-          console.error('❌ Failed to load user data:', error);
+          logger.error('Failed to load user data', error);
           // Do not block the UI. Show toast, but ensure initialized stays true.
           set({ isLoading: false });
           
@@ -339,7 +333,7 @@ export const useCultivatorStore = create<CultivatorState>()(
           const { toast } = await import('@/store/toastStore');
           toast.success(`${identityType} identity created successfully!`);
         } catch (error) {
-          console.error('Failed to create identity:', error);
+          logger.error('Failed to create identity', error);
           
           // ROLLBACK: Remove optimistic identity
           set((state) => ({
@@ -389,7 +383,8 @@ export const useCultivatorStore = create<CultivatorState>()(
         }));
 
         // Update local history optimistically
-        const existingRaw = localStorage.getItem(`identity-history-${identityID}`);
+        const historyKey = getIdentityHistoryKey(identityID);
+        const existingRaw = localStorage.getItem(historyKey);
         const history = existingRaw ? JSON.parse(existingRaw) : [];
         const idx = history.findIndex((h: any) => h.date === todayISO);
         if (idx >= 0) {
@@ -397,7 +392,7 @@ export const useCultivatorStore = create<CultivatorState>()(
         } else {
           history.push({ date: todayISO, completed: action === 'COMPLETE' });
         }
-        localStorage.setItem(`identity-history-${identityID}`, JSON.stringify(history));
+        localStorage.setItem(historyKey, JSON.stringify(history));
         set(state => ({ historyVersion: state.historyVersion + 1 }));
 
         try {
@@ -452,8 +447,9 @@ export const useCultivatorStore = create<CultivatorState>()(
             }));
             
             // Restore history
+            const historyKey = getIdentityHistoryKey(identityID);
             const revertedHistory = existingRaw ? JSON.parse(existingRaw) : [];
-            localStorage.setItem(`identity-history-${identityID}`, JSON.stringify(revertedHistory));
+            localStorage.setItem(historyKey, JSON.stringify(revertedHistory));
             set(state => ({ historyVersion: state.historyVersion + 1 }));
             
             // Show error toast
@@ -461,7 +457,7 @@ export const useCultivatorStore = create<CultivatorState>()(
             toast.error(result.message || 'Failed to update task');
           }
         } catch (error) {
-          console.error('Failed to update progress:', error);
+          logger.error('Failed to update progress', error);
           
           // ROLLBACK on error
           set((state) => ({
@@ -471,8 +467,9 @@ export const useCultivatorStore = create<CultivatorState>()(
           }));
           
           // Restore history
+          const historyKey = getIdentityHistoryKey(identityID);
           const revertedHistory = existingRaw ? JSON.parse(existingRaw) : [];
-          localStorage.setItem(`identity-history-${identityID}`, JSON.stringify(revertedHistory));
+          localStorage.setItem(historyKey, JSON.stringify(revertedHistory));
           set(state => ({ historyVersion: state.historyVersion + 1 }));
           
           // Show error toast
@@ -609,7 +606,8 @@ export const useCultivatorStore = create<CultivatorState>()(
           return [];
         }
         
-        const raw = localStorage.getItem(`identity-history-${identityID}`);
+        const historyKey = getIdentityHistoryKey(identityID);
+        const raw = localStorage.getItem(historyKey);
         if (!raw) return [];
         try { return JSON.parse(raw); } catch { return []; }
       },
@@ -642,7 +640,7 @@ export const useCultivatorStore = create<CultivatorState>()(
                 const tierChanged = oldIdentity.tier !== newIdentity.tier;
                 const levelChanged = oldProgress.level !== newProgress.level;
                 
-                console.log('🔍 Checking for level-up/evolution:', {
+                logger.debug('Checking for level-up/evolution', {
                   identityID,
                   tierChanged,
                   levelChanged,
@@ -662,7 +660,7 @@ export const useCultivatorStore = create<CultivatorState>()(
                     message: `Evolved to ${newIdentity.tier} tier!`,
                   };
                   events.push(event);
-                  console.log('🐉 EVOLUTION EVENT CREATED:', event);
+                  logger.info('Evolution event created', event);
                 }
                 
                 if (levelChanged && newProgress.level > oldProgress.level) {
@@ -675,11 +673,11 @@ export const useCultivatorStore = create<CultivatorState>()(
                     message: `Level up to ${newProgress.level}!`,
                   };
                   events.push(event);
-                  console.log('⚡ LEVEL-UP EVENT CREATED:', event);
+                  logger.info('Level-up event created', event);
                 }
               }
               
-              console.log('📊 Total animation events created:', events.length);
+              logger.debug('Total animation events created', { count: events.length });
               
               // Update state with new data and animation events
               set({ 
@@ -690,7 +688,7 @@ export const useCultivatorStore = create<CultivatorState>()(
               });
             })
             .catch(async err => {
-              console.error('Failed to set history entry:', err);
+              logger.error('Failed to set history entry', err);
               
               // ROLLBACK: trigger another history version update to revert UI
               set(state => ({ historyVersion: state.historyVersion + 1 }));
@@ -703,7 +701,8 @@ export const useCultivatorStore = create<CultivatorState>()(
         }
 
         // Local mode fallback
-        const raw = localStorage.getItem(`identity-history-${identityID}`);
+        const historyKey = getIdentityHistoryKey(identityID);
+        const raw = localStorage.getItem(historyKey);
         const oldHistory = raw ? (()=>{try{return JSON.parse(raw);}catch{return[]}})() : [];
         const history = [...oldHistory];
         const idx = history.findIndex((h: any)=>h.date===date);
@@ -715,17 +714,18 @@ export const useCultivatorStore = create<CultivatorState>()(
         }
         
         // OPTIMISTIC UPDATE: Apply immediately
-        localStorage.setItem(`identity-history-${identityID}`, JSON.stringify(history));
+        localStorage.setItem(historyKey, JSON.stringify(history));
         
         try {
           // Recompute + re-render
           get().recomputeProgressFromHistory(identityID);
           set(state => ({ historyVersion: state.historyVersion + 1 }));
         } catch (error) {
-          console.error('Failed to recompute progress:', error);
+          logger.error('Failed to recompute progress', error);
           
           // ROLLBACK: Restore old history
-          localStorage.setItem(`identity-history-${identityID}`, JSON.stringify(oldHistory));
+          const historyKey = getIdentityHistoryKey(identityID);
+          localStorage.setItem(historyKey, JSON.stringify(oldHistory));
           set(state => ({ historyVersion: state.historyVersion + 1 }));
           
           // Show error toast
@@ -742,7 +742,8 @@ export const useCultivatorStore = create<CultivatorState>()(
         const progress = userProgress.find(p => p.identityID === identityID);
         if (!identity || !progress) return;
 
-        const historyRaw = localStorage.getItem(`identity-history-${identityID}`);
+        const historyKey = getIdentityHistoryKey(identityID);
+        const historyRaw = localStorage.getItem(historyKey);
         const history: { date: string; completed: boolean }[] = historyRaw ? (()=>{try{return JSON.parse(historyRaw);}catch{return[]}})() : [];
         const totalCompleted = history.filter(h => h.completed).length;
 
@@ -977,7 +978,7 @@ export const useCultivatorStore = create<CultivatorState>()(
       // ---- End Testing Utilities ----
 
       resetStore: () => {
-        console.log('🔄 Resetting cultivator store');
+        logger.debug('Resetting cultivator store');
         set({
           currentUser: null,
           identities: [],
@@ -993,7 +994,7 @@ export const useCultivatorStore = create<CultivatorState>()(
 
     }),
     {
-      name: 'cultivator-store',
+      name: STORE_KEYS.CULTIVATOR,
       partialize: (state) => ({
         currentUser: state.currentUser,
         identities: state.identities,

@@ -2,11 +2,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Zap, Calendar, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Identity, UserProgress, IdentityTier } from '@/models/cultivatorTypes';
 import { useCultivatorStore } from '@/store/cultivatorStore';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { supabaseDB } from '@/api/supabaseService';
 import { useAuthStore } from '@/store/authStore';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { logger } from '@/utils/logger';
+import { shallow } from 'zustand/shallow';
 
 interface CultivatorCardProps {
   identity: Identity;
@@ -14,19 +16,41 @@ interface CultivatorCardProps {
   index?: number;
 }
 
-const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) => {
-  // Split store selectors to reduce re-renders
-  const getIdentityTitle = useCultivatorStore(state => state.getIdentityTitle);
-  const getIdentityTasks = useCultivatorStore(state => state.getIdentityTasks);
-  const canCompleteTaskToday = useCultivatorStore(state => state.canCompleteTaskToday);
-  const canReverseTaskToday = useCultivatorStore(state => state.canReverseTaskToday);
-  const progressUpdating = useCultivatorStore(state => state.progressUpdating);
-  const getHistory = useCultivatorStore(state => state.getHistory);
-  const setHistoryEntry = useCultivatorStore(state => state.setHistoryEntry);
-  const historyVersion = useCultivatorStore(state => state.historyVersion);
-  const liveProgress = useCultivatorStore(state => 
-    state.userProgress.find(p => p.identityID === identity.identityID) || null
+// ✅ OPTIMIZED: Memoize component with custom comparison
+const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardProps) => {
+  // ✅ OPTIMIZED: Combine selectors with shallow equality to reduce re-renders
+  const {
+    getIdentityTitle,
+    getIdentityTasks,
+    canCompleteTaskToday,
+    canReverseTaskToday,
+    progressUpdating,
+    getHistory,
+    setHistoryEntry,
+    historyVersion,
+  } = useCultivatorStore(
+    (state) => ({
+      getIdentityTitle: state.getIdentityTitle,
+      getIdentityTasks: state.getIdentityTasks,
+      canCompleteTaskToday: state.canCompleteTaskToday,
+      canReverseTaskToday: state.canReverseTaskToday,
+      progressUpdating: state.progressUpdating,
+      getHistory: state.getHistory,
+      setHistoryEntry: state.setHistoryEntry,
+      historyVersion: state.historyVersion,
+    }),
+    shallow
   );
+
+  // Keep liveProgress separate with custom equality to prevent unnecessary re-renders
+  const liveProgress = useCultivatorStore(
+    (state) => state.userProgress.find(p => p.identityID === identity.identityID) || null,
+    (prev, next) => 
+      prev?.userProgressID === next?.userProgressID && 
+      prev?.daysCompleted === next?.daysCompleted &&
+      prev?.completedToday === next?.completedToday
+  );
+  
   const effectiveProgress = liveProgress || progress; // ensure we always have latest
 
   // Determine if the task is completed for TODAY (guard against previous-day completedToday flag)
@@ -55,7 +79,7 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
           setSupabaseHistory(history);
         })
         .catch(err => {
-          console.error('Failed to fetch completion history:', err);
+          logger.error('Failed to fetch completion history', err);
         });
     }
   }, [showCalendar, identity.identityID, authUser, historyVersion]);
@@ -107,7 +131,8 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
     return list;
   }, [year, month]);
 
-  const toggleDay = (iso: string) => {
+  // ✅ OPTIMIZED: Memoize toggleDay handler
+  const toggleDay = useCallback((iso: string) => {
     const current = historyMap.get(iso) || false;
     const newState = !current;
     
@@ -129,26 +154,33 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
         return next;
       });
     }, 3000);
-  };
+  }, [historyMap, setHistoryEntry, identity.identityID]);
 
   const isUpdating = progressUpdating.includes(identity.identityID);
 
-  const handleToggleTask = async () => {
+  // ✅ OPTIMIZED: Memoize handleToggleTask handler
+  const handleToggleTask = useCallback(async () => {
     if (!isUpdating) {
       // Toggle today's completion through the calendar system
       // This ensures consistency between the button and calendar
       const newState = !doneToday;
       setHistoryEntry(identity.identityID, todayISO, newState);
     }
-  };
+  }, [isUpdating, doneToday, setHistoryEntry, identity.identityID, todayISO]);
 
   const canComplete = canCompleteTaskToday(identity.identityID);
+
+  // ✅ OPTIMIZED: Memoize calendar navigation handlers
+  const handlePrevMonth = useCallback(() => setMonthOffset(o => o - 1), []);
+  const handleNextMonth = useCallback(() => setMonthOffset(o => o + 1), []);
+  const handleResetMonth = useCallback(() => setMonthOffset(0), []);
+  const handleCloseCalendar = useCallback(() => setShowCalendar(false), []);
   const canReverse = canReverseTaskToday(identity.identityID);
   const isClickable = canComplete || canReverse;
 
-  const getTierColor = (tier: IdentityTier) => {
-    // Unified theme: base card gradient always violet->cyan, tier only affects subtle ring
-    const map: Record<IdentityTier,string> = {
+  // ✅ OPTIMIZED: Memoize getTierColor computation
+  const tierRingClass = useMemo(() => {
+    const map: Record<IdentityTier, string> = {
       'D': 'ring-1 ring-violet-400/30',
       'D+': 'ring-1 ring-violet-400/35',
       'C': 'ring-1 ring-cyan-400/40',
@@ -163,11 +195,11 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
       'SS+': 'ring-3 ring-amber-200/77',
       'SSS': 'ring-3 ring-amber-100/80',
     };
-    return map[tier];
-  };
+    return map[identity.tier];
+  }, [identity.tier]);
 
-  // Tier badge color styles (no icon)
-  const tierBadgeClass = (() => {
+  // ✅ OPTIMIZED: Memoize tier badge class
+  const tierBadgeClass = useMemo(() => {
     switch (identity.tier) {
       case 'SSS': return 'bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-300 text-transparent bg-clip-text drop-shadow-[0_0_8px_rgba(251,191,36,0.9)] border-amber-300/70';
       case 'SS+': return 'bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-300 text-transparent bg-clip-text drop-shadow-[0_0_7.5px_rgba(251,191,36,0.85)] border-amber-300/65';
@@ -183,13 +215,14 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
       case 'D+': return 'bg-gradient-to-r from-slate-300 via-gray-300 to-zinc-300 text-transparent bg-clip-text drop-shadow-[0_0_5.5px_rgba(209,213,219,0.48)] border-gray-400/42';
       default: return 'bg-gradient-to-r from-slate-300 via-gray-300 to-zinc-200 text-transparent bg-clip-text drop-shadow-[0_0_5px_rgba(209,213,219,0.45)] border-gray-400/40'; // D
     }
-  })();
+  }, [identity.tier]);
 
   const progressPercentage = (effectiveProgress.daysCompleted / identity.requiredDaysPerLevel) * 100;
   const identityTitle = getIdentityTitle(identity);
   const tasks = getIdentityTasks(identity); // Get dynamic tasks from detailed definition
 
-  const getButtonStyles = () => {
+  // ✅ OPTIMIZED: Memoize button styles based on state
+  const buttonStyles = useMemo(() => {
     if (doneToday) {
       return 'bg-green-500/25 text-green-200 border-2 border-green-400 hover:bg-green-500/35';
     }
@@ -197,7 +230,7 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
       return 'bg-cyan-500/25 text-cyan-200 border-2 border-cyan-400 hover:bg-cyan-500/35';
     }
     return 'bg-violet-900/30 text-violet-300/60 border-2 border-violet-600/40 cursor-not-allowed opacity-60';
-  };
+  }, [doneToday, isClickable]);
 
   return (
     <motion.div
@@ -207,19 +240,19 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
       whileHover={{ scale: 1.02 }}
       className="w-full cultivator-card group"
     >
-      <div className={`relative rounded-2xl p-6 shadow-2xl border border-violet-500/20 backdrop-blur-sm bg-gradient-to-br from-[#1d1230] via-[#22153a] to-[#102a38] hover:from-[#261a42] hover:to-[#123646] transition-colors ${getTierColor(identity.tier)}`}>
+      <div className={`relative rounded-2xl p-6 shadow-2xl border border-violet-500/20 backdrop-blur-sm bg-gradient-to-br from-[#1d1230] via-[#22153a] to-[#102a38] hover:from-[#261a42] hover:to-[#123646] transition-colors ${tierRingClass}`}>
         {/* Header row now includes calendar toggle */}
         <div className="mb-4">
-          <div className="flex items-center gap-3 mb-2 relative">
+          <div className="flex items-center gap-2 sm:gap-3 mb-2 relative flex-wrap">
             <div className="flex items-center gap-2">
-              <span className={`text-xs font-extrabold tracking-widest uppercase px-2 py-1 rounded-md border ${tierBadgeClass}`}>{identity.tier} Tier</span>
+              <span className={`text-xs font-extrabold tracking-widest uppercase px-2 py-1 rounded-md border whitespace-nowrap ${tierBadgeClass}`}>{identity.tier} Tier</span>
             </div>
-            <div className="flex items-center gap-1 text-white/90 bg-violet-500/10 px-2 py-0.5 rounded-md border border-violet-400/40">
+            <div className="flex items-center gap-1 text-white/90 bg-violet-500/10 px-2 py-0.5 rounded-md border border-violet-400/40 whitespace-nowrap">
               <Zap className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]" />
               <span className="text-sm font-semibold tracking-wide">Level {identity.level}</span>
             </div>
             {effectiveProgress.streakDays > 0 && (
-              <div className="flex items-center gap-1 text-yellow-200 text-xs">
+              <div className="flex items-center gap-1 text-yellow-200 text-xs whitespace-nowrap">
                 <Calendar className="h-3 w-3" />
                 <span>{effectiveProgress.streakDays}d</span>
               </div>
@@ -319,7 +352,7 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
           disabled={!isClickable || isUpdating}
           whileHover={isClickable ? { scale: 1.05 } : {}}
           whileTap={isClickable ? { scale: 0.95 } : {}}
-          className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200 ${getButtonStyles()} shadow-[0_0_12px_-2px_rgba(139,92,246,0.5),0_0_18px_-2px_rgba(56,189,248,0.4)]`}
+          className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200 ${buttonStyles} shadow-[0_0_12px_-2px_rgba(139,92,246,0.5),0_0_18px_-2px_rgba(56,189,248,0.4)]`}
         >
           <div className="flex items-center justify-center gap-2">
             {isUpdating ? (
@@ -361,7 +394,7 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
             animate={{ opacity: 0.35 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowCalendar(false)}
+            onClick={handleCloseCalendar}
           />
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 pointer-events-none">
             <motion.div
@@ -375,19 +408,19 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
                 {/* Header Controls */}
                 <div className="flex items-center justify-between gap-2 p-4 pb-3 border-b border-violet-500/30">
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setMonthOffset(o => o - 1)} className="px-3 py-2 rounded-md bg-violet-800/40 hover:bg-violet-700/60 text-[12px] sm:text-sm border border-violet-600/40 shrink-0">Prev</button>
+                    <button onClick={handlePrevMonth} className="px-3 py-2 rounded-md bg-violet-800/40 hover:bg-violet-700/60 text-[12px] sm:text-sm border border-violet-600/40 shrink-0">Prev</button>
                     <span className="text-sm sm:text-base font-semibold text-white tracking-wide whitespace-nowrap select-none min-w-[140px] sm:min-w-[160px] text-center">
                       {viewDate.toLocaleString(undefined,{ month:'long', year:'numeric' })}
                     </span>
-                    <button onClick={() => setMonthOffset(o => o + 1)} className="px-3 py-2 rounded-md bg-violet-800/40 hover:bg-violet-700/60 text-[12px] sm:text-sm border border-violet-600/40 shrink-0">Next</button>
+                    <button onClick={handleNextMonth} className="px-3 py-2 rounded-md bg-violet-800/40 hover:bg-violet-700/60 text-[12px] sm:text-sm border border-violet-600/40 shrink-0">Next</button>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
-                      onClick={() => { setMonthOffset(0); }}
+                      onClick={handleResetMonth}
                       className="px-2 sm:px-3 py-2 rounded-md bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-200 text-xs font-semibold border border-cyan-500/40 shrink-0"
                     >Today</button>
                     <button
-                      onClick={() => setShowCalendar(false)}
+                      onClick={handleCloseCalendar}
                       className="p-2 rounded-md text-gray-400 hover:text-white hover:bg-violet-700/40 shrink-0"
                       aria-label="Close calendar"
                     >
@@ -474,6 +507,19 @@ const CultivatorCard = ({ identity, progress, index = 0 }: CultivatorCardProps) 
         )}
     </motion.div>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if these specific props change
+  return (
+    prevProps.identity.identityID === nextProps.identity.identityID &&
+    prevProps.identity.level === nextProps.identity.level &&
+    prevProps.identity.tier === nextProps.identity.tier &&
+    prevProps.progress.userProgressID === nextProps.progress.userProgressID &&
+    prevProps.progress.daysCompleted === nextProps.progress.daysCompleted &&
+    prevProps.progress.completedToday === nextProps.progress.completedToday &&
+    prevProps.index === nextProps.index
+  );
+});
+
+CultivatorCard.displayName = 'CultivatorCard';
 
 export default CultivatorCard;

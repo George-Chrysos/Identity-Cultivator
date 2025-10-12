@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { signInWithGoogle, signOut as supabaseSignOut, getCurrentUser, onAuthStateChange } from '@/lib/supabase';
+import { logger } from '@/utils/logger';
+import { storage } from '@/services/storageService';
+import { STORE_KEYS } from '@/constants/storage';
 
 // Localhost bypass for testing
 const IS_LOCALHOST = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -37,13 +40,13 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { error } = await signInWithGoogle();
           if (error) {
-            console.error('Supabase sign-in error', error);
+            logger.error('Supabase sign-in error', error);
             return false;
           }
           // signInWithGoogle triggers a redirect; return true if call succeeded
           return true;
         } catch (err) {
-          console.error('Login error', err);
+          logger.error('Login error', err);
           return false;
         }
       },
@@ -51,24 +54,24 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         // Skip logout on localhost (for testing)
         if (IS_LOCALHOST) {
-          console.log('Logout disabled on localhost for testing');
+          logger.info('Logout disabled on localhost for testing');
           return;
         }
 
         try {
           await supabaseSignOut();
         } catch (err) {
-          console.error('Sign out error', err);
+          logger.error('Sign out error', err);
         }
         set({ currentUser: null, isAuthenticated: false });
-        // Clear localStorage to reset cultivator data
-        localStorage.removeItem('cultivator-store');
+        // Clear storage to reset cultivator data
+        storage.remove(STORE_KEYS.CULTIVATOR);
       },
 
       setUser: (user: AuthUser | null) => set({ currentUser: user, isAuthenticated: Boolean(user) }),
     }),
     {
-      name: 'auth-store',
+      name: STORE_KEYS.AUTH,
       partialize: (state) => ({
         currentUser: state.currentUser,
         isAuthenticated: state.isAuthenticated,
