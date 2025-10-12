@@ -619,9 +619,31 @@ export const useCultivatorStore = create<CultivatorState>()(
           // Capture old state before update
           const oldIdentity = get().identities.find(i => i.identityID === identityID);
           const oldProgress = get().userProgress.find(p => p.identityID === identityID);
+          const oldSortOrderMap = { ...get().sortOrderMap };
           
-          // OPTIMISTIC UPDATE: Update history version immediately for UI refresh
-          set(state => ({ historyVersion: state.historyVersion + 1 }));
+          if (!oldProgress) return;
+          
+          // OPTIMISTIC UPDATE: Update completedToday if it's today's date
+          const todayISO = getLocalDateKey(new Date());
+          const isToday = date === todayISO;
+          
+          if (isToday) {
+            const optimisticProgress = {
+              ...oldProgress,
+              completedToday: completed,
+              lastUpdatedDate: new Date(),
+            };
+            
+            set(state => ({
+              userProgress: state.userProgress.map(p =>
+                p.identityID === identityID ? optimisticProgress : p
+              ),
+              historyVersion: state.historyVersion + 1,
+            }));
+          } else {
+            // Just update history version for non-today dates
+            set(state => ({ historyVersion: state.historyVersion + 1 }));
+          }
           
           // Use Supabase for history management
           supabaseDB.setDateCompletion(currentUser.userID, identityID, date, completed)
@@ -679,19 +701,36 @@ export const useCultivatorStore = create<CultivatorState>()(
               
               logger.debug('Total animation events created', { count: events.length });
               
+              // PRESERVE SORT ORDER: Only recalculate if level/tier changed significantly
+              let newSortOrderMap = oldSortOrderMap;
+              if (events.length > 0) {
+                // Recalculate sort order only on level-up/evolution
+                newSortOrderMap = calculateSortOrderMap(identities);
+              }
+              
               // Update state with new data and animation events
               set({ 
                 identities, 
                 userProgress: progress, 
                 historyVersion: get().historyVersion + 1,
                 animationEvents: [...get().animationEvents, ...events],
+                sortOrderMap: newSortOrderMap,
               });
             })
             .catch(async err => {
               logger.error('Failed to set history entry', err);
               
-              // ROLLBACK: trigger another history version update to revert UI
-              set(state => ({ historyVersion: state.historyVersion + 1 }));
+              // ROLLBACK: Restore original state
+              if (isToday && oldProgress) {
+                set(state => ({
+                  userProgress: state.userProgress.map(p =>
+                    p.identityID === identityID ? oldProgress : p
+                  ),
+                  historyVersion: state.historyVersion + 1,
+                }));
+              } else {
+                set(state => ({ historyVersion: state.historyVersion + 1 }));
+              }
               
               // Show error toast
               const { toast } = await import('@/store/toastStore');
