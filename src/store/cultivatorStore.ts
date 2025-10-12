@@ -628,9 +628,24 @@ export const useCultivatorStore = create<CultivatorState>()(
           const isToday = date === todayISO;
           
           if (isToday) {
+            // Calculate optimistic daysCompleted
+            let optimisticDaysCompleted = oldProgress.daysCompleted;
+            if (completed) {
+              // Completing today - increment if not already done
+              if (!oldProgress.completedToday) {
+                optimisticDaysCompleted = oldProgress.daysCompleted + 1;
+              }
+            } else {
+              // Uncompleting today - decrement if it was done
+              if (oldProgress.completedToday) {
+                optimisticDaysCompleted = Math.max(0, oldProgress.daysCompleted - 1);
+              }
+            }
+            
             const optimisticProgress = {
               ...oldProgress,
               completedToday: completed,
+              daysCompleted: optimisticDaysCompleted,
               lastUpdatedDate: new Date(),
             };
             
@@ -743,6 +758,10 @@ export const useCultivatorStore = create<CultivatorState>()(
         const historyKey = getIdentityHistoryKey(identityID);
         const raw = localStorage.getItem(historyKey);
         const oldHistory = raw ? (()=>{try{return JSON.parse(raw);}catch{return[]}})() : [];
+        const oldProgress = get().userProgress.find(p => p.identityID === identityID);
+        const oldIdentity = get().identities.find(i => i.identityID === identityID);
+        const oldSortOrderMap = { ...get().sortOrderMap };
+        
         const history = [...oldHistory];
         const idx = history.findIndex((h: any)=>h.date===date);
         
@@ -752,20 +771,88 @@ export const useCultivatorStore = create<CultivatorState>()(
           history.push({ date, completed });
         }
         
-        // OPTIMISTIC UPDATE: Apply immediately
+        // OPTIMISTIC UPDATE: Apply immediately to localStorage and state
         localStorage.setItem(historyKey, JSON.stringify(history));
         
+        // If it's today, optimistically update completedToday and daysCompleted
+        const todayISO = getLocalDateKey(new Date());
+        const isToday = date === todayISO;
+        
+        if (isToday && oldProgress) {
+          // Calculate optimistic daysCompleted
+          let optimisticDaysCompleted = oldProgress.daysCompleted;
+          if (completed) {
+            // Completing today - increment if not already done
+            if (!oldProgress.completedToday) {
+              optimisticDaysCompleted = oldProgress.daysCompleted + 1;
+            }
+          } else {
+            // Uncompleting today - decrement if it was done
+            if (oldProgress.completedToday) {
+              optimisticDaysCompleted = Math.max(0, oldProgress.daysCompleted - 1);
+            }
+          }
+          
+          const optimisticProgress = {
+            ...oldProgress,
+            completedToday: completed,
+            daysCompleted: optimisticDaysCompleted,
+            lastUpdatedDate: new Date(),
+          };
+          
+          set(state => ({
+            userProgress: state.userProgress.map(p =>
+              p.identityID === identityID ? optimisticProgress : p
+            ),
+            historyVersion: state.historyVersion + 1,
+          }));
+        }
+        
         try {
-          // Recompute + re-render
+          // Recompute progress from history (this updates level/tier/daysCompleted)
           get().recomputeProgressFromHistory(identityID);
-          set(state => ({ historyVersion: state.historyVersion + 1 }));
+          
+          // Preserve sort order unless there was a level-up/evolution
+          const newIdentity = get().identities.find(i => i.identityID === identityID);
+          
+          // Check if level or tier changed (indicates level-up/evolution)
+          const levelChanged = oldIdentity && newIdentity && oldIdentity.level !== newIdentity.level;
+          const tierChanged = oldIdentity && newIdentity && oldIdentity.tier !== newIdentity.tier;
+          
+          if (levelChanged || tierChanged) {
+            // Recalculate sort order on level-up/evolution
+            const newSortOrderMap = calculateSortOrderMap(get().identities);
+            set(state => ({ 
+              sortOrderMap: newSortOrderMap,
+              historyVersion: state.historyVersion + 1,
+            }));
+          } else {
+            // Preserve existing sort order
+            set(state => ({ 
+              sortOrderMap: oldSortOrderMap,
+              historyVersion: state.historyVersion + 1,
+            }));
+          }
         } catch (error) {
           logger.error('Failed to recompute progress', error);
           
-          // ROLLBACK: Restore old history
-          const historyKey = getIdentityHistoryKey(identityID);
+          // ROLLBACK: Restore old history and state
           localStorage.setItem(historyKey, JSON.stringify(oldHistory));
-          set(state => ({ historyVersion: state.historyVersion + 1 }));
+          
+          if (isToday && oldProgress) {
+            set(state => ({
+              userProgress: state.userProgress.map(p =>
+                p.identityID === identityID ? oldProgress : p
+              ),
+              historyVersion: state.historyVersion + 1,
+              sortOrderMap: oldSortOrderMap,
+            }));
+          } else {
+            set(state => ({ 
+              historyVersion: state.historyVersion + 1,
+              sortOrderMap: oldSortOrderMap,
+            }));
+          }
           
           // Show error toast
           (async () => {
