@@ -63,6 +63,7 @@ interface CultivatorState {
   error: string | null;
   animationEvents: AnimationEvent[];
   progressUpdating: string[]; // identityIDs currently updating
+  sortOrderMap: Record<string, number>; // Tracks stable sort order (identityID -> position)
   
   // Actions
   initializeUser: (name: string, userId?: string) => Promise<void>;
@@ -109,6 +110,7 @@ export const useCultivatorStore = create<CultivatorState>()(
       error: null,
       animationEvents: [],
       progressUpdating: [],
+      sortOrderMap: {},
       historyVersion: 0,
 
       // Initialize or load user
@@ -230,6 +232,7 @@ export const useCultivatorStore = create<CultivatorState>()(
               identities: userData.identities,
               userProgress: userData.progress,
               isLoading: false,
+              sortOrderMap: {}, // Clear sort order to recalculate on first getSortedIdentities call
             });
           } else {
             console.log('⚠️ No user data found');
@@ -383,11 +386,26 @@ export const useCultivatorStore = create<CultivatorState>()(
       },
 
       getSortedIdentities: () => {
+        const { identities, sortOrderMap } = get();
+        
+        // If we have a sort order map, use it for stable sorting
+        if (Object.keys(sortOrderMap).length > 0) {
+          return identities
+            .filter(identity => identity.isActive)
+            .sort((a, b) => {
+              const orderA = sortOrderMap[a.identityID] ?? 999;
+              const orderB = sortOrderMap[b.identityID] ?? 999;
+              return orderA - orderB;
+            })
+            .slice(0, MAX_ACTIVE_IDENTITIES);
+        }
+        
+        // Initial sort by tier and level (only happens on first load)
         const tierOrder: Record<IdentityTier, number> = { 
           'SSS': 13, 'SS+': 12, 'SS': 11, 'S+': 10, 'S': 9, 
           'A+': 8, 'A': 7, 'B+': 6, 'B': 5, 'C+': 4, 'C': 3, 'D+': 2, 'D': 1 
         };
-        return get().identities
+        const sorted = identities
           .filter(identity => identity.isActive)
           .sort((a, b) => {
             const tierDiff = tierOrder[b.tier] - tierOrder[a.tier];
@@ -395,6 +413,15 @@ export const useCultivatorStore = create<CultivatorState>()(
             return b.level - a.level;
           })
           .slice(0, MAX_ACTIVE_IDENTITIES);
+        
+        // Save the sort order for future renders
+        const newSortOrderMap: Record<string, number> = {};
+        sorted.forEach((identity, index) => {
+          newSortOrderMap[identity.identityID] = index;
+        });
+        set({ sortOrderMap: newSortOrderMap });
+        
+        return sorted;
       },
 
       getProgressForIdentity: (identityID: string) => {
@@ -490,6 +517,10 @@ export const useCultivatorStore = create<CultivatorState>()(
         const { currentUser } = get();
         
         if (isSupabaseConfigured() && currentUser) {
+          // Capture old state before update
+          const oldIdentity = get().identities.find(i => i.identityID === identityID);
+          const oldProgress = get().userProgress.find(p => p.identityID === identityID);
+          
           // Use Supabase for history management
           supabaseDB.setDateCompletion(currentUser.userID, identityID, date, completed)
             .then(() => {
@@ -497,7 +528,46 @@ export const useCultivatorStore = create<CultivatorState>()(
               return supabaseDB.fetchUserIdentities(currentUser.userID);
             })
             .then(({ identities, progress }) => {
-              set({ identities, userProgress: progress, historyVersion: get().historyVersion + 1 });
+              // Find the updated identity and progress
+              const newIdentity = identities.find(i => i.identityID === identityID);
+              const newProgress = progress.find(p => p.identityID === identityID);
+              
+              // Detect level-up or evolution
+              const events: AnimationEvent[] = [];
+              if (oldIdentity && newIdentity && oldProgress && newProgress) {
+                const tierChanged = oldIdentity.tier !== newIdentity.tier;
+                const levelChanged = oldProgress.level !== newProgress.level;
+                
+                if (tierChanged) {
+                  // Evolution occurred
+                  events.push({
+                    type: 'EVOLUTION',
+                    identityID,
+                    oldTier: oldIdentity.tier,
+                    newTier: newIdentity.tier,
+                    message: `Evolved to ${newIdentity.tier} tier!`,
+                  });
+                }
+                
+                if (levelChanged && newProgress.level > oldProgress.level) {
+                  // Level-up occurred
+                  events.push({
+                    type: 'LEVEL_UP',
+                    identityID,
+                    oldLevel: oldProgress.level,
+                    newLevel: newProgress.level,
+                    message: `Level up to ${newProgress.level}!`,
+                  });
+                }
+              }
+              
+              // Update state with new data and animation events
+              set({ 
+                identities, 
+                userProgress: progress, 
+                historyVersion: get().historyVersion + 1,
+                animationEvents: [...get().animationEvents, ...events],
+              });
             })
             .catch(err => {
               console.error('Failed to set history entry:', err);
