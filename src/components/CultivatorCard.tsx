@@ -240,7 +240,7 @@ const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardPr
       whileHover={{ scale: 1.02 }}
       className="w-full cultivator-card group"
     >
-      <div className={`relative rounded-2xl p-6 shadow-2xl border border-violet-500/20 backdrop-blur-sm bg-gradient-to-br from-[#1d1230] via-[#22153a] to-[#102a38] hover:from-[#261a42] hover:to-[#123646] transition-colors ${tierRingClass}`}>
+      <div className={`relative rounded-2xl p-6 shadow-2xl border border-violet-500/20 backdrop-blur-sm bg-gradient-to-br from-[#1d1230] via-[#22153a] to-[#102a38] transition-colors ${tierRingClass}`}>
         {/* Header row now includes calendar toggle */}
         <div className="mb-4">
           <div className="flex items-center gap-2 sm:gap-3 mb-2 relative flex-wrap">
@@ -251,10 +251,10 @@ const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardPr
               <Zap className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]" />
               <span className="text-sm font-semibold tracking-wide">Level {identity.level}</span>
             </div>
-            {effectiveProgress.streakDays > 0 && (
-              <div className="flex items-center gap-1 text-yellow-200 text-xs whitespace-nowrap">
-                <Calendar className="h-3 w-3" />
-                <span>{effectiveProgress.streakDays}d</span>
+            {(
+              <div className="flex items-center gap-1 text-amber-200 text-xs whitespace-nowrap bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-400/40">
+                <span className="text-lg leading-none">🔥</span>
+                <span className="font-semibold">{Math.max(0, effectiveProgress.streakDays)}d</span>
               </div>
             )}
             {/* Spacer pushes calendar toggle to right */}
@@ -270,7 +270,7 @@ const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardPr
               </div>
             </div>
           </div>
-          <h3 className="text-xl font-bold text-white mb-1 group-hover:text-cyan-200 transition-colors">
+          <h3 className="text-xl font-bold text-white mb-1">
             {identityTitle}
           </h3>
           <p className="text-cyan-200/70 text-xs tracking-wide uppercase">{identity.identityType} Path</p>
@@ -405,6 +405,14 @@ const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardPr
               transition={{ type: 'spring', stiffness: 210, damping: 24 }}
               className="relative w-[95vw] min-w-[95vw] sm:w-[90vw] md:w-[85vw] lg:w-[80vw] max-w-[1400px] max-h-[88vh] h-auto flex flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#201536] via-[#261b42] to-[#132f3a] border border-violet-500/40 shadow-[0_0_55px_-8px_rgba(56,189,248,0.55),0_0_55px_-8px_rgba(139,92,246,0.45)] backdrop-blur-xl pointer-events-auto"
             >
+                {/* Mobile always-visible close button */}
+                <button
+                  onClick={handleCloseCalendar}
+                  className="sm:hidden absolute top-2 right-2 z-20 p-2 rounded-lg bg-black/30 border border-white/10 text-gray-200 hover:bg-black/40 hover:text-white"
+                  aria-label="Close calendar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
                 {/* Header Controls */}
                 <div className="flex items-center justify-between gap-2 p-4 pb-3 border-b border-violet-500/30">
                   <div className="flex items-center gap-2">
@@ -421,7 +429,7 @@ const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardPr
                     >Today</button>
                     <button
                       onClick={handleCloseCalendar}
-                      className="p-2 rounded-md text-gray-400 hover:text-white hover:bg-violet-700/40 shrink-0"
+                      className="hidden sm:inline-flex p-2 rounded-md text-gray-400 hover:text-white hover:bg-violet-700/40 shrink-0"
                       aria-label="Close calendar"
                     >
                       <X className="h-5 w-5" />

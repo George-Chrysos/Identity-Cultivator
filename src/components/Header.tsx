@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { LogIn } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
@@ -7,8 +7,21 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 
 const Header = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [openMenu, setOpenMenu] = useState(false);
   const { currentUser, isAuthenticated, logout } = useAuthStore();
   const useSupabase = isSupabaseConfigured();
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
 
   return (
     <>
@@ -17,18 +30,30 @@ const Header = () => {
           {useSupabase ? (
             // When using Supabase, show a centralized login modal instead of inline auth button
             isAuthenticated && currentUser ? (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-dark-surface/80 backdrop-blur-sm border border-dark-border rounded-lg px-4 py-2">
-                  <span className="text-white font-medium font-body">{currentUser.name}</span>
-                </div>
-                <motion.button
-                  onClick={logout}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-red-600/80 backdrop-blur-sm hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 font-body font-medium"
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setOpenMenu((v) => !v)}
+                  className="flex items-center gap-2 bg-dark-surface/80 backdrop-blur-sm border border-dark-border rounded-lg px-4 py-2 text-white font-medium font-body hover:bg-white/5"
+                  aria-haspopup="menu"
+                  aria-expanded={openMenu}
                 >
-                  Logout
-                </motion.button>
+                  <span>{currentUser.name}</span>
+                  <span className={`transition-transform ${openMenu ? 'rotate-180' : ''}`}>▾</span>
+                </button>
+                {openMenu && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-2 w-44 bg-[#1a1426]/95 border border-violet-500/30 rounded-lg shadow-xl backdrop-blur-md overflow-hidden"
+                  >
+                    <button
+                      onClick={() => { setOpenMenu(false); logout(); }}
+                      className="w-full text-left px-4 py-2 text-sm text-white hover:bg-white/10"
+                      role="menuitem"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <motion.button
@@ -43,18 +68,30 @@ const Header = () => {
             )
           ) : isAuthenticated && currentUser ? (
             // Local auth (legacy)
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-dark-surface/80 backdrop-blur-sm border border-dark-border rounded-lg px-4 py-2">
-                <span className="text-white font-medium font-body">{currentUser.name}</span>
-              </div>
-              <motion.button
-                onClick={logout}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-red-600/80 backdrop-blur-sm hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 font-body font-medium"
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setOpenMenu((v) => !v)}
+                className="flex items-center gap-2 bg-dark-surface/80 backdrop-blur-sm border border-dark-border rounded-lg px-4 py-2 text-white font-medium font-body hover:bg-white/5"
+                aria-haspopup="menu"
+                aria-expanded={openMenu}
               >
-                Logout
-              </motion.button>
+                <span>{currentUser.name}</span>
+                <span className={`transition-transform ${openMenu ? 'rotate-180' : ''}`}>▾</span>
+              </button>
+              {openMenu && (
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-2 w-44 bg-[#1a1426]/95 border border-violet-500/30 rounded-lg shadow-xl backdrop-blur-md overflow-hidden"
+                >
+                  <button
+                    onClick={() => { setOpenMenu(false); logout(); }}
+                    className="w-full text-left px-4 py-2 text-sm text-white hover:bg-white/10"
+                    role="menuitem"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <motion.button

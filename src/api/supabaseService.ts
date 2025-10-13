@@ -207,27 +207,26 @@ export const supabaseDB = {
     const todayStr = this.toLocalDateStr(today);
     const todayCompleted = completionDates.has(todayStr);
     
+    // Start at 0 by default
     let streak = 0;
-    let checkDate = new Date(today);
-    
-    // If today is not completed, start from yesterday
-    if (!todayCompleted) {
-      checkDate.setDate(checkDate.getDate() - 1);
+
+    // If today is completed, count today first
+    if (todayCompleted) {
+      streak = 1;
     }
 
-    // Count backwards from checkDate
+    // Then count consecutive days before today
+    let checkDate = new Date(today);
+    checkDate.setDate(checkDate.getDate() - 1);
+
     while (true) {
       const dateStr = this.toLocalDateStr(checkDate);
-      
       if (completionDates.has(dateStr)) {
-        streak++;
-        checkDate.setDate(checkDate.getDate() - 1); // Move back one day
+        streak += 1;
+        checkDate.setDate(checkDate.getDate() - 1);
       } else {
-        // Gap found, streak is broken
         break;
       }
-      
-      // Safety check - don't go back more than 1000 days
       if (streak > 1000) break;
     }
 
