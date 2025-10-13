@@ -243,18 +243,18 @@ const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardPr
       <div className={`relative rounded-2xl p-6 shadow-2xl border border-violet-500/20 backdrop-blur-sm bg-gradient-to-br from-[#1d1230] via-[#22153a] to-[#102a38] transition-colors ${tierRingClass}`}>
         {/* Header row now includes calendar toggle */}
         <div className="mb-4">
-          <div className="flex items-center gap-2 sm:gap-3 mb-2 relative flex-wrap">
+          <div className="flex items-center gap-1.5 sm:gap-3 mb-2 relative flex-wrap">
             <div className="flex items-center gap-2">
-              <span className={`text-xs font-extrabold tracking-widest uppercase px-2 py-1 rounded-md border whitespace-nowrap ${tierBadgeClass}`}>{identity.tier} Tier</span>
+              <span className={`text-[11px] sm:text-xs font-extrabold tracking-widest uppercase px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md border whitespace-nowrap ${tierBadgeClass}`}>{identity.tier} Tier</span>
             </div>
-            <div className="flex items-center gap-1 text-white/90 bg-violet-500/10 px-2 py-0.5 rounded-md border border-violet-400/40 whitespace-nowrap">
+            <div className="flex items-center gap-1 text-white/90 bg-violet-500/10 px-1.5 sm:px-2 py-0.5 rounded-md border border-violet-400/40 whitespace-nowrap">
               <Zap className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]" />
-              <span className="text-sm font-semibold tracking-wide">Level {identity.level}</span>
+              <span className="text-[11px] sm:text-sm font-semibold tracking-wide">Level {identity.level}</span>
             </div>
             {(
-              <div className="flex items-center gap-1 text-amber-200 text-xs whitespace-nowrap bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-400/40">
+              <div className="flex items-center gap-1 text-amber-200 text-[11px] sm:text-xs whitespace-nowrap bg-amber-500/10 px-1.5 sm:px-2 py-0.5 rounded-md border border-amber-400/40">
                 <span className="text-lg leading-none">🔥</span>
-                <span className="font-semibold">{Math.max(0, effectiveProgress.streakDays)}d</span>
+                <span className="font-semibold">{Math.max(0, effectiveProgress.streakDays)}</span>
               </div>
             )}
             {/* Spacer pushes calendar toggle to right */}
@@ -262,7 +262,7 @@ const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardPr
               <div className="relative">
                 <button
                   onClick={() => setShowCalendar(s => !s)}
-                  className={`p-2 rounded-md border transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400/60 ${showCalendar ? 'bg-cyan-600/30 border-cyan-400/40 text-cyan-100 shadow-[0_0_8px_rgba(56,189,248,0.4)]' : 'bg-violet-900/30 border-violet-600/30 text-violet-200/70 hover:bg-violet-800/40'}`}
+                  className={`p-1.5 sm:p-2 rounded-md border transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400/60 ${showCalendar ? 'bg-cyan-600/30 border-cyan-400/40 text-cyan-100 shadow-[0_0_8px_rgba(56,189,248,0.4)]' : 'bg-violet-900/30 border-violet-600/30 text-violet-200/70 hover:bg-violet-800/40'}`}
                   aria-label={showCalendar ? 'Close calendar' : 'Open calendar'}
                 >
                   <Calendar className="h-4 w-4" />
@@ -397,6 +397,14 @@ const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardPr
             onClick={handleCloseCalendar}
           />
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 pointer-events-none">
+            {/* Mobile close button outside modal to avoid overlap */}
+            <button
+              onClick={handleCloseCalendar}
+              className="sm:hidden absolute top-2 right-2 z-[110] p-2 rounded-lg bg-black/30 border border-white/10 text-gray-200 hover:bg-black/40 hover:text-white pointer-events-auto"
+              aria-label="Close calendar"
+            >
+              <X className="h-5 w-5" />
+            </button>
             <motion.div
               key="cal-pop"
               initial={{ opacity: 0, scale: 0.92 }}
@@ -405,14 +413,6 @@ const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardPr
               transition={{ type: 'spring', stiffness: 210, damping: 24 }}
               className="relative w-[95vw] min-w-[95vw] sm:w-[90vw] md:w-[85vw] lg:w-[80vw] max-w-[1400px] max-h-[88vh] h-auto flex flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#201536] via-[#261b42] to-[#132f3a] border border-violet-500/40 shadow-[0_0_55px_-8px_rgba(56,189,248,0.55),0_0_55px_-8px_rgba(139,92,246,0.45)] backdrop-blur-xl pointer-events-auto"
             >
-                {/* Mobile always-visible close button */}
-                <button
-                  onClick={handleCloseCalendar}
-                  className="sm:hidden absolute top-2 right-2 z-20 p-2 rounded-lg bg-black/30 border border-white/10 text-gray-200 hover:bg-black/40 hover:text-white"
-                  aria-label="Close calendar"
-                >
-                  <X className="h-5 w-5" />
-                </button>
                 {/* Header Controls */}
                 <div className="flex items-center justify-between gap-2 p-4 pb-3 border-b border-violet-500/30">
                   <div className="flex items-center gap-2">
