@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { LogIn } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import LoginModal from './LoginModal';
 import { isSupabaseConfigured } from '@/lib/supabase';
+
+// Lazy load LoginModal - only loads when user clicks login
+const LoginModal = lazy(() => import('./LoginModal'));
 
 const Header = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -107,10 +109,15 @@ const Header = () => {
         </div>
       </header>
 
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-      />
+      {/* Lazy load LoginModal only when needed */}
+      {showLoginModal && (
+        <Suspense fallback={null}>
+          <LoginModal
+            isOpen={showLoginModal}
+            onClose={() => setShowLoginModal(false)}
+          />
+        </Suspense>
+      )}
     </>
   );
 };
