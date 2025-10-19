@@ -1,4 +1,4 @@
--- Cultivator Identity System - Supabase Schema (updated for 13-tier + 3 identity types)
+-- Cultivator Identity System - Supabase Schema (updated for 13-tier + 5 identity types)
 -- PostgreSQL compatible schema for Supabase
 -- Run this in Supabase SQL Editor after creating your project
 
@@ -19,7 +19,7 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'identity_type') THEN
-        CREATE TYPE identity_type AS ENUM ('CULTIVATOR','BODYSMITH','PATHWEAVER');
+        CREATE TYPE identity_type AS ENUM ('CULTIVATOR','BODYSMITH','PATHWEAVER','JOURNALIST','STRATEGIST');
     END IF;
 END$$;
 
@@ -35,7 +35,7 @@ BEGIN
         END;
     END LOOP;
 
-    FOR v IN SELECT unnest(ARRAY['CULTIVATOR','BODYSMITH','PATHWEAVER']) LOOP
+    FOR v IN SELECT unnest(ARRAY['CULTIVATOR','BODYSMITH','PATHWEAVER','JOURNALIST','STRATEGIST']) LOOP
         BEGIN
             EXECUTE format('ALTER TYPE identity_type ADD VALUE IF NOT EXISTS %L', v);
         EXCEPTION WHEN duplicate_object THEN
