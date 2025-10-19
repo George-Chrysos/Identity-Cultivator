@@ -18,6 +18,7 @@ import { CultivatorDatabase } from '@/api/cultivatorDatabase';
 import { supabaseDB } from '@/api/supabaseService';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { logger } from '@/utils/logger';
+import { toast } from '@/store/toastStore';
 import { TIER_ORDER, getOldTier as getOldTierUtil } from '@/constants/tiers';
 import { IDENTITY_LIMITS } from '@/constants/limits';
 import { getIdentityHistoryKey, STORE_KEYS } from '@/constants/storage';
@@ -185,7 +186,6 @@ export const useCultivatorStore = create<CultivatorState>()(
           set({ isLoading: false, isInitialized: true });
           
           // Show error toast
-          const { toast } = await import('@/store/toastStore');
           toast.error(`Failed to initialize user: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       },
@@ -278,7 +278,6 @@ export const useCultivatorStore = create<CultivatorState>()(
           set({ isLoading: false });
           
           // Show error toast
-          const { toast } = await import('@/store/toastStore');
           toast.error('Failed to load user data');
         }
       },
@@ -290,7 +289,6 @@ export const useCultivatorStore = create<CultivatorState>()(
         // Check if user already has this identity type
         const hasType = get().identities.some(i => i.identityType === identityType);
         if (hasType) {
-          const { toast } = await import('@/store/toastStore');
           toast.error(`You already have a ${identityType} identity. Only one of each type is allowed.`);
           return;
         }
@@ -298,7 +296,6 @@ export const useCultivatorStore = create<CultivatorState>()(
         // Enforce max active identities before creation
         const activeCount = get().identities.filter(i => i.isActive).length;
         if (activeCount >= MAX_ACTIVE_IDENTITIES) {
-          const { toast } = await import('@/store/toastStore');
           toast.error(`Maximum of ${MAX_ACTIVE_IDENTITIES} active identities reached. Deactivate one to create a new path.`);
           return;
         }
@@ -343,7 +340,6 @@ export const useCultivatorStore = create<CultivatorState>()(
           await get().loadUserData(currentUser.userID);
           
           // Show success toast
-          const { toast } = await import('@/store/toastStore');
           toast.success(`${identityType} identity created successfully!`);
         } catch (error) {
           logger.error('Failed to create identity', error);
@@ -355,7 +351,6 @@ export const useCultivatorStore = create<CultivatorState>()(
           }));
           
           // Show error toast
-          const { toast } = await import('@/store/toastStore');
           toast.error(error instanceof Error ? error.message : 'Failed to create new identity');
         }
       },
@@ -466,7 +461,6 @@ export const useCultivatorStore = create<CultivatorState>()(
             set(state => ({ historyVersion: state.historyVersion + 1 }));
             
             // Show error toast
-            const { toast } = await import('@/store/toastStore');
             toast.error(result.message || 'Failed to update task');
           }
         } catch (error) {
@@ -486,7 +480,6 @@ export const useCultivatorStore = create<CultivatorState>()(
           set(state => ({ historyVersion: state.historyVersion + 1 }));
           
           // Show error toast
-          const { toast } = await import('@/store/toastStore');
           toast.error('Failed to update task progress');
         }
       },
@@ -750,7 +743,7 @@ export const useCultivatorStore = create<CultivatorState>()(
                 progressUpdating: state.progressUpdating.filter(id => id !== identityID), // Remove updating flag
               }));
             })
-            .catch(async err => {
+            .catch(err => {
               logger.error('Failed to set history entry', err);
               
               // ROLLBACK: Restore original state
@@ -770,7 +763,6 @@ export const useCultivatorStore = create<CultivatorState>()(
               }
               
               // Show error toast
-              const { toast } = await import('@/store/toastStore');
               toast.error('Failed to update calendar entry');
             });
           return;
@@ -877,10 +869,7 @@ export const useCultivatorStore = create<CultivatorState>()(
           }
           
           // Show error toast
-          (async () => {
-            const { toast } = await import('@/store/toastStore');
-            toast.error('Failed to update calendar entry');
-          })();
+          toast.error('Failed to update calendar entry');
         }
       },
 
