@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Zap, Calendar, X, ChevronDown, ChevronRight } from 'lucide-react';
-import { Identity, UserProgress, IdentityTier } from '@/models/cultivatorTypes';
+import { Identity, UserProgress, IdentityTier, CULTIVATOR_DEFINITION, BODYSMITH_DEFINITION, JOURNALIST_DEFINITION, STRATEGIST_DEFINITION, DetailedIdentityDefinition } from '@/models/cultivatorTypes';
 import { useCultivatorStore } from '@/store/cultivatorStore';
 import { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
@@ -219,6 +219,21 @@ const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardPr
 
   const progressPercentage = (effectiveProgress.daysCompleted / identity.requiredDaysPerLevel) * 100;
   const identityTitle = getIdentityTitle(identity);
+  // Derive lore using the same definition logic as getIdentityTitle/tasks, memoized
+  const tierLore = useMemo(() => {
+    let def: DetailedIdentityDefinition | null = null;
+    switch (identity.identityType) {
+      case 'CULTIVATOR': def = CULTIVATOR_DEFINITION; break;
+      case 'BODYSMITH': def = BODYSMITH_DEFINITION; break;
+      case 'JOURNALIST': def = JOURNALIST_DEFINITION; break;
+      case 'STRATEGIST': def = STRATEGIST_DEFINITION; break;
+      case 'PATHWEAVER': def = STRATEGIST_DEFINITION; break; // legacy alias
+      default: def = null;
+    }
+    if (!def) return '';
+    const t = def.tiers.find((t) => t.tier === identity.tier);
+    return t?.lore || '';
+  }, [identity.identityType, identity.tier]);
   const tasks = getIdentityTasks(identity); // Get dynamic tasks from detailed definition
 
   // ✅ OPTIMIZED: Memoize button styles based on state
@@ -274,6 +289,9 @@ const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardPr
             {identityTitle}
           </h3>
           <p className="text-cyan-200/70 text-xs tracking-wide uppercase">{identity.identityType} Path</p>
+          {tierLore && (
+            <p className="mt-2 text-[13px] text-cyan-100/80 leading-snug">{tierLore}</p>
+          )}
         </div>
         
         {/* Daily Tasks Accordion */}

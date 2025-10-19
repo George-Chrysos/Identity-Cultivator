@@ -59,13 +59,13 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for users
 CREATE POLICY "Users can view own profile" ON public.users
-    FOR SELECT USING (auth.uid() = id);
+    FOR SELECT USING ((SELECT auth.uid()) = id);
 
 CREATE POLICY "Users can update own profile" ON public.users
-    FOR UPDATE USING (auth.uid() = id);
+    FOR UPDATE USING ((SELECT auth.uid()) = id);
 
 CREATE POLICY "Users can insert own profile" ON public.users
-    FOR INSERT WITH CHECK (auth.uid() = id);
+    FOR INSERT WITH CHECK ((SELECT auth.uid()) = id);
 
 -- Identities table
 CREATE TABLE IF NOT EXISTS public.identities (
@@ -89,16 +89,16 @@ ALTER TABLE public.identities ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for identities
 CREATE POLICY "Users can view own identities" ON public.identities
-    FOR SELECT USING (auth.uid() = user_id);
+    FOR SELECT USING ((SELECT auth.uid()) = user_id);
 
 CREATE POLICY "Users can insert own identities" ON public.identities
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+    FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
 
 CREATE POLICY "Users can update own identities" ON public.identities
-    FOR UPDATE USING (auth.uid() = user_id);
+    FOR UPDATE USING ((SELECT auth.uid()) = user_id);
 
 CREATE POLICY "Users can delete own identities" ON public.identities
-    FOR DELETE USING (auth.uid() = user_id);
+    FOR DELETE USING ((SELECT auth.uid()) = user_id);
 
 -- User Progress table
 CREATE TABLE IF NOT EXISTS public.user_progress (
@@ -121,13 +121,13 @@ ALTER TABLE public.user_progress ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for user_progress
 CREATE POLICY "Users can view own progress" ON public.user_progress
-    FOR SELECT USING (auth.uid() = user_id);
+    FOR SELECT USING ((SELECT auth.uid()) = user_id);
 
 CREATE POLICY "Users can insert own progress" ON public.user_progress
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+    FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
 
 CREATE POLICY "Users can update own progress" ON public.user_progress
-    FOR UPDATE USING (auth.uid() = user_id);
+    FOR UPDATE USING ((SELECT auth.uid()) = user_id);
 
 -- Task Completions (History) table
 CREATE TABLE IF NOT EXISTS public.task_completions (
@@ -146,19 +146,23 @@ ALTER TABLE public.task_completions ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for task_completions
 CREATE POLICY "Users can view own completions" ON public.task_completions
-    FOR SELECT USING (auth.uid() = user_id);
+    FOR SELECT USING ((SELECT auth.uid()) = user_id);
 
 CREATE POLICY "Users can insert own completions" ON public.task_completions
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+    FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
 
 CREATE POLICY "Users can update own completions" ON public.task_completions
-    FOR UPDATE USING (auth.uid() = user_id);
+    FOR UPDATE USING ((SELECT auth.uid()) = user_id);
 
 -- Indexes for performance
 CREATE INDEX idx_identities_user_active ON public.identities(user_id, is_active);
 CREATE INDEX idx_identities_tier_level ON public.identities(tier, level);
 CREATE INDEX idx_progress_date ON public.user_progress(last_updated_date);
 CREATE INDEX idx_progress_streak ON public.user_progress(streak_days DESC);
+-- Covering index for FK user_progress.identity_id -> identities.id
+CREATE INDEX IF NOT EXISTS idx_user_progress_identity_id ON public.user_progress(identity_id);
+-- Covering index for FK task_completions.identity_id -> identities.id
+CREATE INDEX IF NOT EXISTS idx_task_completions_identity_id ON public.task_completions(identity_id);
 CREATE INDEX idx_completions_date ON public.task_completions(completion_date DESC);
 CREATE INDEX idx_completions_user ON public.task_completions(user_id, completion_date DESC);
 
@@ -200,8 +204,9 @@ CREATE TRIGGER on_auth_user_created
 
 -- Helper Views
 
--- View for active identities with progress
-CREATE VIEW active_identities_with_progress AS
+-- View for active identities with progress (run with caller's privileges)
+CREATE OR REPLACE VIEW public.active_identities_with_progress
+WITH (security_invoker = on) AS
 SELECT 
     i.*,
     p.days_completed as progress_days,

@@ -108,6 +108,102 @@ export const supabaseDB = {
     }
   },
 
+  // Helper: get previous tier (demotion)
+  getPrevTier(currentTier: IdentityTier): IdentityTier {
+    const order: IdentityTier[] = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'];
+    const idx = order.indexOf(currentTier);
+    return idx > 0 ? order[idx - 1] : 'D';
+  },
+
+  // Helper: apply decay with borrow across level/tier when days go negative
+  async applyDecayIfNeeded(userId: string, identityId: string): Promise<void> {
+    // Fetch current progress and identity
+    const { data: currentProgress } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('identity_id', identityId)
+      .single();
+    const { data: identity } = await supabase
+      .from('identities')
+      .select('*')
+      .eq('id', identityId)
+      .single();
+
+    if (!currentProgress || !identity) return;
+
+    // Compute days since last update using local calendar days
+    const last = new Date(currentProgress.last_updated_date);
+    const today = new Date();
+    const lastLocal = new Date(last.getFullYear(), last.getMonth(), last.getDate());
+    const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const diffMs = todayLocal.getTime() - lastLocal.getTime();
+    const daysSinceUpdate = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+
+    if (daysSinceUpdate < 3) return; // no decay under threshold
+
+    let toSubtract = daysSinceUpdate;
+    let daysCompleted = currentProgress.days_completed as number;
+    let level = currentProgress.level as number;
+    let tier = currentProgress.tier as IdentityTier;
+    let requiredDays = identity.required_days_per_level as number;
+
+    // Borrow loop: subtract one day at a time to handle underflow rules precisely
+    while (toSubtract > 0) {
+      if (daysCompleted > 0) {
+        daysCompleted -= 1;
+        toSubtract -= 1;
+      } else {
+        // daysCompleted is 0 and we need to subtract -> lose a level if possible
+        if (level > 1) {
+          level -= 1;
+          requiredDays = this.getRequiredDaysForTier(tier);
+          daysCompleted = Math.max(0, requiredDays - 1);
+          toSubtract -= 1;
+        } else {
+          // At level 1, demote tier if possible
+          const prevTier = this.getPrevTier(tier);
+          if (prevTier !== tier) {
+            tier = prevTier;
+            requiredDays = this.getRequiredDaysForTier(tier);
+            level = 10; // drop to end of previous tier
+            daysCompleted = Math.max(0, requiredDays - 1);
+            toSubtract -= 1;
+          } else {
+            // Already at lowest tier/level; cannot go below D1/0
+            daysCompleted = 0;
+            level = 1;
+            requiredDays = this.getRequiredDaysForTier(tier);
+            // consume remaining but no further changes
+            break;
+          }
+        }
+      }
+    }
+
+    // Persist decay updates
+    await supabase
+      .from('identities')
+      .update({
+        level,
+        tier,
+        required_days_per_level: requiredDays
+      })
+      .eq('id', identityId);
+
+    await supabase
+      .from('user_progress')
+      .update({
+        days_completed: daysCompleted,
+        level,
+        tier,
+        missed_days: daysSinceUpdate,
+        last_updated_date: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('identity_id', identityId);
+  },
+
   // Fetch all active identities with progress for current user
   async fetchUserIdentities(userId: string): Promise<{ identities: Identity[], progress: UserProgress[] }> {
     if (!isSupabaseConfigured()) {
@@ -235,9 +331,11 @@ export const supabaseDB = {
 
   // Toggle task completion
   async toggleTaskCompletion(userId: string, identityId: string): Promise<{ progress: UserProgress, identity: Identity }> {
+    // Apply decay before toggling so penalties affect current state
+    await this.applyDecayIfNeeded(userId, identityId);
     const today = this.toLocalDateStr(new Date());
 
-    // Get current progress
+    // Get current progress (post-decay)
     const { data: currentProgress, error: progError } = await supabase
       .from('user_progress')
       .select('*')
@@ -513,6 +611,54 @@ export const supabaseDB = {
         requiredDays = this.getRequiredDaysForTier(currentTier);
       } else {
         break;
+      }
+    }
+
+    // Apply decay based on last_updated_date (borrow across level/tier if needed)
+    const { data: existingProgress } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('identity_id', identityId)
+      .single();
+
+    if (existingProgress) {
+      const last = new Date(existingProgress.last_updated_date);
+      const today = new Date();
+      const lastLocal = new Date(last.getFullYear(), last.getMonth(), last.getDate());
+      const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const diffMs = todayLocal.getTime() - lastLocal.getTime();
+      const daysSinceUpdate = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+
+      if (daysSinceUpdate >= 3) {
+        let toSubtract = daysSinceUpdate;
+        while (toSubtract > 0) {
+          if (remainingDays > 0) {
+            remainingDays -= 1;
+            toSubtract -= 1;
+          } else {
+            if (currentLevel > 1) {
+              currentLevel -= 1;
+              requiredDays = this.getRequiredDaysForTier(currentTier);
+              remainingDays = Math.max(0, requiredDays - 1);
+              toSubtract -= 1;
+            } else {
+              const prevTier = this.getPrevTier(currentTier);
+              if (prevTier !== currentTier) {
+                currentTier = prevTier;
+                requiredDays = this.getRequiredDaysForTier(currentTier);
+                currentLevel = 10;
+                remainingDays = Math.max(0, requiredDays - 1);
+                toSubtract -= 1;
+              } else {
+                remainingDays = 0;
+                currentLevel = 1;
+                requiredDays = this.getRequiredDaysForTier(currentTier);
+                break;
+              }
+            }
+          }
+        }
       }
     }
 

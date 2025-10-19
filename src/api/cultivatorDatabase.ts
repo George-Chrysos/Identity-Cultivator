@@ -10,7 +10,8 @@ import {
   TIER_CONFIGS,
   CULTIVATOR_DEFINITION,
   BODYSMITH_DEFINITION,
-  PATHWEAVER_DEFINITION,
+  JOURNALIST_DEFINITION,
+  STRATEGIST_DEFINITION,
   DetailedIdentityDefinition
 } from '@/models/cultivatorTypes';
 import { supabaseDB } from '@/api/supabaseService';
@@ -322,7 +323,9 @@ export class CultivatorDatabase {
   private static getIdentityDefinition(type: IdentityType): DetailedIdentityDefinition {
     switch (type) {
       case 'BODYSMITH': return BODYSMITH_DEFINITION;
-      case 'PATHWEAVER': return PATHWEAVER_DEFINITION;
+      case 'JOURNALIST': return JOURNALIST_DEFINITION;
+      case 'PATHWEAVER': return STRATEGIST_DEFINITION; // legacy alias
+      case 'STRATEGIST': return STRATEGIST_DEFINITION;
       case 'CULTIVATOR':
       default: return CULTIVATOR_DEFINITION;
     }
@@ -673,10 +676,11 @@ export class CultivatorDatabase {
       return; // Already has data
     }
 
-    // Create baseline three identities
+  // Create baseline four identities
     await this.createIdentity({ userID, identityType: 'CULTIVATOR' });
     await this.createIdentity({ userID, identityType: 'BODYSMITH' });
-    await this.createIdentity({ userID, identityType: 'PATHWEAVER' });
+  await this.createIdentity({ userID, identityType: 'JOURNALIST' });
+  await this.createIdentity({ userID, identityType: 'STRATEGIST' });
   }
 
   // Check if user already has an identity of a given type

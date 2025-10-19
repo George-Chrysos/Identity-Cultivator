@@ -9,7 +9,8 @@ import {
   AnimationEvent,
   CULTIVATOR_DEFINITION,
   BODYSMITH_DEFINITION,
-  PATHWEAVER_DEFINITION,
+  JOURNALIST_DEFINITION,
+  STRATEGIST_DEFINITION,
   DetailedIdentityDefinition,
   TIER_CONFIGS,
 } from '@/models/cultivatorTypes';
@@ -160,9 +161,9 @@ export const useCultivatorStore = create<CultivatorState>()(
               } as User;
             }
             
-            // Create 3 default identities for new users
-            logger.info('Creating 3 default identities for new user');
-            const defaultTypes: IdentityType[] = ['CULTIVATOR', 'BODYSMITH', 'PATHWEAVER'];
+            // Create 4 default identities for new users
+            logger.info('Creating 4 default identities for new user');
+            const defaultTypes: IdentityType[] = ['CULTIVATOR', 'BODYSMITH', 'JOURNALIST', 'STRATEGIST'];
             for (const identityType of defaultTypes) {
               try {
                 await CultivatorDatabase.createIdentity({ userID: desiredUserID, identityType });
@@ -209,8 +210,8 @@ export const useCultivatorStore = create<CultivatorState>()(
             identityCount: userData?.identities?.length || 0 
           });
           if (userData) {
-            // Migration: ensure all three core identities exist
-            const requiredTypes: IdentityType[] = ['CULTIVATOR','BODYSMITH','PATHWEAVER'];
+            // Migration: ensure all four core identities exist
+            const requiredTypes: IdentityType[] = ['CULTIVATOR','BODYSMITH','JOURNALIST','STRATEGIST'];
             const existingTypes = new Set(userData.identities.map(i => i.identityType));
             let created = false;
             for (const t of requiredTypes) {
@@ -536,8 +537,14 @@ export const useCultivatorStore = create<CultivatorState>()(
           case 'BODYSMITH':
             definition = BODYSMITH_DEFINITION;
             break;
-          case 'PATHWEAVER':
-            definition = PATHWEAVER_DEFINITION;
+          case 'JOURNALIST':
+            definition = JOURNALIST_DEFINITION;
+            break;
+          case 'STRATEGIST':
+            definition = STRATEGIST_DEFINITION;
+            break;
+          case 'PATHWEAVER': // legacy alias
+            definition = STRATEGIST_DEFINITION;
             break;
           default:
             return identity.title; // Fallback to stored title
@@ -561,8 +568,14 @@ export const useCultivatorStore = create<CultivatorState>()(
           case 'BODYSMITH':
             definition = BODYSMITH_DEFINITION;
             break;
-          case 'PATHWEAVER':
-            definition = PATHWEAVER_DEFINITION;
+          case 'JOURNALIST':
+            definition = JOURNALIST_DEFINITION;
+            break;
+          case 'STRATEGIST':
+            definition = STRATEGIST_DEFINITION;
+            break;
+          case 'PATHWEAVER': // legacy alias
+            definition = STRATEGIST_DEFINITION;
             break;
           default:
             return []; // Unknown type, no tasks

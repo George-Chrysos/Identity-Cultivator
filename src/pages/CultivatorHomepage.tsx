@@ -113,7 +113,7 @@ const CultivatorHomepage = () => {
     if (!currentUser) return;
     setCreatingDefaults(true);
     try {
-      const defaultTypes: IdentityType[] = ['CULTIVATOR', 'BODYSMITH', 'PATHWEAVER'];
+  const defaultTypes: IdentityType[] = ['CULTIVATOR', 'BODYSMITH', 'JOURNALIST', 'STRATEGIST'];
       const existingTypes = new Set(useCultivatorStore.getState().identities.map(i => i.identityType));
       for (const t of defaultTypes) {
         if (!existingTypes.has(t)) {
