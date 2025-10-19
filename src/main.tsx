@@ -7,6 +7,14 @@ import './index.css'
 // Add dark class to html element for dark mode
 document.documentElement.classList.add('dark');
 
+// Expose cleanup utility for manual database fixes (dev/debug only)
+if (import.meta.env.DEV) {
+  import('./utils/cleanupDatabase').then(({ cleanupDatabase }) => {
+    (window as any).cleanupDatabase = cleanupDatabase;
+    console.log('🔧 Debug utility loaded: Run cleanupDatabase() to fix database issues');
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>

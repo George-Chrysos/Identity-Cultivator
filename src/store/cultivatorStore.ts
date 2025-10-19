@@ -195,7 +195,19 @@ export const useCultivatorStore = create<CultivatorState>()(
         set({ isLoading: true });
 
         try {
-          // First, cleanup any duplicate identities
+          // First, run database migration for legacy data (PATHWEAVER -> STRATEGIST, missing identities)
+          if (isSupabaseConfigured()) {
+            try {
+              const { migrateUserData } = await import('@/utils/migrateUserData');
+              await migrateUserData(userID);
+              logger.info('Database migration completed');
+            } catch (migrationError) {
+              logger.error('Database migration failed, continuing with load', migrationError);
+              // Don't throw - continue with load even if migration fails
+            }
+          }
+
+          // Second, cleanup any duplicate identities
           const duplicatesRemoved = await CultivatorDatabase.cleanupDuplicateIdentities(userID);
           if (duplicatesRemoved > 0) {
             logger.info(`Removed ${duplicatesRemoved} duplicate identities`);
