@@ -11,6 +11,18 @@ export const migrateUserData = async (userId: string): Promise<void> => {
   logger.info('Starting user data migration', { userId });
 
   try {
+    // Step 0: Ensure enum values exist (run SQL to add STRATEGIST/JOURNALIST if missing)
+    // This uses RPC call to execute raw SQL safely
+    try {
+      const { error: enumError } = await supabase.rpc('ensure_identity_types');
+      if (enumError) {
+        logger.warn('Could not ensure enum types via RPC, enum might be missing values', enumError);
+        // Continue anyway - the insert will fail with a clear error if enum is missing
+      }
+    } catch (rpcError) {
+      logger.warn('RPC for enum check not available, continuing', rpcError);
+    }
+
     // Step 1: Fetch all user identities
     const { data: identities, error: fetchError } = await supabase
       .from('identities')
