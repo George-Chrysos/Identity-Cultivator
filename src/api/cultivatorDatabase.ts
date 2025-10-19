@@ -324,7 +324,6 @@ export class CultivatorDatabase {
     switch (type) {
       case 'BODYSMITH': return BODYSMITH_DEFINITION;
       case 'JOURNALIST': return JOURNALIST_DEFINITION;
-      case 'PATHWEAVER': return STRATEGIST_DEFINITION; // legacy alias
       case 'STRATEGIST': return STRATEGIST_DEFINITION;
       case 'CULTIVATOR':
       default: return CULTIVATOR_DEFINITION;

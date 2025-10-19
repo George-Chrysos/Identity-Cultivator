@@ -41,20 +41,25 @@ export interface SupabaseTaskCompletion {
 }
 
 // Transform Supabase data to app models
-const toIdentity = (data: SupabaseIdentity, progress?: SupabaseProgress): Identity => ({
-  identityID: data.id,
-  userID: data.user_id,
-  title: data.title,
-  imageUrl: data.image_url || '/default-avatar.png',
-  tier: data.tier,
-  level: progress?.level || data.level,
-  daysCompleted: progress?.days_completed || data.days_completed,
-  requiredDaysPerLevel: data.required_days_per_level,
-  isActive: data.is_active,
-  lastCompletedDate: data.last_completed_date ? new Date(data.last_completed_date) : undefined,
-  createdAt: new Date(data.created_at),
-  identityType: data.identity_type,
-});
+const toIdentity = (data: SupabaseIdentity, progress?: SupabaseProgress): Identity => {
+  // Defensive normalization: remap legacy PATHWEAVER to STRATEGIST if present in DB
+  const rawType = (data.identity_type as unknown as string);
+  const normalizedType = (rawType === 'PATHWEAVER' ? 'STRATEGIST' : data.identity_type) as IdentityType;
+  return {
+    identityID: data.id,
+    userID: data.user_id,
+    title: data.title,
+    imageUrl: data.image_url || '/default-avatar.png',
+    tier: data.tier,
+    level: progress?.level || data.level,
+    daysCompleted: progress?.days_completed || data.days_completed,
+    requiredDaysPerLevel: data.required_days_per_level,
+    isActive: data.is_active,
+    lastCompletedDate: data.last_completed_date ? new Date(data.last_completed_date) : undefined,
+    createdAt: new Date(data.created_at),
+    identityType: normalizedType,
+  };
+};
 
 const toUserProgress = (_identity: SupabaseIdentity, progress: SupabaseProgress): UserProgress => ({
   userProgressID: progress.id,

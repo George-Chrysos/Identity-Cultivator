@@ -19,7 +19,7 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'identity_type') THEN
-        CREATE TYPE identity_type AS ENUM ('CULTIVATOR','BODYSMITH','PATHWEAVER','JOURNALIST','STRATEGIST');
+        CREATE TYPE identity_type AS ENUM ('CULTIVATOR','BODYSMITH','JOURNALIST','STRATEGIST');
     END IF;
 END$$;
 
@@ -35,12 +35,40 @@ BEGIN
         END;
     END LOOP;
 
-    FOR v IN SELECT unnest(ARRAY['CULTIVATOR','BODYSMITH','PATHWEAVER','JOURNALIST','STRATEGIST']) LOOP
+    FOR v IN SELECT unnest(ARRAY['CULTIVATOR','BODYSMITH','JOURNALIST','STRATEGIST']) LOOP
         BEGIN
             EXECUTE format('ALTER TYPE identity_type ADD VALUE IF NOT EXISTS %L', v);
         EXCEPTION WHEN duplicate_object THEN
         END;
     END LOOP;
+END$$;
+
+-- Migrate legacy PATHWEAVER to STRATEGIST and prevent future PATHWEAVER inserts
+DO $$
+BEGIN
+    -- If PATHWEAVER label exists in type, remap existing rows to STRATEGIST
+    IF EXISTS (
+        SELECT 1 FROM pg_type t
+        JOIN pg_enum e ON t.oid = e.enumtypid
+        WHERE t.typname = 'identity_type' AND e.enumlabel = 'PATHWEAVER'
+    ) THEN
+        -- Update identities table values from PATHWEAVER to STRATEGIST
+        UPDATE public.identities SET identity_type = 'STRATEGIST'::identity_type
+        WHERE identity_type::text = 'PATHWEAVER';
+    END IF;
+END$$;
+
+-- Ensure only allowed identity types are used going forward (defensive)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'identities_identity_type_allowed'
+    ) THEN
+        ALTER TABLE public.identities
+            ADD CONSTRAINT identities_identity_type_allowed
+            CHECK (identity_type IN ('CULTIVATOR','BODYSMITH','JOURNALIST','STRATEGIST'));
+    END IF;
 END$$;
 
 -- Users table (extends Supabase auth.users)

@@ -43,7 +43,6 @@ export type IdentityType =
   | 'BODYSMITH'
   | 'JOURNALIST'
   | 'STRATEGIST'
-  | 'PATHWEAVER' // legacy, mapped to STRATEGIST definition
   | 'FITNESS'
   | 'LEARNING'
   | 'CREATIVE'
@@ -538,7 +537,7 @@ export const BODYSMITH_DEFINITION: DetailedIdentityDefinition = {
 
 
 
-// Complete 13-tier Pathweaver definition
+// Complete 13-tier Journalist definition
 export const JOURNALIST_DEFINITION: DetailedIdentityDefinition = {
   id: 3,
   name: 'Journalist',
@@ -741,7 +740,7 @@ export const STRATEGIST_DEFINITION: DetailedIdentityDefinition = {
     },
     {
       "tier": "B+",
-      "title": "Pathwaver",
+      "title": "Strategic Orchestrator",
       "lore": "🌌 Integrate all planning layers to navigate weeks and months with precision and adaptability.",
       "subLevels": [
         { "level": 1, "daysToComplete": 7, "tasks": ["Plan 14 tasks for tomorrow", "Sequence tasks across weeks", "Plan monthly projects with milestones", "Allocate budget and resources", "Set priorities based on energy", "Review plan in morning adjusting for energy"] },
@@ -834,16 +833,4 @@ export const BODYSMITH_TEMPLATE: IdentityTemplate = {
   }
 };
 
-export const PATHWEAVER_TEMPLATE: IdentityTemplate = {
-  type: 'PATHWEAVER' as IdentityType,
-  name: 'Pathweaver',
-  description: 'Planning, reflection and life architecture path',
-  imageUrl: '/images/pathweaver-base.png',
-  levelNames: {
-    'D': ['Dawn Planner 1', 'Dawn Planner 2', 'Dawn Planner 3', 'Dawn Planner 4', 'Dawn Planner 5', 'Dawn Planner 6', 'Dawn Planner 7', 'Dawn Planner 8', 'Dawn Planner 9', 'Dawn Planner 10'],
-    'C': ['Adept Planner 1', 'Adept Planner 2', 'Adept Planner 3', 'Adept Planner 4', 'Adept Planner 5', 'Adept Planner 6', 'Adept Planner 7', 'Adept Planner 8', 'Adept Planner 9', 'Adept Planner 10'],
-    'B': ['Strategic Weaver 1', 'Strategic Weaver 2', 'Strategic Weaver 3', 'Strategic Weaver 4', 'Strategic Weaver 5', 'Strategic Weaver 6', 'Strategic Weaver 7', 'Strategic Weaver 8', 'Strategic Weaver 9', 'Strategic Weaver 10'],
-    'A': ['Master Planner 1', 'Master Planner 2', 'Master Planner 3', 'Master Planner 4', 'Master Planner 5', 'Master Planner 6', 'Master Planner 7', 'Master Planner 8', 'Master Planner 9', 'Master Planner 10'],
-    'S': ['Fate Weaver 1', 'Fate Weaver 2', 'Fate Weaver 3', 'Fate Weaver 4', 'Fate Weaver 5', 'Fate Weaver 6', 'Fate Weaver 7', 'Fate Weaver 8'],
-  }
-};
+// Removed legacy PATHWEAVER template (will be reintroduced in a future version)

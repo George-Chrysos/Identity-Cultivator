@@ -543,9 +543,7 @@ export const useCultivatorStore = create<CultivatorState>()(
           case 'STRATEGIST':
             definition = STRATEGIST_DEFINITION;
             break;
-          case 'PATHWEAVER': // legacy alias
-            definition = STRATEGIST_DEFINITION;
-            break;
+          
           default:
             return identity.title; // Fallback to stored title
         }
@@ -574,9 +572,7 @@ export const useCultivatorStore = create<CultivatorState>()(
           case 'STRATEGIST':
             definition = STRATEGIST_DEFINITION;
             break;
-          case 'PATHWEAVER': // legacy alias
-            definition = STRATEGIST_DEFINITION;
-            break;
+          
           default:
             return []; // Unknown type, no tasks
         }

@@ -227,7 +227,7 @@ const CultivatorCard = memo(({ identity, progress, index = 0 }: CultivatorCardPr
       case 'BODYSMITH': def = BODYSMITH_DEFINITION; break;
       case 'JOURNALIST': def = JOURNALIST_DEFINITION; break;
       case 'STRATEGIST': def = STRATEGIST_DEFINITION; break;
-      case 'PATHWEAVER': def = STRATEGIST_DEFINITION; break; // legacy alias
+      
       default: def = null;
     }
     if (!def) return '';
