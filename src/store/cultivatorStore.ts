@@ -1129,13 +1129,38 @@ export const useCultivatorStore = create<CultivatorState>()(
         // historyVersion intentionally not persisted
       }),
       onRehydrateStorage: () => (state) => {
-        if (state?.currentUser) {
-          queueMicrotask(() => {
-            const api = useCultivatorStore.getState();
-            if (!api.isInitialized) {
-              useCultivatorStore.setState({ isInitialized: true });
+        if (state) {
+          // CRITICAL: Migrate any PATHWEAVER identities to STRATEGIST in cached state
+          if (state.identities && state.identities.length > 0) {
+            let migratedAny = false;
+            const migratedIdentities = state.identities.map((identity: Identity) => {
+              if (identity.identityType === 'PATHWEAVER' as any) {
+                logger.warn('Migrating cached PATHWEAVER to STRATEGIST', { identityID: identity.identityID });
+                migratedAny = true;
+                return { ...identity, identityType: 'STRATEGIST' as IdentityType };
+              }
+              return identity;
+            });
+
+            if (migratedAny) {
+              logger.info('Migrated PATHWEAVER identities in localStorage cache');
+              // Update state immediately with migrated data
+              useCultivatorStore.setState({ 
+                identities: migratedIdentities,
+                isInitialized: true 
+              });
             }
-          });
+          }
+
+          // Standard initialization
+          if (state.currentUser && !state.isInitialized) {
+            queueMicrotask(() => {
+              const api = useCultivatorStore.getState();
+              if (!api.isInitialized) {
+                useCultivatorStore.setState({ isInitialized: true });
+              }
+            });
+          }
         }
       }
     }

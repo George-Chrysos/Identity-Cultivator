@@ -13,6 +13,11 @@ if (import.meta.env.DEV) {
     (window as any).cleanupDatabase = cleanupDatabase;
     console.log('🔧 Debug utility loaded: Run cleanupDatabase() to fix database issues');
   });
+  
+  import('./utils/clearLocalStorageCache').then(({ clearLocalStorageCache }) => {
+    (window as any).clearLocalStorageCache = clearLocalStorageCache;
+    console.log('🗑️  Cache utility loaded: Run clearLocalStorageCache() to clear cached data');
+  });
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
