@@ -350,15 +350,30 @@ const CultivatorHomepage = () => {
             <div className="flex flex-col items-center gap-6 w-full">
               {sortedIdentities.map((identity, index) => {
                 const progress = getProgressForIdentity(identity.identityID);
-                return progress ? (
+                
+                // If progress is missing, create a default one to ensure identity still renders
+                const effectiveProgress = progress || {
+                  userProgressID: `temp-progress-${identity.identityID}`,
+                  userID: identity.userID,
+                  identityID: identity.identityID,
+                  daysCompleted: identity.daysCompleted || 0,
+                  level: identity.level || 1,
+                  tier: identity.tier,
+                  completedToday: false,
+                  lastUpdatedDate: new Date(),
+                  streakDays: 0,
+                  missedDays: 0,
+                };
+                
+                return (
                   <div key={identity.identityID} className="w-[90%]">
                     <CultivatorCard
                       identity={identity}
-                      progress={progress}
+                      progress={effectiveProgress}
                       index={index}
                     />
                   </div>
-                ) : null;
+                );
               })}
             </div>
           )}

@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Identity, UserProgress, IdentityType, IdentityTier } from '@/models/cultivatorTypes';
+import { logger } from '@/utils/logger';
 
 export interface SupabaseIdentity {
   id: string;
@@ -239,8 +240,50 @@ export const supabaseDB = {
     identitiesData?.forEach((identity: SupabaseIdentity) => {
       const prog = progressMap.get(identity.id);
       identities.push(toIdentity(identity, prog));
+      
       if (prog) {
         progress.push(toUserProgress(identity, prog));
+      } else {
+        // Log missing progress - this indicates a data inconsistency
+        logger.warn('Identity missing progress entry', { 
+          identity_id: identity.id, 
+          identity_type: identity.identity_type,
+          user_id: userId 
+        });
+        
+        // Create a default progress entry to fix the inconsistency
+        // This will be returned for UI rendering and we'll attempt to sync to DB
+        const defaultProgress: UserProgress = {
+          userProgressID: `temp-${identity.id}`,
+          userID: userId,
+          identityID: identity.id,
+          daysCompleted: identity.days_completed || 0,
+          level: identity.level || 1,
+          tier: identity.tier,
+          completedToday: false,
+          lastUpdatedDate: new Date(identity.updated_at || identity.created_at),
+          streakDays: 0,
+          missedDays: 0,
+        };
+        progress.push(defaultProgress);
+        
+        // Asynchronously create the missing progress entry in DB (don't block)
+        supabase.from('user_progress').insert({
+          user_id: userId,
+          identity_id: identity.id,
+          days_completed: identity.days_completed || 0,
+          level: identity.level || 1,
+          tier: identity.tier,
+          completed_today: false,
+          streak_days: 0,
+          missed_days: 0,
+        }).then(({ error: insertError }) => {
+          if (insertError) {
+            logger.error('Failed to auto-create missing progress', { insertError, identity_id: identity.id });
+          } else {
+            logger.info('Auto-created missing progress entry', { identity_id: identity.id });
+          }
+        });
       }
     });
 
@@ -272,7 +315,7 @@ export const supabaseDB = {
     if (error) throw error;
 
     // Create corresponding progress entry
-    await supabase.from('user_progress').insert({
+    const { error: progressError } = await supabase.from('user_progress').insert({
       user_id: userId,
       identity_id: data.id,
       days_completed: 0,
@@ -282,6 +325,11 @@ export const supabaseDB = {
       streak_days: 0,
       missed_days: 0
     });
+
+    if (progressError) {
+      logger.error('Failed to create user_progress entry', { progressError, identity_id: data.id });
+      // Don't throw - the identity was created, we'll handle missing progress gracefully in UI
+    }
 
     return toIdentity(data);
   },
