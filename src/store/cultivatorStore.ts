@@ -649,24 +649,34 @@ export const useCultivatorStore = create<CultivatorState>()(
           const isToday = date === todayISO;
           
           if (isToday) {
-            // Calculate optimistic daysCompleted
+            // Calculate optimistic daysCompleted and streak
+            // Use the NEW completed state, not the old one
             let optimisticDaysCompleted = oldProgress.daysCompleted;
+            let optimisticStreak = oldProgress.streakDays;
+            
             if (completed) {
-              // Completing today - increment if not already done
+              // Completing today
               if (!oldProgress.completedToday) {
+                // Was not completed, now completing
                 optimisticDaysCompleted = oldProgress.daysCompleted + 1;
+                optimisticStreak = oldProgress.streakDays + 1;
               }
+              // else: already completed, no change (idempotent)
             } else {
-              // Uncompleting today - decrement if it was done
+              // Uncompleting today
               if (oldProgress.completedToday) {
+                // Was completed, now uncompleting
                 optimisticDaysCompleted = Math.max(0, oldProgress.daysCompleted - 1);
+                optimisticStreak = Math.max(0, oldProgress.streakDays - 1);
               }
+              // else: already not completed, no change (idempotent)
             }
             
             const optimisticProgress = {
               ...oldProgress,
               completedToday: completed,
               daysCompleted: optimisticDaysCompleted,
+              streakDays: optimisticStreak,
               lastUpdatedDate: new Date(),
             };
             
@@ -675,15 +685,21 @@ export const useCultivatorStore = create<CultivatorState>()(
                 p.identityID === identityID ? optimisticProgress : p
               ),
               historyVersion: state.historyVersion + 1,
+              progressUpdating: [...state.progressUpdating, identityID], // Mark as updating
             }));
           } else {
             // Just update history version for non-today dates
-            set(state => ({ historyVersion: state.historyVersion + 1 }));
+            set(state => ({ 
+              historyVersion: state.historyVersion + 1,
+              progressUpdating: [...state.progressUpdating, identityID], // Mark as updating
+            }));
           }
           
           // Use Supabase for history management
           supabaseDB.setDateCompletion(currentUser.userID, identityID, date, completed)
-            .then(() => {
+            .then(async () => {
+              // Small delay to let optimistic update settle (prevents flashing)
+              await new Promise(resolve => setTimeout(resolve, 100));
               // Reload identity and progress after recalculation
               return supabaseDB.fetchUserIdentities(currentUser.userID);
             })
@@ -731,6 +747,7 @@ export const useCultivatorStore = create<CultivatorState>()(
                 historyVersion: state.historyVersion + 1,
                 animationEvents: [...state.animationEvents, ...events],
                 sortOrderMap: newSortOrderMap,
+                progressUpdating: state.progressUpdating.filter(id => id !== identityID), // Remove updating flag
               }));
             })
             .catch(async err => {
@@ -743,9 +760,13 @@ export const useCultivatorStore = create<CultivatorState>()(
                     p.identityID === identityID ? oldProgress : p
                   ),
                   historyVersion: state.historyVersion + 1,
+                  progressUpdating: state.progressUpdating.filter(id => id !== identityID), // Remove updating flag
                 }));
               } else {
-                set(state => ({ historyVersion: state.historyVersion + 1 }));
+                set(state => ({ 
+                  historyVersion: state.historyVersion + 1,
+                  progressUpdating: state.progressUpdating.filter(id => id !== identityID), // Remove updating flag
+                }));
               }
               
               // Show error toast

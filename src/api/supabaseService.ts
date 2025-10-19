@@ -349,34 +349,33 @@ export const supabaseDB = {
     // Create a Set of completion date strings for fast lookup
     const completionDates = new Set(completions.map(c => c.completion_date));
     
-    // Calculate consecutive days UP TO today (not including today if not completed)
+    // Calculate consecutive days starting from today and going backwards
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     const todayStr = this.toLocalDateStr(today);
-    const todayCompleted = completionDates.has(todayStr);
     
     // Start at 0 by default
     let streak = 0;
 
-    // If today is completed, count today first
-    if (todayCompleted) {
-      streak = 1;
-    }
-
-    // Then count consecutive days before today
+    // Start checking from today
     let checkDate = new Date(today);
-    checkDate.setDate(checkDate.getDate() - 1);
 
+    // Count consecutive days (including today if completed)
     while (true) {
       const dateStr = this.toLocalDateStr(checkDate);
       if (completionDates.has(dateStr)) {
         streak += 1;
         checkDate.setDate(checkDate.getDate() - 1);
       } else {
+        // If today isn't completed but yesterday is, start from yesterday
+        if (streak === 0 && dateStr === todayStr) {
+          checkDate.setDate(checkDate.getDate() - 1);
+          continue;
+        }
         break;
       }
-      if (streak > 1000) break;
+      if (streak > 1000) break; // Safety limit
     }
 
     return streak;
@@ -619,6 +618,22 @@ export const supabaseDB = {
 
   // Recalculate progress from all task completions
   async recalculateProgressFromCompletions(userId: string, identityId: string) {
+    // Get current state first to minimize flashing
+    const { data: existingProgress } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('identity_id', identityId)
+      .single();
+
+    const { data: identity } = await supabase
+      .from('identities')
+      .select('*')
+      .eq('id', identityId)
+      .single();
+
+    if (!identity) return;
+
     // Get all non-reversed completions
     const { data: completions, error: completionsError } = await supabase
       .from('task_completions')
@@ -630,37 +645,35 @@ export const supabaseDB = {
     if (completionsError) throw completionsError;
 
     const totalDaysCompleted = completions?.length || 0;
-  const streak = await this.calculateStreak(userId, identityId);
+    const streak = await this.calculateStreak(userId, identityId);
     
     // Check if today is completed
-  const today = this.toLocalDateStr(new Date());
+    const today = this.toLocalDateStr(new Date());
     const completedToday = completions?.some(c => c.completion_date === today) || false;
 
-    // Get current identity to know required days
-    const { data: identity } = await supabase
-      .from('identities')
-      .select('*')
-      .eq('id', identityId)
-      .single();
-
-    if (!identity) return;
-
-    // Calculate level and tier from total days
+    // Calculate level and tier from total days - start from D tier, level 1
     let currentLevel = 1;
-    let currentTier = identity.tier;
-    let requiredDays = identity.required_days_per_level;
+    let currentTier: IdentityTier = 'D';
+    let requiredDays = this.getRequiredDaysForTier(currentTier);
     let remainingDays = totalDaysCompleted;
 
-    // Simulate level-ups
+    // Simulate level-ups from scratch
     while (remainingDays >= requiredDays) {
       remainingDays -= requiredDays;
       
       if (currentLevel < 10) {
         currentLevel += 1;
       } else if (currentLevel === 10) {
-        // Evolution
+        // Evolution to next tier
         currentLevel = 1;
-        currentTier = this.getNextTier(currentTier);
+        const nextTier = this.getNextTier(currentTier);
+        if (nextTier === currentTier) {
+          // Already at max tier
+          currentLevel = 10;
+          remainingDays = Math.min(remainingDays, requiredDays - 1);
+          break;
+        }
+        currentTier = nextTier;
         requiredDays = this.getRequiredDaysForTier(currentTier);
       } else {
         break;
@@ -668,18 +681,11 @@ export const supabaseDB = {
     }
 
     // Apply decay based on last_updated_date (borrow across level/tier if needed)
-    const { data: existingProgress } = await supabase
-      .from('user_progress')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('identity_id', identityId)
-      .single();
-
     if (existingProgress) {
       const last = new Date(existingProgress.last_updated_date);
-      const today = new Date();
+      const todayDate = new Date();
       const lastLocal = new Date(last.getFullYear(), last.getMonth(), last.getDate());
-      const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const todayLocal = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
       const diffMs = todayLocal.getTime() - lastLocal.getTime();
       const daysSinceUpdate = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
 
@@ -715,29 +721,46 @@ export const supabaseDB = {
       }
     }
 
-    // Update identity
-    await supabase
-      .from('identities')
-      .update({
-        level: currentLevel,
-        tier: currentTier,
-        required_days_per_level: requiredDays
-      })
-      .eq('id', identityId);
+    // Only update if values actually changed (to prevent unnecessary UI flashing)
+    const needsIdentityUpdate = 
+      identity.level !== currentLevel ||
+      identity.tier !== currentTier ||
+      identity.required_days_per_level !== requiredDays;
 
-    // Update progress
-    await supabase
-      .from('user_progress')
-      .update({
-        days_completed: remainingDays,
-        level: currentLevel,
-        tier: currentTier,
-        streak_days: streak,
-        completed_today: completedToday,
-        last_updated_date: new Date().toISOString()
-      })
-      .eq('user_id', userId)
-      .eq('identity_id', identityId);
+    const needsProgressUpdate = !existingProgress ||
+      existingProgress.days_completed !== remainingDays ||
+      existingProgress.level !== currentLevel ||
+      existingProgress.tier !== currentTier ||
+      existingProgress.streak_days !== streak ||
+      existingProgress.completed_today !== completedToday;
+
+    // Update identity only if needed
+    if (needsIdentityUpdate) {
+      await supabase
+        .from('identities')
+        .update({
+          level: currentLevel,
+          tier: currentTier,
+          required_days_per_level: requiredDays
+        })
+        .eq('id', identityId);
+    }
+
+    // Update progress only if needed
+    if (needsProgressUpdate) {
+      await supabase
+        .from('user_progress')
+        .update({
+          days_completed: remainingDays,
+          level: currentLevel,
+          tier: currentTier,
+          streak_days: streak,
+          completed_today: completedToday,
+          last_updated_date: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .eq('identity_id', identityId);
+    }
   },
 
   // Helper functions
