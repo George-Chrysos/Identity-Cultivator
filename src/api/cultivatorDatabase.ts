@@ -23,12 +23,9 @@ import { DB_KEYS } from '@/constants/storage';
 
 // Database service using localStorage for now, easily replaceable with real DB
 export class CultivatorDatabase {
-  // Use constants for storage keys
-  private static readonly STORAGE_KEYS = DB_KEYS;
-
   // Local-only helpers (ignore Supabase config)
   private static readLocalUsers(): User[] {
-    const stored = localStorage.getItem(this.STORAGE_KEYS.USERS);
+    const stored = localStorage.getItem(DB_KEYS.USERS);
     if (!stored) return [];
     try {
       return JSON.parse(stored).map((user: any) => ({
@@ -42,7 +39,7 @@ export class CultivatorDatabase {
   }
 
   private static readLocalIdentities(): Identity[] {
-    const stored = localStorage.getItem(this.STORAGE_KEYS.IDENTITIES);
+    const stored = localStorage.getItem(DB_KEYS.IDENTITIES);
     if (!stored) return [];
     try {
       return JSON.parse(stored).map((identity: any) => ({
@@ -56,7 +53,7 @@ export class CultivatorDatabase {
   }
 
   private static readLocalProgress(): UserProgress[] {
-    const stored = localStorage.getItem(this.STORAGE_KEYS.USER_PROGRESS);
+    const stored = localStorage.getItem(DB_KEYS.USER_PROGRESS);
     if (!stored) return [];
     try {
       return JSON.parse(stored).map((progress: any) => ({
@@ -102,7 +99,7 @@ export class CultivatorDatabase {
 
     const users = await this.getUsers();
     users.push(user);
-    localStorage.setItem(this.STORAGE_KEYS.USERS, JSON.stringify(users));
+    localStorage.setItem(DB_KEYS.USERS, JSON.stringify(users));
 
     return user;
   }
@@ -169,7 +166,7 @@ export class CultivatorDatabase {
     } else {
       users.push(user); // upsert: insert new if not found
     }
-    localStorage.setItem(this.STORAGE_KEYS.USERS, JSON.stringify(users));
+    localStorage.setItem(DB_KEYS.USERS, JSON.stringify(users));
     
     return user;
   }
@@ -180,7 +177,7 @@ export class CultivatorDatabase {
       return [];
     }
 
-    const stored = localStorage.getItem(this.STORAGE_KEYS.USERS);
+    const stored = localStorage.getItem(DB_KEYS.USERS);
     if (!stored) return [];
     
     return JSON.parse(stored).map((user: any) => ({
@@ -244,7 +241,7 @@ export class CultivatorDatabase {
 
     const identities = await this.getIdentities();
     identities.push(identity);
-    localStorage.setItem(this.STORAGE_KEYS.IDENTITIES, JSON.stringify(identities));
+    localStorage.setItem(DB_KEYS.IDENTITIES, JSON.stringify(identities));
 
     // Store tasks from the detailed definition
     const taskKey = `identity-tasks-${identity.identityID}`;
@@ -280,7 +277,7 @@ export class CultivatorDatabase {
     
     if (index !== -1) {
       identities[index] = identity;
-      localStorage.setItem(this.STORAGE_KEYS.IDENTITIES, JSON.stringify(identities));
+      localStorage.setItem(DB_KEYS.IDENTITIES, JSON.stringify(identities));
     }
     
     return identity;
@@ -291,13 +288,13 @@ export class CultivatorDatabase {
     const identities = await this.getIdentities();
     const filtered = identities.filter(i => i.identityID !== identityID);
     if (filtered.length !== identities.length) {
-      localStorage.setItem(this.STORAGE_KEYS.IDENTITIES, JSON.stringify(filtered));
+      localStorage.setItem(DB_KEYS.IDENTITIES, JSON.stringify(filtered));
     }
     // Remove related progress
     const progress = await this.getUserProgress();
     const progressFiltered = progress.filter(p => p.identityID !== identityID);
     if (progressFiltered.length !== progress.length) {
-      localStorage.setItem(this.STORAGE_KEYS.USER_PROGRESS, JSON.stringify(progressFiltered));
+      localStorage.setItem(DB_KEYS.USER_PROGRESS, JSON.stringify(progressFiltered));
     }
     // Remove tasks
     localStorage.removeItem(`identity-tasks-${identityID}`);
@@ -310,7 +307,7 @@ export class CultivatorDatabase {
   }
 
   private static async getIdentities(): Promise<Identity[]> {
-    const stored = localStorage.getItem(this.STORAGE_KEYS.IDENTITIES);
+    const stored = localStorage.getItem(DB_KEYS.IDENTITIES);
     if (!stored) return [];
     
     return JSON.parse(stored).map((identity: any) => ({
@@ -364,7 +361,7 @@ export class CultivatorDatabase {
 
     const allProgress = await this.getUserProgress();
     allProgress.push(progress);
-    localStorage.setItem(this.STORAGE_KEYS.USER_PROGRESS, JSON.stringify(allProgress));
+    localStorage.setItem(DB_KEYS.USER_PROGRESS, JSON.stringify(allProgress));
     
     return progress;
   }
@@ -402,7 +399,7 @@ export class CultivatorDatabase {
     
     if (index !== -1) {
       allProgress[index] = progress;
-      localStorage.setItem(this.STORAGE_KEYS.USER_PROGRESS, JSON.stringify(allProgress));
+      localStorage.setItem(DB_KEYS.USER_PROGRESS, JSON.stringify(allProgress));
     }
     
     return progress;
@@ -414,7 +411,7 @@ export class CultivatorDatabase {
       return [];
     }
 
-    const stored = localStorage.getItem(this.STORAGE_KEYS.USER_PROGRESS);
+    const stored = localStorage.getItem(DB_KEYS.USER_PROGRESS);
     if (!stored) return [];
     
     return JSON.parse(stored).map((progress: any) => ({
