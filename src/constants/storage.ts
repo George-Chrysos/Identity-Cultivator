@@ -4,11 +4,14 @@
 
 /**
  * Zustand store keys
+ * @see STORE_KEYS for all available store identifiers
  */
 export const STORE_KEYS = {
   AUTH: 'auth-store',
-  CULTIVATOR: 'cultivator-store',
+  GAME: 'game-store',
+  SHOP: 'shop-store',
   TOAST: 'toast-store',
+  QUEST: 'quest-store',
 } as const;
 
 /**
@@ -19,17 +22,3 @@ export const DB_KEYS = {
   IDENTITIES: 'cultivator-identities',
   USER_PROGRESS: 'cultivator-user-progress',
 } as const;
-
-/**
- * Generate identity history key (without prefix - used directly with localStorage)
- */
-export const getIdentityHistoryKey = (identityID: string): string => {
-  return `identity-history-${identityID}`;
-};
-
-/**
- * Generate identity tasks key (without prefix - used directly with localStorage)
- */
-export const getIdentityTasksKey = (identityID: string): string => {
-  return `identity-tasks-${identityID}`;
-};

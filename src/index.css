@@ -8,7 +8,7 @@
   }
   
   body {
-    background: linear-gradient(135deg, #0B0B1A 0%, #1A1A2E 100%);
+    background: linear-gradient(rgb(15, 7, 40) 0%, rgb(26, 11, 63) 30%, rgb(30, 10, 82) 60%, rgb(42, 19, 96) 100%);
     color: #f3f4f6;
     font-family: 'Exo 2', system-ui, -apple-system, sans-serif;
     font-weight: 400;
@@ -269,4 +269,9 @@
 @keyframes tierGlowPulse {
   0%,100% { opacity: 1; }
   50% { opacity: 0.85; }
+}
+
+@keyframes shadow-pulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 0 30px rgba(245, 158, 11, 0.7); }
 }

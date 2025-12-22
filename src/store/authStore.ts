@@ -4,19 +4,24 @@ import { signInWithGoogle, signOut as supabaseSignOut, getCurrentUser, onAuthSta
 import { logger } from '@/utils/logger';
 import { storage } from '@/services/storageService';
 import { STORE_KEYS } from '@/constants/storage';
-
-// Localhost bypass for testing
-const IS_LOCALHOST = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+import { 
+  isLocalAuthEnabled, 
+  getLocalUser, 
+  signInWithDemoUser, 
+  signOutLocalUser,
+} from '@/services/localAuthService';
 
 interface AuthUser {
   id?: string;  // Supabase auth user ID
   name?: string;
   email?: string;
+  avatar_url?: string;
 }
 
 interface AuthState {
   currentUser: AuthUser | null;
   isAuthenticated: boolean;
+  isLocalAuth: boolean;
   
   // Actions
   login: () => Promise<boolean>;
@@ -24,16 +29,50 @@ interface AuthState {
   setUser: (user: AuthUser | null) => void;
 }
 
+// Initialize with local auth if enabled
+const getInitialState = () => {
+  if (isLocalAuthEnabled()) {
+    const localUser = getLocalUser();
+    if (localUser) {
+      return {
+        currentUser: { 
+          id: localUser.id, 
+          name: localUser.name, 
+          email: localUser.email,
+          avatar_url: localUser.avatar_url 
+        },
+        isAuthenticated: true,
+        isLocalAuth: true,
+      };
+    }
+  }
+  return {
+    currentUser: null,
+    isAuthenticated: false,
+    isLocalAuth: false,
+  };
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      currentUser: IS_LOCALHOST ? { name: 'Test User', email: 'test@localhost.dev' } : null,
-      isAuthenticated: IS_LOCALHOST,
+      ...getInitialState(),
 
       login: async () => {
-        // Auto-login on localhost
-        if (IS_LOCALHOST) {
-          set({ currentUser: { name: 'Test User', email: 'test@localhost.dev' }, isAuthenticated: true });
+        // Use local auth in dev mode
+        if (isLocalAuthEnabled()) {
+          const demoUser = signInWithDemoUser();
+          set({ 
+            currentUser: { 
+              id: demoUser.id, 
+              name: demoUser.name, 
+              email: demoUser.email,
+              avatar_url: demoUser.avatar_url 
+            }, 
+            isAuthenticated: true,
+            isLocalAuth: true,
+          });
+          logger.info('Signed in with demo user', { email: demoUser.email });
           return true;
         }
 
@@ -52,9 +91,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        // Skip logout on localhost (for testing)
-        if (IS_LOCALHOST) {
-          logger.info('Logout disabled on localhost for testing');
+        // Handle local auth logout
+        if (isLocalAuthEnabled()) {
+          signOutLocalUser();
+          set({ currentUser: null, isAuthenticated: false, isLocalAuth: false });
+          storage.remove(STORE_KEYS.GAME);
+          logger.info('Signed out demo user');
           return;
         }
 
@@ -63,9 +105,9 @@ export const useAuthStore = create<AuthState>()(
         } catch (err) {
           logger.error('Sign out error', err);
         }
-        set({ currentUser: null, isAuthenticated: false });
+        set({ currentUser: null, isAuthenticated: false, isLocalAuth: false });
         // Clear storage to reset cultivator data
-        storage.remove(STORE_KEYS.CULTIVATOR);
+        storage.remove(STORE_KEYS.GAME);
       },
 
       setUser: (user: AuthUser | null) => set({ currentUser: user, isAuthenticated: Boolean(user) }),
@@ -80,8 +122,8 @@ export const useAuthStore = create<AuthState>()(
   )
 );
 
-// Initialize auth state from Supabase if available (skip on localhost)
-if (!IS_LOCALHOST) {
+// Initialize auth state from Supabase if not using local auth
+if (!isLocalAuthEnabled()) {
   getCurrentUser().then(({ user }) => {
     if (user) {
       useAuthStore.setState({ 

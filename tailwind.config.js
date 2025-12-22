@@ -14,6 +14,10 @@ export default {
         body: ['Exo 2', 'system-ui', 'sans-serif'],
         // Accent/Special Font - Cinzel Decorative (arcane, ancient)
         accent: ['Cinzel Decorative', 'serif'],
+        // Section Headers - Rajdhani (bold, geometric)
+        section: ['Rajdhani', 'sans-serif'],
+        // Monospaced - JetBrains Mono (technical, dates)
+        mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {
         // Dark futuristic theme
@@ -76,6 +80,9 @@ export default {
         'pulse-glow': 'pulseGlow 1.5s ease-in-out infinite',
         'slide-up': 'slideUp 0.3s ease-out',
         'fade-in': 'fadeIn 0.4s ease-out',
+        'glitch': 'glitch 3s infinite',
+        'plasma-flow': 'plasma 2s linear infinite',
+        'lightning-flow': 'lightning 1.2s linear infinite',
       },
       keyframes: {
         levelUp: {
@@ -103,6 +110,28 @@ export default {
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
+        },
+        glitch: {
+          '0%, 100%': { 
+            textShadow: '0 0 0 transparent',
+            transform: 'translate(0)'
+          },
+          '33%': { 
+            textShadow: '-2px 0 #ff0000, 2px 0 #00ffff',
+            transform: 'translate(1px, -1px)'
+          },
+          '66%': { 
+            textShadow: '2px 0 #ff0000, -2px 0 #00ffff',
+            transform: 'translate(-1px, 1px)'
+          },
+        },
+        plasma: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+        lightning: {
+          '0%': { backgroundPosition: '0 0' },
+          '100%': { backgroundPosition: '-30px 0' },
         },
       },
       boxShadow: {

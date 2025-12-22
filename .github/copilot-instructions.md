@@ -6,6 +6,17 @@
   For detailed explanations, see CODE-REVIEW.md
 -->
 
+## 🚨 Critical Behavioral Rules
+
+**NEVER perform tasks that were not explicitly requested by the user.**
+
+1. **Ask Permission First**: If you need to perform an additional task to complete a requested task, ask for permission before proceeding.
+2. **No Unsolicited Information**: Never provide explanations, documentation, or additional information unless explicitly requested.
+3. **No Unsolicited Documents**: Never generate documents, README files, or documentation unless explicitly requested.
+4. **Task Summary Required**: At the end of each completed task, provide ONLY a concise bullet-point list of what was completed.
+
+---
+
 ## 🎯 Project Context
 
 **Identity Cultivator** - Gamified habit tracker with cultivation/progression RPG mechanics.

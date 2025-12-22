@@ -1,9 +1,12 @@
 import { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { ToastContainer } from './components/Toast';
+import { ToastContainer } from './components/notifications/Toast';
 
-// Lazy load the main page to reduce initial bundle size
-const CultivatorHomepage = lazy(() => import('./pages/CultivatorHomepage'));
+// Lazy load pages to reduce initial bundle size
+const Homepage = lazy(() => import('./pages/Homepage'));
+const ShopPage = lazy(() => import('./pages/ShopPage'));
+const InventoryPage = lazy(() => import('./pages/InventoryPage'));
+const PathTreePage = lazy(() => import('./pages/PathTreePage'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -20,7 +23,10 @@ function App() {
     <>
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
-          <Route path="/" element={<CultivatorHomepage />} />
+          <Route path="/" element={<Homepage />} />
+          <Route path="/shop" element={<ShopPage />} />
+          <Route path="/inventory" element={<InventoryPage />} />
+          <Route path="/path-tree" element={<PathTreePage />} />
         </Routes>
       </Suspense>
       <ToastContainer />

@@ -3,8 +3,10 @@ import { create } from 'zustand';
 export interface Toast {
   id: string;
   message: string;
-  type: 'success' | 'error' | 'info' | 'warning';
+  type: 'success' | 'error' | 'info' | 'warning' | 'acquisition';
   duration?: number;
+  itemName?: string; // For acquisition toasts
+  price?: number; // For acquisition toasts
 }
 
 interface ToastState {
@@ -54,4 +56,18 @@ export const toast = {
     useToastStore.getState().showToast(message, 'info', duration),
   warning: (message: string, duration?: number) => 
     useToastStore.getState().showToast(message, 'warning', duration),
+  acquisition: (itemName: string, price: number, duration = 4000) => {
+    const id = Date.now().toString();
+    const toast: Toast = { 
+      id, 
+      message: 'ACQUIRED!', 
+      type: 'acquisition', 
+      duration,
+      itemName,
+      price
+    };
+    useToastStore.setState((state) => ({
+      toasts: [...state.toasts, toast],
+    }));
+  },
 };

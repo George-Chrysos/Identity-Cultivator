@@ -51,7 +51,7 @@ class Logger {
    * Debug logs (only in development)
    * Use for verbose logging during development
    */
-  debug(message: string, data?: any): void {
+  debug(message: string, data?: unknown): void {
     if (this.shouldLog('debug')) {
       if (data !== undefined) {
         console.log(this.formatMessage('debug', message), data);
@@ -65,7 +65,7 @@ class Logger {
    * Info logs (only in development)
    * Use for general information
    */
-  info(message: string, data?: any): void {
+  info(message: string, data?: unknown): void {
     if (this.shouldLog('info')) {
       if (data !== undefined) {
         console.info(this.formatMessage('info', message), data);
@@ -79,7 +79,7 @@ class Logger {
    * Warning logs (development + production)
    * Use for potentially problematic situations
    */
-  warn(message: string, data?: any): void {
+  warn(message: string, data?: unknown): void {
     if (this.shouldLog('warn')) {
       if (data !== undefined) {
         console.warn(this.formatMessage('warn', message), data);
@@ -93,7 +93,7 @@ class Logger {
    * Error logs (always enabled)
    * Use for errors and exceptions
    */
-  error(message: string, error?: any): void {
+  error(message: string, error?: unknown): void {
     if (this.shouldLog('error')) {
       const errorData = error instanceof Error 
         ? { message: error.message, stack: error.stack, name: error.name }
