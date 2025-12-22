@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { mockDB } from './mockDatabase';
 import { logger } from '@/utils/logger';
 import { calculateOverallRank } from '@/utils/overallRank';
 import {
@@ -21,6 +20,17 @@ import {
   PurchaseItemRequest,
 } from '@/types/database';
 
+// Lazy import mockDB to avoid circular dependency at module initialization
+// Only loaded when Supabase is not configured
+let _mockDB: typeof import('./mockDatabase').mockDB | null = null;
+const getMockDB = async () => {
+  if (!_mockDB) {
+    const module = await import('./mockDatabase');
+    _mockDB = module.mockDB;
+  }
+  return _mockDB;
+};
+
 /**
  * New Supabase service using refactored schema
  * Falls back to mockDB when Supabase is not configured
@@ -33,6 +43,7 @@ export const gameDB = {
    */
   async getProfile(userId: string): Promise<UserProfile | null> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.getProfile(userId);
     }
 
@@ -60,6 +71,7 @@ export const gameDB = {
    */
   async createProfile(userId: string, displayName: string): Promise<UserProfile> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.createProfile(userId, displayName);
     }
 
@@ -89,6 +101,7 @@ export const gameDB = {
    */
   async updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.updateProfile(userId, updates);
     }
 
@@ -158,6 +171,7 @@ export const gameDB = {
    */
   async getIdentityTemplates(): Promise<IdentityTemplate[]> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.getIdentityTemplates();
     }
 
@@ -181,6 +195,7 @@ export const gameDB = {
    */
   async getIdentityTemplate(templateId: string): Promise<IdentityTemplate | null> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.getIdentityTemplate(templateId);
     }
 
@@ -210,6 +225,7 @@ export const gameDB = {
    */
   async getTaskTemplates(identityTemplateId: string): Promise<TaskTemplate[]> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.getTaskTemplates(identityTemplateId);
     }
 
@@ -235,6 +251,7 @@ export const gameDB = {
    */
   async getActiveIdentities(userId: string): Promise<PlayerIdentityWithDetails[]> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.getActiveIdentities(userId);
     }
 
@@ -278,6 +295,7 @@ export const gameDB = {
    */
   async activateIdentity(request: ActivateIdentityRequest): Promise<PlayerIdentity> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.activateIdentity(request);
     }
 
@@ -312,6 +330,7 @@ export const gameDB = {
    */
   async deactivateIdentity(identityId: string): Promise<void> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.deactivateIdentity(identityId);
     }
 
@@ -337,6 +356,7 @@ export const gameDB = {
    */
   async completeTask(request: CompleteTaskRequest): Promise<CompleteTaskResponse> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.completeTask(request);
     }
 
@@ -463,6 +483,7 @@ export const gameDB = {
    */
   async checkCompletedToday(identityId: string): Promise<boolean> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.checkCompletedToday(identityId);
     }
 
@@ -490,6 +511,7 @@ export const gameDB = {
    */
   async getRecentCompletions(userId: string, limit: number = 10): Promise<TaskLog[]> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.getRecentCompletions(userId, limit);
     }
 
@@ -526,6 +548,7 @@ export const gameDB = {
     endDate?: string
   ): Promise<TaskLog[]> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.getCompletionHistory(userId, identityId, startDate, endDate);
     }
 
@@ -563,6 +586,7 @@ export const gameDB = {
    */
   async getShopItems(): Promise<ItemTemplate[]> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.getShopItems();
     }
 
@@ -588,6 +612,7 @@ export const gameDB = {
    */
   async purchaseItem(request: PurchaseItemRequest): Promise<PlayerInventoryItem> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.purchaseItem(request);
     }
 
@@ -614,6 +639,7 @@ export const gameDB = {
    */
   async getPlayerInventory(userId: string): Promise<PlayerInventoryItem[]> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.getPlayerInventory(userId);
     }
 
@@ -642,6 +668,7 @@ export const gameDB = {
    */
   async useInventoryItem(userId: string, inventoryItemId: string): Promise<PlayerInventoryItem> {
     if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
       return mockDB.useInventoryItem(userId, inventoryItemId);
     }
 

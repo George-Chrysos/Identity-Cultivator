@@ -17,8 +17,28 @@ import {
   DEFAULT_PROFILE_VALUES,
   STAT_COLUMN_MAPPING,
 } from '@/types/database';
-import { getAllTemperingData, getTemperingLevel, TEMPERING_TEMPLATE_ID } from '@/constants/temperingPath';
 import { TICKET_DATA } from '@/constants/tickets';
+
+// Inline the constant to avoid circular dependency on temperingPath.ts
+// This value must match TEMPERING_TEMPLATE_ID in temperingPath.ts
+const TEMPERING_TEMPLATE_ID = 'tempering-warrior-trainee';
+
+// Lazy import for tempering path functions - loaded on demand to avoid circular dependency
+type TemperingModule = typeof import('@/constants/temperingPath');
+let _temperingModule: TemperingModule | null = null;
+
+const loadTemperingModule = async (): Promise<TemperingModule> => {
+  if (!_temperingModule) {
+    _temperingModule = await import('@/constants/temperingPath');
+  }
+  return _temperingModule;
+};
+
+// Helper to get tempering level config (returns null if module not loaded yet)
+const getTemperingLevelSync = (level: number) => {
+  if (!_temperingModule) return null;
+  return _temperingModule.getTemperingLevel(level);
+};
 
 /**
  * Mock database for local development without Supabase
@@ -84,7 +104,7 @@ const calculateProgressiveStatPoints = (
     return { pointsToAward: 0, newGateProgress: 0, newTotalProgress: 0 };
   }
 
-  const levelConfig = getTemperingLevel(level);
+  const levelConfig = getTemperingLevelSync(level);
   if (!levelConfig) {
     return { pointsToAward: 0, newGateProgress: 0, newTotalProgress: 0 };
   }
@@ -137,8 +157,14 @@ const calculateProgressiveStatPoints = (
   return { pointsToAward, newGateProgress, newTotalProgress };
 };
 
-// Initialize demo data
-const initializeDemoData = () => {
+// Track initialization state
+let _isInitialized = false;
+let _initPromise: Promise<void> | null = null;
+
+// Initialize demo data (async to support lazy loading of tempering path)
+const initializeDemoData = async (): Promise<void> => {
+  if (_isInitialized) return;
+  
   // Create demo user profile
   const demoProfile: UserProfile = {
     id: DEMO_USER_ID,
@@ -200,8 +226,9 @@ const initializeDemoData = () => {
     mockIdentityTemplates.set(template.id, template);
   });
 
-  // Add Tempering Path templates (Levels 1-10)
-  const temperingData = getAllTemperingData();
+  // Add Tempering Path templates (Levels 1-10) - loaded lazily
+  const temperingModule = await loadTemperingModule();
+  const temperingData = temperingModule.getAllTemperingData();
   temperingData.templates.forEach((template) => {
     mockIdentityTemplates.set(template.id, template);
   });
@@ -457,6 +484,8 @@ const initializeDemoData = () => {
   // Initialize empty inventory for demo user
   mockPlayerInventory.set(DEMO_USER_ID, []);
 
+  _isInitialized = true;
+  
   logger.info('Mock database initialized with demo data', {
     profiles: mockProfiles.size,
     identityTemplates: mockIdentityTemplates.size,
@@ -467,8 +496,14 @@ const initializeDemoData = () => {
   });
 };
 
-// Initialize on module load
-initializeDemoData();
+// Ensure initialization is complete before using mockDB
+const ensureInitialized = async (): Promise<void> => {
+  if (_isInitialized) return;
+  if (!_initPromise) {
+    _initPromise = initializeDemoData();
+  }
+  await _initPromise;
+};
 
 /**
  * Mock database API matching gameDatabase interface
@@ -477,10 +512,12 @@ export const mockDB = {
   // ==================== PROFILES ====================
 
   async getProfile(userId: string): Promise<UserProfile | null> {
+    await ensureInitialized();
     return mockProfiles.get(userId) || null;
   },
 
   async createProfile(userId: string, displayName: string): Promise<UserProfile> {
+    await ensureInitialized();
     const profile: UserProfile = {
       id: userId,
       display_name: displayName,
@@ -494,6 +531,7 @@ export const mockDB = {
   },
 
   async updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
+    await ensureInitialized();
     const existing = mockProfiles.get(userId);
     if (!existing) {
       throw new Error(`Profile not found: ${userId}`);
@@ -509,6 +547,7 @@ export const mockDB = {
   },
 
   async updateOverallRank(userId: string): Promise<UserProfile> {
+    await ensureInitialized();
     const profile = mockProfiles.get(userId);
     if (!profile) {
       throw new Error(`Profile not found: ${userId}`);
@@ -543,10 +582,12 @@ export const mockDB = {
   // ==================== IDENTITY TEMPLATES ====================
 
   async getIdentityTemplates(): Promise<IdentityTemplate[]> {
+    await ensureInitialized();
     return Array.from(mockIdentityTemplates.values());
   },
 
   async getIdentityTemplate(templateId: string): Promise<IdentityTemplate | null> {
+    await ensureInitialized();
     return mockIdentityTemplates.get(templateId) || null;
   },
 
@@ -901,7 +942,7 @@ export const mockDB = {
       return false;
     }
 
-    const levelConfig = getTemperingLevel(level);
+    const levelConfig = getTemperingLevelSync(level);
     if (!levelConfig) {
       return false;
     }
