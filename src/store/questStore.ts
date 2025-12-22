@@ -19,114 +19,6 @@ const getTodayFormatted = (): string => {
   return `${months[today.getMonth()]} ${today.getDate()}`;
 };
 
-// Helper to get a random past date
-const getRandomPastDate = (): string => {
-  const today = new Date();
-  const daysAgo = Math.floor(Math.random() * 14) + 1; // 1-14 days ago
-  const pastDate = new Date(today);
-  pastDate.setDate(pastDate.getDate() - daysAgo);
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[pastDate.getMonth()]} ${pastDate.getDate()}`;
-};
-
-// Helper to get a random future date
-const getRandomFutureDate = (): string => {
-  const today = new Date();
-  const daysAhead = Math.floor(Math.random() * 14) + 1; // 1-14 days ahead
-  const futureDate = new Date(today);
-  futureDate.setDate(futureDate.getDate() + daysAhead);
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[futureDate.getMonth()]} ${futureDate.getDate()}`;
-};
-
-// Mock quests data - dynamically generated with today's date
-const generateMockQuests = (): Quest[] => {
-  const todayDate = getTodayFormatted();
-  
-  return [
-    // Today's quests (2)
-    {
-      id: 'quest-today-1',
-      title: 'Complete project documentation',
-      project: 'System',
-      date: todayDate,
-      hour: '14:00',
-      status: 'today',
-      subtasks: [
-        { id: 'sq-t1-1', title: 'Write README' },
-        { id: 'sq-t1-2', title: 'Add API documentation' },
-        { id: 'sq-t1-3', title: 'Create examples' }
-      ]
-    },
-    {
-      id: 'quest-today-2',
-      title: 'Review and merge PR #123',
-      project: 'Identity-Cultivator',
-      date: todayDate,
-      hour: '10:30',
-      status: 'today',
-      subtasks: [
-        { id: 'sq-t2-1', title: 'Check code changes' },
-        { id: 'sq-t2-2', title: 'Test functionality' },
-        { id: 'sq-t2-3', title: 'Approve and merge' }
-      ]
-    },
-    // Backlog quests (2) - random future dates
-    {
-      id: 'quest-backlog-1',
-      title: 'Setup CI/CD pipeline',
-      project: 'System',
-      date: getRandomFutureDate(),
-      hour: '09:00',
-      status: 'backlog',
-      subtasks: [
-        { id: 'sq-b1-1', title: 'Configure GitHub Actions' },
-        { id: 'sq-b1-2', title: 'Setup deployment scripts' },
-        { id: 'sq-b1-3', title: 'Add environment variables' }
-      ]
-    },
-    {
-      id: 'quest-backlog-2',
-      title: 'Implement user analytics',
-      project: 'Identity-Cultivator',
-      date: getRandomFutureDate(),
-      status: 'backlog',
-      subtasks: [
-        { id: 'sq-b2-1', title: 'Add tracking events' },
-        { id: 'sq-b2-2', title: 'Create analytics dashboard' }
-      ]
-    },
-    // Completed quests (2) - random past dates
-    {
-      id: 'quest-completed-1',
-      title: 'Refactor auth logic',
-      project: 'Identity-Cultivator',
-      date: getRandomPastDate(),
-      hour: '09:00',
-      status: 'completed',
-      completedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      subtasks: [
-        { id: 'sq-c1-1', title: 'Extract auth service' },
-        { id: 'sq-c1-2', title: 'Add unit tests' }
-      ]
-    },
-    {
-      id: 'quest-completed-2',
-      title: 'Design system components',
-      project: 'System',
-      date: getRandomPastDate(),
-      hour: '16:00',
-      status: 'completed',
-      completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      subtasks: [
-        { id: 'sq-c2-1', title: 'Create button variants' },
-        { id: 'sq-c2-2', title: 'Build input components' },
-        { id: 'sq-c2-3', title: 'Design card layouts' }
-      ]
-    }
-  ];
-};
-
 interface QuestState {
   quests: Quest[];
   isLoading: boolean;
@@ -160,10 +52,9 @@ export const useQuestStore = create<QuestState>()(
           const currentQuests = get().quests;
           
           if (currentQuests.length === 0) {
-            // Initialize with mock data if no quests exist
-            const mockQuests = generateMockQuests();
-            set({ quests: mockQuests, isLoading: false });
-            logger.info('Loaded mock quests', { count: mockQuests.length });
+            // No mock data - start with empty quests
+            set({ quests: [], isLoading: false });
+            logger.info('Initialized with empty quests');
           } else {
             // Update today's quests dates to reflect actual today
             const todayDate = getTodayFormatted();

@@ -30,16 +30,16 @@ const PlayerMenu = () => {
         animate={{ opacity: 1, x: 0 }}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        className="flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/50 rounded-lg px-4 py-2 shadow-[0_0_8px_rgba(192,132,252,0.3)] hover:bg-slate-900/90 transition-colors"
+        className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/50 rounded-lg px-3 py-1.5 shadow-[0_0_8px_rgba(192,132,252,0.3)] hover:bg-slate-900/90 transition-colors"
         aria-haspopup="menu"
         aria-expanded={openMenu}
       >
         {/* Avatar Circle */}
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center text-white font-bold shadow-lg border-2 border-violet-400/50">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm shadow-lg border-2 border-violet-400/50">
           {userProfile.display_name.charAt(0).toUpperCase()}
         </div>
         {/* Centered Name */}
-        <div className="text-white font-semibold text-sm">
+        <div className="text-white font-semibold text-xs">
           {userProfile.display_name}
         </div>
       </motion.button>

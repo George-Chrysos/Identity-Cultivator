@@ -48,28 +48,28 @@ const CurrencyDisplay = () => {
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="flex items-center gap-4 bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/50 rounded-lg px-4 py-2 shadow-[0_0_8px_rgba(192,132,252,0.3)]"
+      className="flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/50 rounded-lg px-3 py-1.5 shadow-[0_0_8px_rgba(192,132,252,0.3)]"
     >
       {/* Coins */}
       <motion.div 
-        className="flex items-center gap-2 cursor-pointer"
+        className="flex items-center gap-1.5 cursor-pointer"
         onClick={() => setCurrentPage('tavern')}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
-        <div className="text-xl drop-shadow-[0_0_4px_rgba(251,191,36,0.8)]">🪙</div>
-        <div className="text-lg font-black bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
+        <div className="text-base drop-shadow-[0_0_4px_rgba(251,191,36,0.8)]">🪙</div>
+        <div className="text-sm font-black bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
           <AnimatedNumber value={coins} />
         </div>
       </motion.div>
 
       {/* Vertical Divider */}
-      <div className="h-8 w-px bg-gradient-to-b from-transparent via-dark-border to-transparent" />
+      <div className="h-6 w-px bg-gradient-to-b from-transparent via-dark-border to-transparent" />
 
       {/* Stars - with slower animation for small values */}
-      <div className="flex items-center gap-2">
-        <Star className="h-5 w-5 text-cyan-400 drop-shadow-[0_0_4px_rgba(56,189,248,0.8)]" strokeWidth={2.5} />
-        <div className="text-lg font-black bg-gradient-to-r from-cyan-300 to-cyan-500 bg-clip-text text-transparent">
+      <div className="flex items-center gap-1.5">
+        <Star className="h-4 w-4 text-cyan-400 drop-shadow-[0_0_4px_rgba(56,189,248,0.8)]" strokeWidth={2.5} />
+        <div className="text-sm font-black bg-gradient-to-r from-cyan-300 to-cyan-500 bg-clip-text text-transparent">
           <AnimatedNumber value={stars} duration={0.8} />
         </div>
       </div>
