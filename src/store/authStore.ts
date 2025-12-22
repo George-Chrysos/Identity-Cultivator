@@ -124,32 +124,41 @@ export const useAuthStore = create<AuthState>()(
 
 // Initialize auth state from Supabase if not using local auth
 if (!isLocalAuthEnabled()) {
-  getCurrentUser().then(({ user }) => {
-    if (user) {
-      useAuthStore.setState({ 
-        currentUser: { 
-          id: user.id,  // Include user ID
-          name: user.user_metadata?.full_name || user.email, 
-          email: user.email 
-        }, 
-        isAuthenticated: true 
+  // Wrap in try-catch to prevent app crash if Supabase is misconfigured
+  try {
+    getCurrentUser()
+      .then(({ user }) => {
+        if (user) {
+          useAuthStore.setState({ 
+            currentUser: { 
+              id: user.id,
+              name: user.user_metadata?.full_name || user.email, 
+              email: user.email 
+            }, 
+            isAuthenticated: true 
+          });
+        }
+      })
+      .catch((error) => {
+        logger.error('Failed to get current user', error);
       });
-    }
-  });
 
-  // Listen for auth state changes (keeps store in sync)
-  onAuthStateChange((authUser) => {
-    if (authUser) {
-      useAuthStore.setState({ 
-        currentUser: { 
-          id: authUser.id,  // Include user ID
-          name: authUser.user_metadata?.full_name || authUser.email, 
-          email: authUser.email 
-        }, 
-        isAuthenticated: true 
-      });
-    } else {
-      useAuthStore.setState({ currentUser: null, isAuthenticated: false });
-    }
-  });
+    // Listen for auth state changes (keeps store in sync)
+    onAuthStateChange((authUser) => {
+      if (authUser) {
+        useAuthStore.setState({ 
+          currentUser: { 
+            id: authUser.id,
+            name: authUser.user_metadata?.full_name || authUser.email, 
+            email: authUser.email 
+          }, 
+          isAuthenticated: true 
+        });
+      } else {
+        useAuthStore.setState({ currentUser: null, isAuthenticated: false });
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to initialize auth state', error);
+  }
 }

@@ -15,6 +15,33 @@
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
     <!-- JetBrains Mono - Monospaced for dates/technical text -->
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+    <style>
+      /* Initial loading state - shown before JS loads */
+      #root:empty::after {
+        content: '';
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(rgb(15, 7, 40) 0%, rgb(26, 11, 63) 30%, rgb(30, 10, 82) 60%, rgb(42, 19, 96) 100%);
+      }
+      #root:empty::before {
+        content: 'Loading...';
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-family: 'Exo 2', system-ui, sans-serif;
+        font-size: 1.25rem;
+        z-index: 9999;
+      }
+      body {
+        margin: 0;
+        background: linear-gradient(rgb(15, 7, 40) 0%, rgb(26, 11, 63) 30%, rgb(30, 10, 82) 60%, rgb(42, 19, 96) 100%);
+        min-height: 100vh;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
