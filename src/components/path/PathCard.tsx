@@ -206,9 +206,10 @@ export const PathCard = memo(({
         updateRewards(-taskRewards.coins, taskRewards.stat || '', taskRewards.points > 0 ? -taskRewards.points : 0);
       }
       
-      // If all tasks were previously completed, revert streak
+      // If all tasks were previously completed, revert streak by 1 (not to initialStreak)
+      // This fixes a bug where unchecking would jump to stale initialStreak value
       if (allTasksWereCompleted) {
-        newStreak = initialStreak;
+        newStreak = Math.max(0, streak - 1);
         newAllTasksCompleted = false;
       }
     } else {
@@ -490,7 +491,7 @@ export const PathCard = memo(({
       )}
       {/* ROW 1: Title, Status, and Streak */}
       <div className="flex items-start justify-between gap-3 mb-2 relative z-10">
-        {/* Left: Title + Status Badge */}
+        {/* Left: Title */}
         <div className="flex items-center gap-3 min-w-0 flex-shrink">
           <h3 
             className="text-2xl font-bold text-white font-section tracking-wide truncate"
@@ -499,24 +500,24 @@ export const PathCard = memo(({
           >
             {currentTitle}
           </h3>
-          
-          {/* Pending/Complete Status Badge - next to title */}
-          {!isTrialReady && (
-            <div 
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex-shrink-0 ${
-                status === 'completed' 
-                  ? 'bg-green-500/20 border border-green-400 text-green-400 shadow-[0_0_10px_rgba(74,222,128,0.4)]'
-                  : 'bg-transparent border border-slate-600 text-slate-400'
-              }`}
-            >
-              {status === 'completed' ? 'Complete' : 'Pending'}
-            </div>
-          )}
         </div>
         
-        {/* Right: Trial CTA OR Streak Counter */}
-        <div className="flex-shrink-0">
-          {isTrialReady ? (
+        {/* Right: Status Badge (moved to right corner) */}
+        {!isTrialReady && (
+          <div 
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex-shrink-0 mr-2 ${
+              status === 'completed' 
+                ? 'bg-green-500/20 border border-green-400 text-green-400 shadow-[0_0_10px_rgba(74,222,128,0.4)]'
+                : 'bg-transparent border border-slate-600 text-slate-400'
+            }`}
+          >
+            {status === 'completed' ? 'Complete' : 'Pending'}
+          </div>
+        )}
+        
+        {/* Right: Trial CTA only when ready */}
+        {isTrialReady && (
+          <div className="flex-shrink-0">
             <motion.button
               onClick={handleTrialStart}
               animate={{ scale: [1, 1.05, 1] }}
@@ -525,17 +526,8 @@ export const PathCard = memo(({
             >
               TRIAL AVAILABLE
             </motion.button>
-          ) : (
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-slate-400">Streak:</span>
-              <StreakCounter 
-                streak={streak} 
-                level={currentLevel} 
-                className="flex-shrink-0"
-              />
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* ROW 2: Subtitle (The Identity Row) */}
@@ -588,17 +580,32 @@ export const PathCard = memo(({
           </div>
         </div>
 
-        {/* XP Text */}
-        <motion.div 
-          key={currentXP}
-          initial={{ scale: 1 }}
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ duration: 0.3 }}
-          className="text-xs text-purple-300 px-1"
-        >
-          <span>{currentXP} /</span>
-          <span> {maxXP}</span>
-        </motion.div>
+        {/* XP Text and Streak Row - swapped positions */}
+        <div className="flex items-center justify-between px-1 mt-2">
+          {/* Streak Counter - Left aligned with left margin */}
+          {!isTrialReady && (
+            <div className="flex items-center gap-2 ml-3">
+              <span className="text-xs text-slate-400">Streak:</span>
+              <StreakCounter 
+                streak={streak} 
+                level={currentLevel} 
+                className="flex-shrink-0"
+              />
+            </div>
+          )}
+          
+          {/* XP Counter - Right aligned with right margin */}
+          <motion.div 
+            key={currentXP}
+            initial={{ scale: 1 }}
+            animate={{ scale: [1, 1.05, 1] }}
+            transition={{ duration: 0.3 }}
+            className="text-xs text-purple-300 mr-3"
+          >
+            <span>{currentXP} /</span>
+            <span> {maxXP}</span>
+          </motion.div>
+        </div>
       </div>
 
       {/* Task List Section */}

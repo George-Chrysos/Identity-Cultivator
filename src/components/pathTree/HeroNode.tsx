@@ -40,8 +40,8 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
     }
   }, [node.id, onClick]);
   
-  // Same size for all nodes
-  const nodeSize = 'w-24 h-24';
+  // Another 20% bigger (total 44% increase)
+  const nodeSize = 'w-[103px] h-[103px] sm:w-[138px] sm:h-[138px] md:w-[161px] md:h-[161px]';
   
   // Determine display color and glow based on state
   const displayColor = isLocked ? 'rgb(71, 85, 105)' : isUnlockable ? 'rgb(192, 192, 192)' : colors.primary;
@@ -50,9 +50,9 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
   return (
     <div className="flex flex-col items-center">
       {/* Title - Fixed height container */}
-      <div className="h-12 flex items-center justify-center mb-4">
+      <div className="h-10 sm:h-12 flex items-center justify-center mb-2 sm:mb-4">
         <motion.h2
-          className="font-bold text-2xl"
+          className="font-bold text-xl sm:text-2xl md:text-3xl"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           style={{
@@ -141,12 +141,21 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
             style={isUnlockable ? { filter: 'drop-shadow(0 0 8px rgba(192,192,192,0.6))' } : { transformOrigin: 'center' }}
           />
 
-          {/* Main Circle Border */}
+          {/* Main Circle Fill - Always fully opaque to hide lines behind */}
           <circle
             cx="100"
             cy="100"
             r="58"
-            fill="rgba(15, 23, 42, 0.9)"
+            fill="rgb(15, 23, 42)"
+            stroke="none"
+          />
+          
+          {/* Main Circle Stroke - Drawn on top with conditional opacity */}
+          <circle
+            cx="100"
+            cy="100"
+            r="58"
+            fill="none"
             stroke={displayColor}
             strokeWidth="3"
             opacity={isLocked ? 0.5 : isUnlockable ? 1 : 1}

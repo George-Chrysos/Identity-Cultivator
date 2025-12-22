@@ -208,105 +208,101 @@ export const TreeConnections = memo(({ theme, nodes }: TreeConnectionsProps) => 
     };
   }, [nodes]);
 
-  // CONFIGURATION
-  const NODE_HEIGHT = 98;
-  const VERTICAL_GAP = 67;
-  const HERO_Y = 120;
-  const STAGE_2_START_Y = 210;
+  // CONFIGURATION - Use percentages of viewBox for responsive positioning
+  // ViewBox is 100x100 units for clean percentage-based calculations
+  const VIEWBOX_WIDTH = 100;
+  
+  // Vertical positioning as percentages (accounting for responsive node gaps)
+  // Shifted down by ~75% total for better alignment with nodes
+  const HERO_Y = 12;
+  const STAGE_2_TOP = 30;
+  const STAGE_2_BOTTOM = 36;
+  const STAGE_3_TOP = 47;
+  const STAGE_3_BOTTOM = 53;
+  const STAGE_4_TOP = 64;
+  const STAGE_4_BOTTOM = 70;
+  const STAGE_5_TOP = 81;
+  const STAGE_5_BOTTOM = 87;
+  const STAGE_6_TOP = 95;
+  const STAGE_6_BOTTOM = 100;
+
+  // X positions - percentage-based to match flex layout
+  // Center for hero and apex nodes
+  const centerX = VIEWBOX_WIDTH * 0.50; // 50%
+  // Stage 2 uses justify-around (2 nodes) - positioned at ~28% and ~72%
+  const stage2LeftX = VIEWBOX_WIDTH * 0.28;
+  const stage2RightX = VIEWBOX_WIDTH * 0.72;
+  // Stages 3-5 use justify-between (3 nodes) - adjusted: left 15%, right 85%
+  const leftEdgeX = VIEWBOX_WIDTH * 0.15;
+  const rightEdgeX = VIEWBOX_WIDTH * 0.85
 
   const pos = {
-    hero: { x: 175, y: HERO_Y }, 
+    hero: { x: centerX, y: HERO_Y }, 
 
-    // Stage 2 - Now only 2 nodes (left and right)
-    stage2Left:  { x: 90,  top: STAGE_2_START_Y, bottom: STAGE_2_START_Y + NODE_HEIGHT },
-    stage2Right: { x: 264, top: STAGE_2_START_Y, bottom: STAGE_2_START_Y + NODE_HEIGHT },
+    // Stage 2 - Now only 2 nodes (left and right) - justify-around
+    stage2Left:  { x: stage2LeftX,  top: STAGE_2_TOP, bottom: STAGE_2_BOTTOM },
+    stage2Right: { x: stage2RightX, top: STAGE_2_TOP, bottom: STAGE_2_BOTTOM },
 
-    // Stage 3 - 3 nodes (left, center, right)
-    stage3Left:   { x: 55,  
-      top: (STAGE_2_START_Y + NODE_HEIGHT) + VERTICAL_GAP, 
-      bottom: (STAGE_2_START_Y + NODE_HEIGHT) + VERTICAL_GAP + NODE_HEIGHT 
-    }, 
-    stage3Center: { x: 175, 
-      top: (STAGE_2_START_Y + NODE_HEIGHT) + VERTICAL_GAP, 
-      bottom: (STAGE_2_START_Y + NODE_HEIGHT) + VERTICAL_GAP + NODE_HEIGHT 
-    },
-    stage3Right:  { x: 300, 
-      top: (STAGE_2_START_Y + NODE_HEIGHT) + VERTICAL_GAP, 
-      bottom: (STAGE_2_START_Y + NODE_HEIGHT) + VERTICAL_GAP + NODE_HEIGHT 
-    },
+    // Stage 3 - 3 nodes (left, center, right) - justify-between
+    stage3Left:   { x: leftEdgeX,  top: STAGE_3_TOP, bottom: STAGE_3_BOTTOM }, 
+    stage3Center: { x: centerX, top: STAGE_3_TOP, bottom: STAGE_3_BOTTOM },
+    stage3Right:  { x: rightEdgeX, top: STAGE_3_TOP, bottom: STAGE_3_BOTTOM },
 
-    // Stage 4 - 3 nodes
-    stage4Left:   { x: 55,  
-      top: (STAGE_2_START_Y + (NODE_HEIGHT * 2)) + (VERTICAL_GAP * 2), 
-      bottom: (STAGE_2_START_Y + (NODE_HEIGHT * 2)) + (VERTICAL_GAP * 2) + NODE_HEIGHT 
-    },
-    stage4Center: { x: 175, 
-      top: (STAGE_2_START_Y + (NODE_HEIGHT * 2)) + (VERTICAL_GAP * 2), 
-      bottom: (STAGE_2_START_Y + (NODE_HEIGHT * 2)) + (VERTICAL_GAP * 2) + NODE_HEIGHT 
-    },
-    stage4Right:  { x: 300, 
-      top: (STAGE_2_START_Y + (NODE_HEIGHT * 2)) + (VERTICAL_GAP * 2), 
-      bottom: (STAGE_2_START_Y + (NODE_HEIGHT * 2)) + (VERTICAL_GAP * 2) + NODE_HEIGHT 
-    },
+    // Stage 4 - 3 nodes - justify-between
+    stage4Left:   { x: leftEdgeX,  top: STAGE_4_TOP, bottom: STAGE_4_BOTTOM },
+    stage4Center: { x: centerX, top: STAGE_4_TOP, bottom: STAGE_4_BOTTOM },
+    stage4Right:  { x: rightEdgeX, top: STAGE_4_TOP, bottom: STAGE_4_BOTTOM },
 
-    // Stage 5 - 3 nodes
-    stage5Left:   { x: 55,  
-      top: (STAGE_2_START_Y + (NODE_HEIGHT * 3)) + (VERTICAL_GAP * 3), 
-      bottom: (STAGE_2_START_Y + (NODE_HEIGHT * 3)) + (VERTICAL_GAP * 3) + NODE_HEIGHT 
-    },
-    stage5Center: { x: 175, 
-      top: (STAGE_2_START_Y + (NODE_HEIGHT * 3)) + (VERTICAL_GAP * 3), 
-      bottom: (STAGE_2_START_Y + (NODE_HEIGHT * 3)) + (VERTICAL_GAP * 3) + NODE_HEIGHT 
-    },
-    stage5Right:  { x: 300, 
-      top: (STAGE_2_START_Y + (NODE_HEIGHT * 3)) + (VERTICAL_GAP * 3), 
-      bottom: (STAGE_2_START_Y + (NODE_HEIGHT * 3)) + (VERTICAL_GAP * 3) + NODE_HEIGHT 
-    },
+    // Stage 5 - 3 nodes - justify-between
+    stage5Left:   { x: leftEdgeX,  top: STAGE_5_TOP, bottom: STAGE_5_BOTTOM },
+    stage5Center: { x: centerX, top: STAGE_5_TOP, bottom: STAGE_5_BOTTOM },
+    stage5Right:  { x: rightEdgeX, top: STAGE_5_TOP, bottom: STAGE_5_BOTTOM },
 
     // Stage 6 - Apex node (1 center node)
-    stage6Center: { x: 175, 
-      top: (STAGE_2_START_Y + (NODE_HEIGHT * 4)) + (VERTICAL_GAP * 4), 
-      bottom: (STAGE_2_START_Y + (NODE_HEIGHT * 4)) + (VERTICAL_GAP * 4) + NODE_HEIGHT 
-    },
+    stage6Center: { x: centerX, top: STAGE_6_TOP, bottom: STAGE_6_BOTTOM },
   };
 
   // Path definitions - beautiful curvy S-curves from hero to 2 stage 2 branches
+  // Control point offsets scaled for 0-100 coordinate system
+  const CURVE_OFFSET_H = 8; // Horizontal curve offset
+  const CURVE_OFFSET_V = 4; // Vertical curve offset
+  
   const paths = {
     // Hero to Stage 2 - Beautiful curvy paths (S-curves) for connection lines
     heroToLeft: `M ${pos.hero.x} ${pos.hero.y} 
-      C ${pos.hero.x - 30} ${pos.hero.y + 40}, 
-        ${pos.stage2Left.x + 30} ${pos.stage2Left.top - 40}, 
+      C ${pos.hero.x - CURVE_OFFSET_H} ${pos.hero.y + CURVE_OFFSET_V}, 
+        ${pos.stage2Left.x + CURVE_OFFSET_H} ${pos.stage2Left.top - CURVE_OFFSET_V}, 
         ${pos.stage2Left.x} ${pos.stage2Left.top}`,
     heroToRight: `M ${pos.hero.x} ${pos.hero.y} 
-      C ${pos.hero.x + 30} ${pos.hero.y + 40}, 
-        ${pos.stage2Right.x - 30} ${pos.stage2Right.top - 40}, 
+      C ${pos.hero.x + CURVE_OFFSET_H} ${pos.hero.y + CURVE_OFFSET_V}, 
+        ${pos.stage2Right.x - CURVE_OFFSET_H} ${pos.stage2Right.top - CURVE_OFFSET_V}, 
         ${pos.stage2Right.x} ${pos.stage2Right.top}`,
 
-    // Stage 2 to Stage 3 - Left branch: vertical line to left node
+    // Stage 2 to Stage 3 - Left branch: curve to left node
     stage2LeftToStage3Left: `M ${pos.stage2Left.x} ${pos.stage2Left.bottom} 
-      C ${pos.stage2Left.x} ${pos.stage2Left.bottom + 30},
-        ${pos.stage3Left.x} ${pos.stage3Left.top - 30},
+      C ${pos.stage2Left.x} ${pos.stage2Left.bottom + CURVE_OFFSET_V},
+        ${pos.stage3Left.x} ${pos.stage3Left.top - CURVE_OFFSET_V},
         ${pos.stage3Left.x} ${pos.stage3Left.top}`,
     
-    // Stage 2 to Stage 3 - Left branch: diagonal line to center node
+    // Stage 2 to Stage 3 - Left branch: diagonal curve to center node
     stage2LeftToStage3Center: `M ${pos.stage2Left.x} ${pos.stage2Left.bottom} 
-      C ${pos.stage2Left.x + 30} ${pos.stage2Left.bottom + 30},
-        ${pos.stage3Center.x - 30} ${pos.stage3Center.top - 30},
+      C ${pos.stage2Left.x + CURVE_OFFSET_H} ${pos.stage2Left.bottom + CURVE_OFFSET_V},
+        ${pos.stage3Center.x - CURVE_OFFSET_H} ${pos.stage3Center.top - CURVE_OFFSET_V},
         ${pos.stage3Center.x} ${pos.stage3Center.top}`,
     
-    // Stage 2 to Stage 3 - Right branch: diagonal line to center node
+    // Stage 2 to Stage 3 - Right branch: diagonal curve to center node
     stage2RightToStage3Center: `M ${pos.stage2Right.x} ${pos.stage2Right.bottom} 
-      C ${pos.stage2Right.x - 30} ${pos.stage2Right.bottom + 30},
-        ${pos.stage3Center.x + 30} ${pos.stage3Center.top - 30},
+      C ${pos.stage2Right.x - CURVE_OFFSET_H} ${pos.stage2Right.bottom + CURVE_OFFSET_V},
+        ${pos.stage3Center.x + CURVE_OFFSET_H} ${pos.stage3Center.top - CURVE_OFFSET_V},
         ${pos.stage3Center.x} ${pos.stage3Center.top}`,
     
-    // Stage 2 to Stage 3 - Right branch: vertical line to right node  
+    // Stage 2 to Stage 3 - Right branch: curve to right node  
     stage2RightToStage3Right: `M ${pos.stage2Right.x} ${pos.stage2Right.bottom} 
-      C ${pos.stage2Right.x} ${pos.stage2Right.bottom + 30},
-        ${pos.stage3Right.x} ${pos.stage3Right.top - 30},
+      C ${pos.stage2Right.x} ${pos.stage2Right.bottom + CURVE_OFFSET_V},
+        ${pos.stage3Right.x} ${pos.stage3Right.top - CURVE_OFFSET_V},
         ${pos.stage3Right.x} ${pos.stage3Right.top}`,
 
-    // Stage 3 to Stage 4 (vertical lines with slight curves)
+    // Stage 3 to Stage 4 (vertical lines)
     stage3LeftToStage4Left: `M ${pos.stage3Left.x} ${pos.stage3Left.bottom} L ${pos.stage4Left.x} ${pos.stage4Left.top}`,
     stage3CenterToStage4Center: `M ${pos.stage3Center.x} ${pos.stage3Center.bottom} L ${pos.stage4Center.x} ${pos.stage4Center.top}`,
     stage3RightToStage4Right: `M ${pos.stage3Right.x} ${pos.stage3Right.bottom} L ${pos.stage4Right.x} ${pos.stage4Right.top}`,
@@ -316,15 +312,15 @@ export const TreeConnections = memo(({ theme, nodes }: TreeConnectionsProps) => 
     stage4CenterToStage5Center: `M ${pos.stage4Center.x} ${pos.stage4Center.bottom} L ${pos.stage5Center.x} ${pos.stage5Center.top}`,
     stage4RightToStage5Right: `M ${pos.stage4Right.x} ${pos.stage4Right.bottom} L ${pos.stage5Right.x} ${pos.stage5Right.top}`,
 
-    // Stage 5 to Stage 6 - Converging lines to apex (curvy)
+    // Stage 5 to Stage 6 - Converging curves to apex
     stage5LeftToStage6Center: `M ${pos.stage5Left.x} ${pos.stage5Left.bottom} 
-      C ${pos.stage5Left.x + 30} ${pos.stage5Left.bottom + 30},
-        ${pos.stage6Center.x - 40} ${pos.stage6Center.top - 30},
+      C ${pos.stage5Left.x + CURVE_OFFSET_H} ${pos.stage5Left.bottom + CURVE_OFFSET_V},
+        ${pos.stage6Center.x - CURVE_OFFSET_H * 1.2} ${pos.stage6Center.top - CURVE_OFFSET_V},
         ${pos.stage6Center.x} ${pos.stage6Center.top}`,
     stage5CenterToStage6Center: `M ${pos.stage5Center.x} ${pos.stage5Center.bottom} L ${pos.stage6Center.x} ${pos.stage6Center.top}`,
     stage5RightToStage6Center: `M ${pos.stage5Right.x} ${pos.stage5Right.bottom} 
-      C ${pos.stage5Right.x - 30} ${pos.stage5Right.bottom + 30},
-        ${pos.stage6Center.x + 40} ${pos.stage6Center.top - 30},
+      C ${pos.stage5Right.x - CURVE_OFFSET_H} ${pos.stage5Right.bottom + CURVE_OFFSET_V},
+        ${pos.stage6Center.x + CURVE_OFFSET_H * 1.2} ${pos.stage6Center.top - CURVE_OFFSET_V},
         ${pos.stage6Center.x} ${pos.stage6Center.top}`,
   };
 
@@ -358,28 +354,28 @@ export const TreeConnections = memo(({ theme, nodes }: TreeConnectionsProps) => 
         // Dual paths that end at CENTER of stage 3 icon
         const stage3CenterY = (pos.stage3Center.top + pos.stage3Center.bottom) / 2;
         const leftPathToStage3 = `M ${pos.hero.x} ${pos.hero.y} 
-          C ${pos.hero.x - 30} ${pos.hero.y + 40}, 
-            ${pos.stage2Left.x + 30} ${pos.stage2Left.top - 40}, 
+          C ${pos.hero.x - CURVE_OFFSET_H} ${pos.hero.y + CURVE_OFFSET_V}, 
+            ${pos.stage2Left.x + CURVE_OFFSET_H} ${pos.stage2Left.top - CURVE_OFFSET_V}, 
             ${pos.stage2Left.x} ${pos.stage2Left.top}
           L ${pos.stage2Left.x} ${pos.stage2Left.bottom}
-          C ${pos.stage2Left.x + 30} ${pos.stage2Left.bottom + 30},
-            ${pos.stage3Center.x - 30} ${pos.stage3Center.top - 30},
+          C ${pos.stage2Left.x + CURVE_OFFSET_H} ${pos.stage2Left.bottom + CURVE_OFFSET_V},
+            ${pos.stage3Center.x - CURVE_OFFSET_H} ${pos.stage3Center.top - CURVE_OFFSET_V},
             ${pos.stage3Center.x} ${stage3CenterY}`;
         
         const rightPathToStage3 = `M ${pos.hero.x} ${pos.hero.y} 
-          C ${pos.hero.x + 30} ${pos.hero.y + 40}, 
-            ${pos.stage2Right.x - 30} ${pos.stage2Right.top - 40}, 
+          C ${pos.hero.x + CURVE_OFFSET_H} ${pos.hero.y + CURVE_OFFSET_V}, 
+            ${pos.stage2Right.x - CURVE_OFFSET_H} ${pos.stage2Right.top - CURVE_OFFSET_V}, 
             ${pos.stage2Right.x} ${pos.stage2Right.top}
           L ${pos.stage2Right.x} ${pos.stage2Right.bottom}
-          C ${pos.stage2Right.x - 30} ${pos.stage2Right.bottom + 30},
-            ${pos.stage3Center.x + 30} ${pos.stage3Center.top - 30},
+          C ${pos.stage2Right.x - CURVE_OFFSET_H} ${pos.stage2Right.bottom + CURVE_OFFSET_V},
+            ${pos.stage3Center.x + CURVE_OFFSET_H} ${pos.stage3Center.top - CURVE_OFFSET_V},
             ${pos.stage3Center.x} ${stage3CenterY}`;
         
         // Add the continuation from stage 3 to current stage (single path)
         let continuation = ` L ${pos.stage3Center.x} ${pos.stage3Center.bottom}`;
         if (stage >= 4) continuation += ` L ${pos.stage4Center.x} ${pos.stage4Center.top} L ${pos.stage4Center.x} ${pos.stage4Center.bottom}`;
         if (stage >= 5) continuation += ` L ${pos.stage5Center.x} ${pos.stage5Center.top} L ${pos.stage5Center.x} ${pos.stage5Center.bottom}`;
-        if (stage >= 6) continuation += ` C ${pos.stage5Center.x} ${pos.stage5Center.bottom + 30}, ${pos.stage6Center.x} ${pos.stage6Center.top - 30}, ${pos.stage6Center.x} ${pos.stage6Center.top}`;
+        if (stage >= 6) continuation += ` C ${pos.stage5Center.x} ${pos.stage5Center.bottom + CURVE_OFFSET_V}, ${pos.stage6Center.x} ${pos.stage6Center.top - CURVE_OFFSET_V}, ${pos.stage6Center.x} ${pos.stage6Center.top}`;
         
         return { dual: true, leftPath: leftPathToStage3 + continuation, rightPath: rightPathToStage3 + continuation };
       }
@@ -387,13 +383,13 @@ export const TreeConnections = memo(({ theme, nodes }: TreeConnectionsProps) => 
       // For stage 2 only - stop at stage 2 nodes
       if (stage === 2) {
         const leftPath = `M ${pos.hero.x} ${pos.hero.y} 
-          C ${pos.hero.x - 30} ${pos.hero.y + 40}, 
-            ${pos.stage2Left.x + 30} ${pos.stage2Left.top - 40}, 
+          C ${pos.hero.x - CURVE_OFFSET_H} ${pos.hero.y + CURVE_OFFSET_V}, 
+            ${pos.stage2Left.x + CURVE_OFFSET_H} ${pos.stage2Left.top - CURVE_OFFSET_V}, 
             ${pos.stage2Left.x} ${pos.stage2Left.top}`;
         
         const rightPath = `M ${pos.hero.x} ${pos.hero.y} 
-          C ${pos.hero.x + 30} ${pos.hero.y + 40}, 
-            ${pos.stage2Right.x - 30} ${pos.stage2Right.top - 40}, 
+          C ${pos.hero.x + CURVE_OFFSET_H} ${pos.hero.y + CURVE_OFFSET_V}, 
+            ${pos.stage2Right.x - CURVE_OFFSET_H} ${pos.stage2Right.top - CURVE_OFFSET_V}, 
             ${pos.stage2Right.x} ${pos.stage2Right.top}`;
         
         return { dual: true, leftPath, rightPath };
@@ -403,21 +399,21 @@ export const TreeConnections = memo(({ theme, nodes }: TreeConnectionsProps) => 
       if (stage === 3 && branch === 'center-branch') {
         const stage3CenterY = (pos.stage3Center.top + pos.stage3Center.bottom) / 2;
         const leftPath = `M ${pos.hero.x} ${pos.hero.y} 
-          C ${pos.hero.x - 30} ${pos.hero.y + 40}, 
-            ${pos.stage2Left.x + 30} ${pos.stage2Left.top - 40}, 
+          C ${pos.hero.x - CURVE_OFFSET_H} ${pos.hero.y + CURVE_OFFSET_V}, 
+            ${pos.stage2Left.x + CURVE_OFFSET_H} ${pos.stage2Left.top - CURVE_OFFSET_V}, 
             ${pos.stage2Left.x} ${pos.stage2Left.top}
           L ${pos.stage2Left.x} ${pos.stage2Left.bottom}
-          C ${pos.stage2Left.x + 30} ${pos.stage2Left.bottom + 30},
-            ${pos.stage3Center.x - 30} ${pos.stage3Center.top - 30},
+          C ${pos.stage2Left.x + CURVE_OFFSET_H} ${pos.stage2Left.bottom + CURVE_OFFSET_V},
+            ${pos.stage3Center.x - CURVE_OFFSET_H} ${pos.stage3Center.top - CURVE_OFFSET_V},
             ${pos.stage3Center.x} ${stage3CenterY}`;
         
         const rightPath = `M ${pos.hero.x} ${pos.hero.y} 
-          C ${pos.hero.x + 30} ${pos.hero.y + 40}, 
-            ${pos.stage2Right.x - 30} ${pos.stage2Right.top - 40}, 
+          C ${pos.hero.x + CURVE_OFFSET_H} ${pos.hero.y + CURVE_OFFSET_V}, 
+            ${pos.stage2Right.x - CURVE_OFFSET_H} ${pos.stage2Right.top - CURVE_OFFSET_V}, 
             ${pos.stage2Right.x} ${pos.stage2Right.top}
           L ${pos.stage2Right.x} ${pos.stage2Right.bottom}
-          C ${pos.stage2Right.x - 30} ${pos.stage2Right.bottom + 30},
-            ${pos.stage3Center.x + 30} ${pos.stage3Center.top - 30},
+          C ${pos.stage2Right.x - CURVE_OFFSET_H} ${pos.stage2Right.bottom + CURVE_OFFSET_V},
+            ${pos.stage3Center.x + CURVE_OFFSET_H} ${pos.stage3Center.top - CURVE_OFFSET_V},
             ${pos.stage3Center.x} ${stage3CenterY}`;
         
         return { dual: true, leftPath, rightPath };
@@ -528,9 +524,9 @@ export const TreeConnections = memo(({ theme, nodes }: TreeConnectionsProps) => 
 
   return (
     <svg
-      viewBox="0 0 350 860"
+      viewBox="0 0 100 100"
       className="absolute inset-0 w-full h-full pointer-events-none"
-      preserveAspectRatio="xMidYMid meet"
+      preserveAspectRatio="none"
       style={{ zIndex: 0 }}
     >
       <defs>

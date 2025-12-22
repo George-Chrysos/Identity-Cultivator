@@ -251,7 +251,7 @@ export const useGameStore = create<GameState>()(
             const { useShopStore } = await import('./shopStore');
             const cooldownDuration = item.cooldown_time || 24;
             const baseInflation = item.base_inflation || 0;
-            useShopStore.getState().recordPurchase(itemTemplateId, cooldownDuration, baseInflation);
+            await useShopStore.getState().recordPurchase(itemTemplateId, cooldownDuration, baseInflation);
           }
 
           // Reload profile to get updated coins

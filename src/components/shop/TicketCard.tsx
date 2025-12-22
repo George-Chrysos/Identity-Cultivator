@@ -84,7 +84,7 @@ export const TicketCard = memo(({
   return (
     <motion.div
       className="relative"
-      whileHover={canAfford ? { scale: 1.01 } : {}}
+      whileHover={canAfford ? { scale: 1.02 } : {}}
       animate={isInflated ? {
         opacity: [0.9, 1.0, 0.9],
       } : {}}
@@ -113,7 +113,7 @@ export const TicketCard = memo(({
 
       {/* Main Card Container with Silver Border and Double-Layer Shadow */}
       <div
-        className={`relative backdrop-blur-md p-4 transition-all overflow-hidden ${
+        className={`relative backdrop-blur-md p-12 sm:p-8 md:p-8 transition-all overflow-hidden ${
           canAfford
             ? 'bg-slate-900/70'
             : 'bg-slate-900/40 opacity-60'
@@ -158,11 +158,12 @@ export const TicketCard = memo(({
           />
         )}
 
-        <div className="flex items-center gap-4 relative z-10">
+        {/* Column Layout - Mobile First */}
+        <div className="flex flex-col items-center gap-2 sm:gap-4 md:gap-5 relative z-10">
           {/* Icon with jagged container */}
-          <div className="relative flex-shrink-0">
+          <div className="relative">
             <div
-              className={`w-16 h-16 flex items-center justify-center ${
+              className={`w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 flex items-center justify-center ${
                 canAfford
                   ? 'bg-gradient-to-br from-purple-600/40 to-pink-600/40'
                   : 'bg-slate-800/50'
@@ -173,7 +174,7 @@ export const TicketCard = memo(({
               }}
             >
               <Icon
-                className={`w-8 h-8 ${canAfford ? 'text-pink-400' : 'text-slate-500'}`}
+                className={`w-7 h-7 sm:w-8 sm:h-8 mb-10md:w-10 md:h-10 ${canAfford ? 'text-pink-400' : 'text-slate-500'}`}
                 style={canAfford ? {
                   filter: `drop-shadow(0 0 ${4 * flickerIntensity}px ${innerShadowColor})`,
                 } : {}}
@@ -183,14 +184,14 @@ export const TicketCard = memo(({
             {canAfford && (
               <>
                 <div 
-                  className="absolute -top-0.5 -left-0.5 w-2 h-2"
+                  className="absolute -top-0.5 -left-0.5 w-1.5 h-1.5 sm:w-2 sm:h-2"
                   style={{
                     background: `linear-gradient(135deg, ${innerShadowColor} 50%, transparent 50%)`,
                     opacity: flickerIntensity,
                   }}
                 />
                 <div 
-                  className="absolute -bottom-0.5 -right-0.5 w-2 h-2"
+                  className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 sm:w-2 sm:h-2"
                   style={{
                     background: `linear-gradient(-45deg, ${innerShadowColor} 50%, transparent 50%)`,
                     opacity: flickerIntensity,
@@ -200,55 +201,44 @@ export const TicketCard = memo(({
             )}
           </div>
 
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <h3
-              className={`text-lg font-bold mb-1 ${canAfford ? 'text-white' : 'text-slate-400'}`}
+          {/* Title - Centered */}
+          <h3
+            className={`text-base sm:text-lg md:text-xl font-bold text-center mt-10  leading-tight ${canAfford ? 'text-white' : 'text-slate-400'}`}
+            style={canAfford ? {
+              textShadow: `0 0 ${8 * flickerIntensity}px ${innerShadowColor}40`,
+            } : {}}
+          >
+            {title}
+          </h3>
+
+          {/* Description - Below title */}
+          {description && (
+            <p
+              className={`text-lg sm:text-sm md:text-base text-center leading-relaxed mb-8 px-2 ${canAfford ? 'text-slate-300' : 'text-slate-500'}`}
               style={canAfford ? {
-                textShadow: `0 0 ${8 * flickerIntensity}px ${innerShadowColor}40`,
+                textShadow: `0 0 ${4 * flickerIntensity}px ${innerShadowColor}20`,
               } : {}}
             >
-              {title}
-            </h3>
-            <p className={`text-sm mb-2 ${canAfford ? 'text-slate-300' : 'text-slate-500'}`}>
               {description}
             </p>
+          )}
 
-            {/* Inflation Info */}
-            {isInflated && inflationPercent > 0 && (
-              <div className="flex items-center gap-2 text-xs mb-1">
-                <TrendingUp className="w-3 h-3" style={{ color: inflationInfo.color }} />
-                <span style={{ color: inflationInfo.color }} className="font-semibold">
-                  Market Inflated: +{inflationPercent.toFixed(0)}%
-                </span>
-              </div>
-            )}
-
-            {/* Cooldown Timer */}
-            {timeRemaining && (
-              <div className="flex items-center gap-2 text-xs text-cyan-400">
-                <Clock className="w-3 h-3" />
-                <span>Price resets in: {timeRemaining}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Price Section with Strikethrough Base Price */}
-          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-            {/* Base Price (Strikethrough when inflated) */}
+          {/* Price Section - Old Price and Current Price */}
+          <div className="flex flex-col items-center gap-2 sm:gap-3 mt-auto">
+            {/* Base Price (Strikethrough when inflated) - Bigger */}
             {isInflated && currentPrice && currentPrice > basePrice && (
-              <div className="text-xs text-slate-400 line-through opacity-70">
+              <div className="text-sm sm:text-base md:text-lg text-slate-400 line-through opacity-80">
                 {basePrice} Gold
               </div>
             )}
             
-            {/* Current Price (Bold Red when inflated) */}
+            {/* Current Price Button - Bigger */}
             <motion.button
               whileHover={canAfford ? { scale: 1.05 } : {}}
               whileTap={canAfford ? { scale: 0.95 } : {}}
               onClick={handleClick}
               disabled={!canAfford}
-              className={`px-4 py-2 font-bold transition-all ${
+              className={`px-5 py-2.5 sm:px-6 sm:py-3 md:px-8 md:py-4 text-base sm:text-lg md:text-xl font-bold transition-all ${
                 canAfford
                   ? isInflated
                     ? 'bg-gradient-to-r from-red-600/40 to-orange-600/40 text-red-400 cursor-pointer'
@@ -270,6 +260,36 @@ export const TicketCard = memo(({
             </motion.button>
           </div>
         </div>
+
+        {/* Bottom Info Row - Inflation Left, Reset Timer Right */}
+        {(isInflated || timeRemaining) && (
+          <div className="flex justify-between items-end mt-4 sm:mt-5 relative z-10 px-1">
+            {/* Inflation Info - Bottom Left */}
+            <div className="flex-1">
+              {isInflated && inflationPercent > 0 && (
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: inflationInfo.color }} />
+                  <span 
+                    style={{ color: inflationInfo.color }} 
+                    className="text-s sm:text-s font-semibold"
+                  >
+                    +{inflationPercent.toFixed(0)}%
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Cooldown Timer - Bottom Right - 50% bigger */}
+            <div className="flex-1 flex justify-end">
+              {timeRemaining && (
+                <div className="flex mt-4 items-center gap-1.5 sm:gap-2 text-cyan-400">
+                  <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="text-s sm:text-s font-medium">{timeRemaining}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Bottom edge accent */}
         {canAfford && (

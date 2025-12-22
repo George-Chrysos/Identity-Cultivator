@@ -66,10 +66,10 @@ export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
   const isActive = node.status === 'active';
   const isCompleted = node.status === 'completed';
   
-  // Same size for all nodes
-  const nodeSize = 'w-32 h-32';
-  const iconSize = 24;
-  const circleRadius = 42;
+  // Another 20% bigger (total 44% increase)
+  const nodeSize = 'w-[103px] h-[103px] sm:w-[138px] sm:h-[138px] md:w-[161px] md:h-[161px]';
+  const iconSize = 31;
+  const circleRadius = 55;
 
   const handleClick = useCallback(() => {
     if (onClick) {
@@ -87,7 +87,7 @@ export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      style={{ minHeight: '120px' }}
+      style={{ minHeight: '100px' }}
     >
       {/* Price Badge - Absolute positioned top-right */}
       {isUnlockable && (
@@ -152,12 +152,21 @@ export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
             />
           )}
 
-          {/* Inner Circle - Drawn AFTER frame to cover inner parts */}
+          {/* Inner Circle Fill - Always fully opaque to hide lines behind */}
           <circle
             cx="100"
             cy="100"
             r={circleRadius}
-            fill="rgba(15, 23, 42, 0.95)"
+            fill="rgb(15, 23, 42)"
+            stroke="none"
+          />
+          
+          {/* Inner Circle Stroke - Drawn on top with conditional opacity */}
+          <circle
+            cx="100"
+            cy="100"
+            r={circleRadius}
+            fill="none"
             stroke={displayColor}
             strokeWidth="3"
             opacity={isLocked ? 0.4 : 1}
@@ -187,9 +196,9 @@ export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
       </motion.button>
 
       {/* Node Title - Fixed position below icon */}
-      <div className="h-8 flex items-center justify-center -mt-8">
+      <div className="h-7 flex items-center justify-center -mt-5">
         <p
-          className="font-semibold text-center uppercase tracking-wider max-w-[90px] text-xs"
+          className="font-semibold text-center uppercase tracking-wider max-w-[80px] sm:max-w-[90px] text-[11px] sm:text-xs md:text-sm leading-tight"
           style={{
             color: isLocked ? 'rgb(148, 163, 184)' : isUnlockable ? 'rgb(192, 192, 192)' : colors.primary,
             textShadow: isLocked ? 'none' : isUnlockable ? '0 0 8px rgba(192, 192, 192, 0.6)' : `0 0 8px ${displayGlow}`,

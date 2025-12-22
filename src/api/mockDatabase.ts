@@ -811,19 +811,9 @@ export const mockDB = {
       throw new Error(`Profile not found: ${request.user_id}`);
     }
 
-    // Calculate inflated price for tickets
-    let actualPrice = itemTemplate.cost_coins;
-    if (itemTemplate.category === 'tickets' && itemTemplate.base_inflation) {
-      const userInventory = mockPlayerInventory.get(request.user_id) || [];
-      const activeCount = userInventory.filter(
-        inv => inv.item_template_id === request.item_template_id && inv.quantity > 0
-      ).reduce((sum, inv) => sum + inv.quantity, 0);
-      
-      if (activeCount > 0) {
-        const multiplier = 1 + (itemTemplate.base_inflation * activeCount);
-        actualPrice = Math.round(itemTemplate.cost_coins * multiplier);
-      }
-    }
+    // Use base price - inflation is handled by shopStore on the frontend
+    // This ensures the price the user sees is the price they pay
+    const actualPrice = itemTemplate.cost_coins;
 
     if (profile.coins < actualPrice) {
       throw new Error('Insufficient coins');

@@ -1,7 +1,13 @@
 -- Delete seeded quest data from production
 -- This removes the mock "Today", "Backlog", and "completed" quests that were seeded
 
--- Delete all quests with IDs matching the seed pattern
+-- IMPORTANT: Quests are stored in browser localStorage, not the database!
+-- The quest store uses Zustand persist with key 'quest-store'
+-- To clear quests for users, they need to clear localStorage or you can:
+-- 1. Have users run: localStorage.removeItem('quest-store') in browser console
+-- 2. Or deploy the updated code which no longer seeds mock data
+
+-- If you DO have a quests table in database, run this:
 DELETE FROM quests 
 WHERE id LIKE 'quest-today-%'
    OR id LIKE 'quest-backlog-%'
@@ -18,5 +24,5 @@ WHERE id LIKE 'quest-today-%'
 --   'Design system components'
 -- );
 
--- Verify deletion
-SELECT COUNT(*) as remaining_quests FROM quests;
+-- Verify deletion (if table exists)
+-- SELECT COUNT(*) as remaining_quests FROM quests;

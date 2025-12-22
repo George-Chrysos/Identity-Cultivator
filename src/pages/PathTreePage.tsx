@@ -443,7 +443,7 @@ const PathTreePage = memo(() => {
             >
               {/* Connection Lines Layer */}
               <div className="absolute inset-0 flex justify-center">
-                <div className="relative w-full max-w-sm h-[900px]">
+                <div className="relative w-full h-[820px] sm:h-[950px]">
                   <TreeConnections theme={activePath.themeColor} nodes={activePath.nodes} />
                 </div>
               </div>
@@ -452,7 +452,7 @@ const PathTreePage = memo(() => {
               <div className="relative z-10">
                 {/* Hero Node - Stage 1 */}
                 {heroNode && (
-                  <div className="flex justify-center mb-10">
+                  <div className="flex justify-center mb-8 sm:mb-12">
                     <HeroNode
                       node={heroNode}
                       pathTheme={activePath.themeColor}
@@ -465,7 +465,7 @@ const PathTreePage = memo(() => {
 
                 {/* Stage 2 - Two Branch Choices */}
                 {stage2Nodes.length > 0 && (
-                  <div className="flex justify-around items-start px-2 mb-10 mt-5">
+                  <div className="flex justify-around items-start px-0 mb-8 mt-4 sm:mb-12 sm:mt-6 sm:px-2">
                     {stage2Nodes
                       .sort(sortByPosition)
                       .map((node) => (
@@ -481,7 +481,7 @@ const PathTreePage = memo(() => {
 
                 {/* Stage 3 - Vertical Progression */}
                 {stage3Nodes.length > 0 && (
-                  <div className="flex justify-between items-start px-2 mb-10 mt-5">
+                  <div className="flex justify-between items-start px-0 mb-8 mt-4 sm:mb-12 sm:mt-6 sm:px-2">
                     {stage3Nodes
                       .sort(sortByPosition)
                       .map((node) => (
@@ -497,7 +497,7 @@ const PathTreePage = memo(() => {
 
                 {/* Stage 4 - Vertical Progression */}
                 {stage4Nodes.length > 0 && (
-                  <div className="flex justify-between items-start px-2 mb-10 mt-5">
+                  <div className="flex justify-between items-start px-0 mb-8 mt-4 sm:mb-12 sm:mt-6 sm:px-2">
                     {stage4Nodes
                       .sort(sortByPosition)
                       .map((node) => (
@@ -513,7 +513,7 @@ const PathTreePage = memo(() => {
 
                 {/* Stage 5 - Final Nodes */}
                 {stage5Nodes.length > 0 && (
-                  <div className="flex justify-between items-start px-2 mb-10 mt-5">
+                  <div className="flex justify-between items-start px-0 mb-8 mt-4 sm:mb-12 sm:mt-6 sm:px-2">
                     {stage5Nodes
                       .sort(sortByPosition)
                       .map((node) => (
@@ -529,7 +529,7 @@ const PathTreePage = memo(() => {
 
                 {/* Stage 6 - Apex Node */}
                 {stage6Nodes.length > 0 && (
-                  <div className="flex justify-center items-start px-2 mb-10 mt-5">
+                  <div className="flex justify-center items-start px-0 mb-8 mt-4 sm:mb-12 sm:mt-6 sm:px-2">
                     {stage6Nodes.map((node) => (
                       <SubNode
                         key={node.id}

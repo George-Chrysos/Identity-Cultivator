@@ -19,9 +19,10 @@ const DEFAULT_ICON = Pizza;
 export const ShopPage = memo(() => {
   const { userProfile, availableItems, purchaseItem, isInitialized, initializeUser } = useGameStore();
   const { currentUser: authUser, isAuthenticated } = useAuthStore();
-  const { getCurrentPrice, isInflationActive, getRemainingCooldown } = useShopStore();
+  const { getCurrentPrice, isInflationActive, getRemainingCooldown, loadMarketStates } = useShopStore();
   const marketStates = useShopStore((state) => state.marketStates); // Subscribe to market state changes
   const initStartedRef = useRef(false);
+  const marketStatesLoadedRef = useRef(false);
 
   // Initialize store if not already done
   useEffect(() => {
@@ -41,6 +42,25 @@ export const ShopPage = memo(() => {
 
     initStore();
   }, [isAuthenticated, authUser?.id, isInitialized, initializeUser]);
+
+  // Load market states from database when user is authenticated
+  useEffect(() => {
+    const loadStates = async () => {
+      if (marketStatesLoadedRef.current) return;
+      if (!isAuthenticated || !authUser?.id) return;
+
+      marketStatesLoadedRef.current = true;
+      try {
+        await loadMarketStates(authUser.id);
+        logger.info('Market states loaded from database');
+      } catch (error) {
+        logger.error('Failed to load market states', error);
+        marketStatesLoadedRef.current = false;
+      }
+    };
+
+    loadStates();
+  }, [isAuthenticated, authUser?.id, loadMarketStates]);
   
   const coins = userProfile?.coins || 0;
   const [activeTab, setActiveTab] = useState<'items' | 'tickets'>('tickets');

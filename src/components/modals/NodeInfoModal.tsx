@@ -327,7 +327,7 @@ export const NodeInfoModal = memo(({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2, ease: 'easeInOut' }}
-              className="relative bg-slate-900/95 backdrop-blur-md border-2 rounded-2xl p-6 max-w-lg w-full shadow-lg pointer-events-auto my-4 max-h-[90vh] overflow-y-auto"
+              className="relative bg-slate-900/95 backdrop-blur-md border-2 rounded-2xl p-4 max-w-lg w-full shadow-lg pointer-events-auto my-2 max-h-[95vh] overflow-y-auto"
               style={{ 
                 borderColor: colors.primary,
                 boxShadow: `0 0 30px ${colors.glow}`,
@@ -337,15 +337,15 @@ export const NodeInfoModal = memo(({
               {/* Close Button */}
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 p-2 rounded-lg bg-slate-800/50 border border-slate-600 text-slate-400 hover:text-white hover:border-slate-500 transition-all"
+                className="absolute top-3 right-3 p-1.5 rounded-lg bg-slate-800/50 border border-slate-600 text-slate-400 hover:text-white hover:border-slate-500 transition-all"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
 
               {/* Icon and Title Section */}
-              <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center gap-3 mb-3">
                 <div 
-                  className="w-16 h-16 rounded-full flex items-center justify-center border-2"
+                  className="w-14 h-14 rounded-full flex items-center justify-center border-2"
                   style={{ 
                     borderColor: isUnlockable ? 'rgb(192, 192, 192)' : colors.primary,
                     background: `linear-gradient(135deg, ${colors.bg}, rgba(15, 23, 42, 0.9))`,
@@ -353,7 +353,7 @@ export const NodeInfoModal = memo(({
                   }}
                 >
                   <Icon 
-                    className="w-8 h-8" 
+                    className="w-7 h-7" 
                     style={{ 
                       color: isUnlockable ? 'rgb(192, 192, 192)' : colors.primary,
                       filter: isUnlockable ? 'drop-shadow(0 0 8px rgba(192, 192, 192, 0.6))' : `drop-shadow(0 0 8px ${colors.glow})`,
@@ -362,20 +362,20 @@ export const NodeInfoModal = memo(({
                 </div>
                 <div className="flex-1 pr-8">
                   <h2 
-                    className="text-2xl font-bold text-white mb-1"
+                    className="text-xl font-bold text-white mb-0.5"
                     style={{ textShadow: `0 0 15px ${colors.glow}` }}
                   >
                     {node.title}
                   </h2>
-                  <p className="text-sm text-slate-400">
+                  <p className="text-xs text-slate-400">
                     {node.title === 'Tempering' ? 'The Awakening of the Vessel' : `${pathTitle} Path • Stage ${node.stage}`}
                   </p>
                 </div>
               </div>
 
               {/* Status Badge */}
-              <div className="mb-4">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor()}`}
+              <div className="mb-3">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor()}`}
                   style={{ 
                     borderColor: isActive || isCompleted ? colors.primary : undefined,
                     backgroundColor: isActive || isCompleted ? `${colors.bg}` : 'rgba(51, 65, 85, 0.5)',
@@ -388,14 +388,14 @@ export const NodeInfoModal = memo(({
 
               {/* Divider */}
               <div 
-                className="h-px mb-4"
+                className="h-px mb-3"
                 style={{ background: `linear-gradient(to right, ${colors.primary}50, ${colors.primary}20, transparent)` }}
               />
 
               {/* Description */}
-              <div className="mb-6">
+              <div className="mb-4">
                 <h3 
-                  className="text-sm font-bold mb-2 uppercase tracking-wider"
+                  className="text-xs font-bold mb-1.5 uppercase tracking-wider"
                   style={{ color: colors.primary }}
                 >
                   Description
@@ -406,9 +406,9 @@ export const NodeInfoModal = memo(({
               </div>
 
               {/* Special Abilities / Core Masteries */}
-              <div className="mb-6">
+              <div className="mb-4">
                 <h3 
-                  className="text-sm font-bold mb-3 uppercase tracking-wider"
+                  className="text-xs font-bold mb-2 uppercase tracking-wider"
                   style={{ color: colors.primary }}
                 >
                   {node.coreMasteries ? 'Core Masteries' : 'Special Abilities'}
@@ -447,7 +447,7 @@ export const NodeInfoModal = memo(({
 
               {/* Price Tag */}
               <div 
-                className="p-4 rounded-lg border mb-6"
+                className="p-3 rounded-lg border mb-4"
                 style={{ 
                   borderColor: `${colors.primary}30`,
                   background: `linear-gradient(135deg, ${colors.bg}, rgba(15, 23, 42, 0.5))`,
@@ -455,17 +455,17 @@ export const NodeInfoModal = memo(({
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Star className="w-5 h-5 text-cyan-400" strokeWidth={1.25} />
-                    <span className="text-sm text-slate-400">Cost to Unlock</span>
+                    <Star className="w-4 h-4 text-cyan-400" strokeWidth={1.25} />
+                    <span className="text-xs text-slate-400">Cost to Unlock</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-2xl font-bold ${canAfford ? 'text-cyan-400' : 'text-red-400'}`}>
+                    <span className={`text-xl font-bold ${canAfford ? 'text-cyan-400' : 'text-red-400'}`}>
                       {node.starsRequired}
                     </span>
-                    <Star className={`w-5 h-5 ${canAfford ? 'text-cyan-400' : 'text-red-400'}`} strokeWidth={1.25} />
+                    <Star className={`w-4 h-4 ${canAfford ? 'text-cyan-400' : 'text-red-400'}`} strokeWidth={1.25} />
                   </div>
                 </div>
-                <div className="mt-2 text-xs text-slate-500">
+                <div className="mt-1 text-xs text-slate-500">
                   Your Stars: <span className={canAfford ? 'text-cyan-400' : 'text-red-400'}>{userStars}</span>
                 </div>
               </div>
@@ -491,7 +491,7 @@ export const NodeInfoModal = memo(({
                       ease: 'easeInOut',
                     },
                   }}
-                  className={`w-full py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-3 ${
+                  className={`w-full py-3 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2.5 ${
                     canUnlock
                       ? node.title === 'Tempering'
                         ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white hover:from-rose-500 hover:to-red-500 shadow-lg'
@@ -502,19 +502,19 @@ export const NodeInfoModal = memo(({
                 >
                   {!previousStageCompleted ? (
                     <>
-                      <Lock className="w-5 h-5" />
+                      <Lock className="w-4 h-4" />
                       Complete Previous Node First
                     </>
                   ) : canAfford ? (
                     <>
-                      <Star className="w-5 h-5" strokeWidth={1.25} />
+                      <Star className="w-4 h-4" strokeWidth={1.25} />
                       {node.title === 'Tempering' 
                         ? `Begin Tempering (${node.starsRequired} Stars)` 
                         : `Unlock for ${node.starsRequired} Stars`}
                     </>
                   ) : (
                     <>
-                      <Lock className="w-5 h-5" />
+                      <Lock className="w-4 h-4" />
                       Not Enough Stars
                     </>
                   )}
@@ -524,7 +524,7 @@ export const NodeInfoModal = memo(({
               {/* Already Active/Completed Message */}
               {(isActive || isCompleted) && (
                 <div 
-                  className="w-full py-4 rounded-xl font-bold text-center border-2"
+                  className="w-full py-3 rounded-xl font-bold text-center border-2"
                   style={{ 
                     borderColor: colors.primary,
                     color: colors.primary,

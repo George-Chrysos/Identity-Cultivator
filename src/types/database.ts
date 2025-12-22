@@ -172,6 +172,21 @@ export interface PlayerInventoryItem {
   cooldown_duration?: number; // Hours until ticket purifies (from item_template.cooldown_time)
 }
 
+/**
+ * Market inflation/cooldown state for shop tickets
+ * @table public.market_states
+ */
+export interface MarketState {
+  id?: string;
+  user_id: string;
+  ticket_id: string;
+  last_purchased_at: string; // ISO timestamp
+  cooldown_duration: number; // Hours until inflation expires
+  base_inflation: number; // e.g., 0.25 for 25%
+  created_at?: string;
+  updated_at?: string;
+}
+
 // ==================== VIEW TYPES ====================
 
 /**
@@ -270,6 +285,7 @@ export const SUPABASE_TABLES = {
   TASK_LOGS: 'task_logs',
   ITEM_TEMPLATES: 'item_templates',
   PLAYER_INVENTORY: 'player_inventory',
+  MARKET_STATES: 'market_states',
 } as const;
 
 /**

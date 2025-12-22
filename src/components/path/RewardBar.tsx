@@ -9,8 +9,8 @@ interface RewardBarProps {
   isStatCapped?: boolean;
 }
 
-// Shared card styles for uniform sizing
-const CARD_BASE_CLASSES = 'flex items-center justify-center gap-2 px-4 py-2 h-10 min-w-[70px] rounded-lg backdrop-blur-md';
+// Shared card styles - flex-1 to grow and fill available space, min-w-0 allows shrinking if needed
+const CARD_BASE_CLASSES = 'flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 h-8 sm:h-10 flex-1 rounded-lg backdrop-blur-md';
 
 /**
  * RewardBar - Glasscard-style reward display for tasks
@@ -20,7 +20,7 @@ const CARD_BASE_CLASSES = 'flex items-center justify-center gap-2 px-4 py-2 h-10
  * - No "+" symbols - addition is implied in Rewards context
  * - Conditional rendering - only shows non-zero rewards
  * - Body stat dims when gateStatCap is reached
- * - Uniform card sizes for consistent visual rhythm
+ * - Responsive: stays on same line with smaller padding on mobile
  */
 export const RewardBar = memo(({
   xp = 0,
@@ -33,7 +33,7 @@ export const RewardBar = memo(({
   if (xp === 0 && statPoints === 0 && coins === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-nowrap items-center gap-2 sm:gap-3 w-full">
       {/* XP Reward - Purple theme synced with progress bar */}
       {xp > 0 && (
         <div 
@@ -45,7 +45,7 @@ export const RewardBar = memo(({
           }}
         >
           <span 
-            className="text-base font-semibold tabular-nums text-purple-300"
+            className="text-sm sm:text-base font-semibold tabular-nums text-purple-300 whitespace-nowrap"
             style={{
               textShadow: '0 0 6px rgba(168, 85, 247, 0.4)',
             }}
@@ -69,13 +69,13 @@ export const RewardBar = memo(({
           title={isStatCapped ? 'Gate stat limit reached for this level' : `${statPoints} ${stat} points`}
         >
           <Swords 
-            className={`w-5 h-5 ${isStatCapped ? 'text-slate-500' : 'text-rose-400'}`}
+            className={`w-4 h-4 sm:w-5 sm:h-5 ${isStatCapped ? 'text-slate-500' : 'text-rose-400'}`}
             style={!isStatCapped ? {
               filter: 'drop-shadow(0 0 4px rgba(225, 29, 72, 0.6))',
             } : undefined}
           />
           <ArrowBigUp 
-            className={`w-5 h-5 -ml-1 ${isStatCapped ? 'text-slate-500' : 'text-rose-400'}`}
+            className={`w-4 h-4 sm:w-5 sm:h-5 -ml-0.5 sm:-ml-1 ${isStatCapped ? 'text-slate-500' : 'text-rose-400'}`}
             style={!isStatCapped ? {
               filter: 'drop-shadow(0 0 4px rgba(225, 29, 72, 0.6))',
             } : undefined}
@@ -93,8 +93,8 @@ export const RewardBar = memo(({
             boxShadow: '0 0 8px rgba(251, 191, 36, 0.15)',
           }}
         >
-          <span className="text-lg drop-shadow-[0_0_4px_rgba(251,191,36,0.8)]">🪙</span>
-          <span className="text-base font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
+          <span className="text-base sm:text-lg drop-shadow-[0_0_4px_rgba(251,191,36,0.8)]">🪙</span>
+          <span className="text-sm sm:text-base font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent whitespace-nowrap">
             {coins}
           </span>
         </div>

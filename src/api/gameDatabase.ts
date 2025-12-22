@@ -18,6 +18,7 @@ import {
   ItemTemplate,
   PlayerInventoryItem,
   PurchaseItemRequest,
+  MarketState,
 } from '@/types/database';
 
 // Lazy import mockDB to avoid circular dependency at module initialization
@@ -685,6 +686,115 @@ export const gameDB = {
       return data;
     } catch (error) {
       logger.error('Failed to use inventory item', error);
+      throw error;
+    }
+  },
+
+  // ==================== MARKET STATES ====================
+
+  /**
+   * Get all market states for a user
+   */
+  async getMarketStates(userId: string): Promise<MarketState[]> {
+    if (!isSupabaseConfigured()) {
+      // No mock support needed - return empty for local dev
+      return [];
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLES.MARKET_STATES)
+        .select('*')
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      logger.info('Loaded market states', { userId, count: data?.length || 0 });
+      return data || [];
+    } catch (error) {
+      logger.error('Failed to get market states', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Upsert a market state (insert or update if exists)
+   */
+  async upsertMarketState(marketState: Omit<MarketState, 'id' | 'created_at' | 'updated_at'>): Promise<MarketState> {
+    if (!isSupabaseConfigured()) {
+      // Return mock state for local dev
+      return {
+        ...marketState,
+        id: `mock-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLES.MARKET_STATES)
+        .upsert({
+          user_id: marketState.user_id,
+          ticket_id: marketState.ticket_id,
+          last_purchased_at: marketState.last_purchased_at,
+          cooldown_duration: marketState.cooldown_duration,
+          base_inflation: marketState.base_inflation,
+        }, {
+          onConflict: 'user_id,ticket_id',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      logger.info('Market state upserted', { 
+        userId: marketState.user_id, 
+        ticketId: marketState.ticket_id 
+      });
+      return data;
+    } catch (error) {
+      logger.error('Failed to upsert market state', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete expired market states (for cleanup)
+   */
+  async cleanExpiredMarketStates(userId: string): Promise<number> {
+    if (!isSupabaseConfigured()) {
+      return 0;
+    }
+
+    try {
+      // Get all states for user
+      const states = await this.getMarketStates(userId);
+      const now = Date.now();
+      const expiredIds: string[] = [];
+
+      states.forEach(state => {
+        const lastPurchased = new Date(state.last_purchased_at).getTime();
+        const cooldownMs = state.cooldown_duration * 60 * 60 * 1000;
+        const isExpired = now > lastPurchased + cooldownMs;
+        if (isExpired && state.id) {
+          expiredIds.push(state.id);
+        }
+      });
+
+      if (expiredIds.length === 0) return 0;
+
+      const { error } = await supabase
+        .from(SUPABASE_TABLES.MARKET_STATES)
+        .delete()
+        .in('id', expiredIds);
+
+      if (error) throw error;
+
+      logger.info('Cleaned expired market states', { userId, count: expiredIds.length });
+      return expiredIds.length;
+    } catch (error) {
+      logger.error('Failed to clean expired market states', error);
       throw error;
     }
   },
