@@ -48,7 +48,7 @@ const CurrencyDisplay = () => {
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/50 rounded-lg px-3 py-1.5 shadow-[0_0_8px_rgba(192,132,252,0.3)]"
+      className="flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border-2 mt-1 border-purple-500/50 rounded-lg px-3 py-1.5 shadow-[0_0_8px_rgba(192,132,252,0.3)]"
     >
       {/* Coins */}
       <motion.div 
