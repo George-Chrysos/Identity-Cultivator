@@ -1,7 +1,8 @@
-import { useState, memo } from 'react';
+import { useState, memo, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Swords, ArrowBigUp, Shirt, Star } from 'lucide-react';
+import { GPU_ACCELERATION_STYLES } from '@/components/common';
 
 interface TrialTask {
   id: string;
@@ -42,6 +43,7 @@ export const TrialModal = memo(({
   onComplete,
 }: TrialModalProps) => {
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
+  const [isAnimating, setIsAnimating] = useState(true);
 
   const handleTaskToggle = (taskId: string) => {
     const newCompleted = new Set(completedTasks);
@@ -60,6 +62,17 @@ export const TrialModal = memo(({
       }, 300);
     }
   };
+  
+  const handleAnimationComplete = useCallback(() => {
+    setIsAnimating(false);
+  }, []);
+  
+  // Reset animation state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setIsAnimating(true);
+    }
+  }, [isOpen]);
 
   const allTasksComplete = completedTasks.size === tasks.length;
 
@@ -73,8 +86,13 @@ export const TrialModal = memo(({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100]"
+            className="fixed inset-0 bg-black/90 z-[100]"
             onClick={onClose}
+            style={{
+              backdropFilter: isAnimating ? 'none' : 'blur(12px)',
+              WebkitBackdropFilter: isAnimating ? 'none' : 'blur(12px)',
+              transition: 'backdrop-filter 200ms ease-out',
+            }}
           />
 
           {/* Modal */}
@@ -84,8 +102,16 @@ export const TrialModal = memo(({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="relative bg-slate-900/95 backdrop-blur-md border-2 border-amber-500 rounded-2xl p-6 shadow-[0_0_30px_rgba(245,158,11,0.6)] w-full max-w-2xl pointer-events-auto my-4"
+              onAnimationComplete={handleAnimationComplete}
+              className="relative bg-slate-900/95 border-2 border-amber-500 rounded-2xl p-6 w-full max-w-2xl pointer-events-auto my-4"
               onClick={(e) => e.stopPropagation()}
+              style={{
+                backdropFilter: isAnimating ? 'none' : 'blur(12px)',
+                WebkitBackdropFilter: isAnimating ? 'none' : 'blur(12px)',
+                boxShadow: isAnimating ? 'none' : '0 0 30px rgba(245,158,11,0.6)',
+                transition: 'backdrop-filter 200ms ease-out, box-shadow 200ms ease-out',
+                ...GPU_ACCELERATION_STYLES,
+              }}
             >
               {/* Close Button */}
               <button
@@ -99,7 +125,10 @@ export const TrialModal = memo(({
               <div className="mb-6 pr-10">
                 <h2 
                   className="text-3xl font-bold text-white font-section tracking-wide mb-2"
-                  style={{ textShadow: '0 0 15px rgba(245, 158, 11, 0.5)' }}
+                  style={{ 
+                    textShadow: isAnimating ? 'none' : '0 0 15px rgba(245, 158, 11, 0.5)',
+                    transition: 'text-shadow 200ms ease-out',
+                  }}
                 >
                   {trialName}
                 </h2>

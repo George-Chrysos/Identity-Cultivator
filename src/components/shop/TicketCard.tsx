@@ -1,7 +1,8 @@
-import { memo, useCallback, useState, useEffect } from 'react';
+import { memo, useCallback, useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon, Clock, TrendingUp } from 'lucide-react';
 import { formatTimeRemaining, getInflationResetTime, getInflationLevel } from '@/utils/inflationCalculator';
+import { GPU_ACCELERATION_STYLES } from '@/components/common';
 
 interface TicketCardProps {
   icon: LucideIcon;
@@ -39,6 +40,7 @@ export const TicketCard = memo(({
   
   const [timeRemaining, setTimeRemaining] = useState('');
   const [neonPhase, setNeonPhase] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(true);
 
   // Update countdown timer
   useEffect(() => {
@@ -72,25 +74,33 @@ export const TicketCard = memo(({
       onPurchase();
     }
   }, [canAfford, onPurchase]);
+  
+  const handleAnimationComplete = useCallback(() => {
+    setIsAnimating(false);
+  }, []);
 
   // Neon glow intensity based on phase (creates flicker effect)
   const flickerIntensity = Math.sin(neonPhase * 0.15) * 0.3 + 0.7;
   
-  // Double-layered drop-shadow
+  // Double-layered drop-shadow - only apply when not animating
   const innerShadowColor = '#a855f7'; // Neon purple
   const outerShadowColor = isInflated ? '#ef4444' : '#a855f7'; // Red when inflated, purple otherwise
-  const doubleShadow = `0 0 2px ${innerShadowColor}, 0 0 ${8 * flickerIntensity}px ${innerShadowColor}80, ${isInflated ? '1.5px 1.5px' : '0 0'} ${15 * flickerIntensity}px ${outerShadowColor}60`;
+  const doubleShadow = useMemo(() => {
+    if (isAnimating) return 'none';
+    return `0 0 2px ${innerShadowColor}, 0 0 ${8 * flickerIntensity}px ${innerShadowColor}80, ${isInflated ? '1.5px 1.5px' : '0 0'} ${15 * flickerIntensity}px ${outerShadowColor}60`;
+  }, [isAnimating, flickerIntensity, isInflated, outerShadowColor]);
 
   return (
     <motion.div
       className="relative"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
       whileHover={canAfford ? { scale: 1.02 } : {}}
-      animate={isInflated ? {
-        opacity: [0.9, 1.0, 0.9],
-      } : {}}
+      onAnimationComplete={handleAnimationComplete}
       transition={isInflated ? {
         opacity: { duration: 2, repeat: Infinity, ease: 'easeInOut' }
       } : {}}
+      style={GPU_ACCELERATION_STYLES}
     >
       {/* SVG Filter for neon effect */}
       <svg className="absolute w-0 h-0">
@@ -113,14 +123,17 @@ export const TicketCard = memo(({
 
       {/* Main Card Container with Silver Border and Double-Layer Shadow */}
       <div
-        className={`relative backdrop-blur-md p-12 sm:p-8 md:p-8 transition-all overflow-hidden ${
+        className={`relative p-12 sm:p-8 md:p-8 transition-all overflow-hidden ${
           canAfford
             ? 'bg-slate-900/70'
             : 'bg-slate-900/40 opacity-60'
         } ${isInflated ? 'saturate-75' : ''}`}
         style={{
           clipPath: JAGGED_CLIP_PATH,
+          backdropFilter: isAnimating ? 'none' : 'blur(12px)',
+          WebkitBackdropFilter: isAnimating ? 'none' : 'blur(12px)',
           boxShadow: canAfford ? `${doubleShadow}, inset 0 0 15px rgba(192, 192, 192, 0.6)` : 'inset 0 0 15px rgba(192, 192, 192, 0.6)',
+          transition: 'backdrop-filter 200ms ease-out, box-shadow 200ms ease-out',
         }}
       >
         {/* Holographic scan-line overlay */}
@@ -144,9 +157,10 @@ export const TicketCard = memo(({
           className="absolute inset-0 pointer-events-none"
           style={{
             clipPath: JAGGED_CLIP_PATH,
-            boxShadow: canAfford 
+            boxShadow: canAfford && !isAnimating
               ? `inset 0 0 ${15 * flickerIntensity}px ${innerShadowColor}30, inset 0 0 ${5 * flickerIntensity}px ${innerShadowColor}50`
               : 'none',
+            transition: 'box-shadow 200ms ease-out',
           }}
         />
 
@@ -170,14 +184,16 @@ export const TicketCard = memo(({
               }`}
               style={{
                 clipPath: ICON_CLIP_PATH,
-                boxShadow: canAfford ? `0 0 ${12 * flickerIntensity}px ${innerShadowColor}60` : 'none',
+                boxShadow: canAfford && !isAnimating ? `0 0 ${12 * flickerIntensity}px ${innerShadowColor}60` : 'none',
+                transition: 'box-shadow 200ms ease-out',
               }}
             >
               <Icon
                 className={`w-7 h-7 sm:w-8 sm:h-8 mb-10md:w-10 md:h-10 ${canAfford ? 'text-pink-400' : 'text-slate-500'}`}
-                style={canAfford ? {
-                  filter: `drop-shadow(0 0 ${4 * flickerIntensity}px ${innerShadowColor})`,
-                } : {}}
+                style={{
+                  filter: canAfford && !isAnimating ? `drop-shadow(0 0 ${4 * flickerIntensity}px ${innerShadowColor})` : 'none',
+                  transition: 'filter 200ms ease-out',
+                }}
               />
             </div>
             {/* Corner accents */}
@@ -204,9 +220,10 @@ export const TicketCard = memo(({
           {/* Title - Centered */}
           <h3
             className={`text-base sm:text-lg md:text-xl font-bold text-center mt-10  leading-tight ${canAfford ? 'text-white' : 'text-slate-400'}`}
-            style={canAfford ? {
-              textShadow: `0 0 ${8 * flickerIntensity}px ${innerShadowColor}40`,
-            } : {}}
+            style={{
+              textShadow: canAfford && !isAnimating ? `0 0 ${8 * flickerIntensity}px ${innerShadowColor}40` : 'none',
+              transition: 'text-shadow 200ms ease-out',
+            }}
           >
             {title}
           </h3>
@@ -215,9 +232,10 @@ export const TicketCard = memo(({
           {description && (
             <p
               className={`text-lg sm:text-sm md:text-base text-center leading-relaxed mb-8 px-2 ${canAfford ? 'text-slate-300' : 'text-slate-500'}`}
-              style={canAfford ? {
-                textShadow: `0 0 ${4 * flickerIntensity}px ${innerShadowColor}20`,
-              } : {}}
+              style={{
+                textShadow: canAfford && !isAnimating ? `0 0 ${4 * flickerIntensity}px ${innerShadowColor}20` : 'none',
+                transition: 'text-shadow 200ms ease-out',
+              }}
             >
               {description}
             </p>
@@ -247,13 +265,15 @@ export const TicketCard = memo(({
               }`}
               style={{
                 clipPath: 'polygon(8% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 20%)',
-                boxShadow: canAfford 
+                boxShadow: canAfford && !isAnimating
                   ? `0 0 ${15 * flickerIntensity}px ${isInflated ? '#ef4444' : '#eab308'}40`
                   : 'none',
-                textShadow: canAfford 
+                textShadow: canAfford && !isAnimating
                   ? `0 0 ${10 * flickerIntensity}px ${isInflated ? '#ef4444' : '#fde047'}80`
                   : 'none',
                 fontWeight: isInflated ? 'bold' : '600',
+                transition: 'box-shadow 200ms ease-out, text-shadow 200ms ease-out',
+                ...GPU_ACCELERATION_STYLES,
               }}
             >
               {displayPrice} Gold

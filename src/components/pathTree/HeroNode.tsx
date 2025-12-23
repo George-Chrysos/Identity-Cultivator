@@ -1,8 +1,9 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Swords, Flame, Eye, Lock } from 'lucide-react';
 import type { PathNode, PathTheme } from '@/constants/pathTreeData';
 import { THEME_COLORS } from '@/constants/pathTreeData';
+import { GPU_ACCELERATION_STYLES } from '@/components/common';
 
 interface HeroNodeProps {
   node: PathNode;
@@ -28,6 +29,7 @@ const getIconComponent = (pathId: string) => {
 export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProps) => {
   const Icon = getIconComponent(pathId);
   const colors = THEME_COLORS[pathTheme];
+  const [isAnimating, setIsAnimating] = useState(true);
   
   const isLocked = node.status === 'locked';
   const isUnlockable = node.status === 'unlockable';
@@ -40,12 +42,22 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
     }
   }, [node.id, onClick]);
   
+  const handleAnimationComplete = useCallback(() => {
+    setIsAnimating(false);
+  }, []);
+  
   // Another 20% bigger (total 44% increase)
   const nodeSize = 'w-[103px] h-[103px] sm:w-[138px] sm:h-[138px] md:w-[161px] md:h-[161px]';
   
   // Determine display color and glow based on state
   const displayColor = isLocked ? 'rgb(71, 85, 105)' : isUnlockable ? 'rgb(192, 192, 192)' : colors.primary;
   const displayGlow = isUnlockable ? 'rgba(192, 192, 192, 0.6)' : colors.glow;
+  
+  // Performance: defer expensive filter during animation
+  const getFilterStyle = useCallback((defaultFilter: string) => {
+    if (isAnimating) return 'none';
+    return defaultFilter;
+  }, [isAnimating]);
 
   return (
     <div className="flex flex-col items-center">
@@ -57,7 +69,8 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
           animate={{ opacity: 1, y: 0 }}
           style={{
             color: (isLocked || isUnlockable) ? 'rgb(148, 163, 184)' : 'white',
-            textShadow: (isLocked || isUnlockable) ? 'none' : `0 0 20px ${displayGlow}`,
+            textShadow: (isLocked || isUnlockable) ? 'none' : isAnimating ? 'none' : `0 0 20px ${displayGlow}`,
+            transition: 'text-shadow 200ms ease-out',
           }}
         >
           {node.title}
@@ -71,6 +84,8 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
+        onAnimationComplete={handleAnimationComplete}
+        style={GPU_ACCELERATION_STYLES}
       >
         {/* Ornate Frame SVG */}
         <svg
@@ -108,7 +123,7 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
             stroke={`url(#hero-gradient-${pathTheme}-${node.id})`}
             strokeWidth="2"
             opacity={isLocked ? 0.3 : isUnlockable ? 1 : 1}
-            filter={isLocked ? 'none' : isUnlockable ? 'drop-shadow(0 0 12px rgba(192,192,192,0.6))' : `url(#hero-glow-${pathTheme}-${node.id})`}
+            filter={isLocked ? 'none' : isUnlockable ? getFilterStyle('drop-shadow(0 0 12px rgba(192,192,192,0.6))') : isAnimating ? 'none' : `url(#hero-glow-${pathTheme}-${node.id})`}
             animate={(isActive || isCompleted) ? {
               rotate: [0, 360],
             } : {}}
@@ -117,7 +132,7 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
               repeat: Infinity,
               ease: 'linear',
             }}
-            style={{ transformOrigin: 'center' }}
+            style={{ transformOrigin: 'center', transition: 'filter 200ms ease-out' }}
           />
 
           {/* Inner Decorative Ring - Only animate if active */}
@@ -138,7 +153,7 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
               repeat: Infinity,
               ease: 'linear',
             }}
-            style={isUnlockable ? { filter: 'drop-shadow(0 0 8px rgba(192,192,192,0.6))' } : { transformOrigin: 'center' }}
+            style={isUnlockable ? { filter: getFilterStyle('drop-shadow(0 0 8px rgba(192,192,192,0.6))'), transition: 'filter 200ms ease-out', transformOrigin: 'center' } : { transformOrigin: 'center' }}
           />
 
           {/* Main Circle Fill - Always fully opaque to hide lines behind */}
@@ -159,7 +174,8 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
             stroke={displayColor}
             strokeWidth="3"
             opacity={isLocked ? 0.5 : isUnlockable ? 1 : 1}
-            filter={isLocked ? 'none' : isUnlockable ? 'drop-shadow(0 0 8px rgba(192,192,192,0.6))' : `url(#hero-glow-${pathTheme}-${node.id})`}
+            filter={isLocked ? 'none' : isUnlockable ? getFilterStyle('drop-shadow(0 0 8px rgba(192,192,192,0.6))') : isAnimating ? 'none' : `url(#hero-glow-${pathTheme}-${node.id})`}
+            style={{ transition: 'filter 200ms ease-out' }}
           />
 
           {/* Corner Decorations - Only animate if active */}
@@ -171,7 +187,7 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
               r="3"
               fill={displayColor}
               opacity={isLocked ? 0.2 : isUnlockable ? 1 : 0.6}
-              style={isUnlockable ? { filter: 'drop-shadow(0 0 8px rgba(192,192,192,0.6))' } : undefined}
+              style={isUnlockable ? { filter: getFilterStyle('drop-shadow(0 0 8px rgba(192,192,192,0.6))'), transition: 'filter 200ms ease-out' } : undefined}
               animate={(isActive || isCompleted) ? {
                 opacity: [0.4, 0.8, 0.4],
                 r: [2, 4, 2],
@@ -199,7 +215,8 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
               strokeWidth={1.5}
               style={{
                 color: isUnlockable ? 'rgb(192, 192, 192)' : colors.primary,
-                filter: `drop-shadow(0 0 15px ${displayGlow})`,
+                filter: isAnimating ? 'none' : `drop-shadow(0 0 15px ${displayGlow})`,
+                transition: 'filter 200ms ease-out',
               }}
             />
           )}

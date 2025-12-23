@@ -1,7 +1,8 @@
-import { memo, useCallback, useEffect, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import { GPU_ACCELERATION_STYLES } from './usePerformanceStyles';
 
 interface BaseModalProps {
   isOpen: boolean;
@@ -47,6 +48,19 @@ export const BaseModal = memo(({
   className = '',
   overlayClassName = '',
 }: BaseModalProps) => {
+  const [isAnimating, setIsAnimating] = useState(true);
+  
+  const handleAnimationComplete = useCallback(() => {
+    setIsAnimating(false);
+  }, []);
+  
+  // Reset animation state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setIsAnimating(true);
+    }
+  }, [isOpen]);
+  
   // Handle escape key
   useEffect(() => {
     if (!closeOnEscape || !isOpen) return;
@@ -89,16 +103,27 @@ export const BaseModal = memo(({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm ${overlayClassName}`}
+          className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 ${overlayClassName}`}
           onClick={handleBackdropClick}
+          style={{
+            backdropFilter: isAnimating ? 'none' : 'blur(4px)',
+            WebkitBackdropFilter: isAnimating ? 'none' : 'blur(4px)',
+            transition: 'backdrop-filter 200ms ease-out',
+          }}
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.3, type: 'spring', damping: 25 }}
-            className={`relative w-full ${MAX_WIDTH_CLASSES[maxWidth]} bg-slate-900/95 border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden ${className}`}
+            onAnimationComplete={handleAnimationComplete}
+            className={`relative w-full ${MAX_WIDTH_CLASSES[maxWidth]} bg-slate-900/95 border border-slate-700/50 rounded-2xl overflow-hidden ${className}`}
             onClick={(e) => e.stopPropagation()}
+            style={{
+              boxShadow: isAnimating ? 'none' : '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              transition: 'box-shadow 200ms ease-out',
+              ...GPU_ACCELERATION_STYLES,
+            }}
           >
             {/* Header with title and close button */}
             {(title || showCloseButton) && (

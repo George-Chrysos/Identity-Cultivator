@@ -1,9 +1,10 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Swords, Flame, Eye, Lock, Sparkles } from 'lucide-react';
 import type { PathNode, PathTheme } from '@/constants/pathTreeData';
 import { THEME_COLORS } from '@/constants/pathTreeData';
 import { SealFrame } from './SealFrame';
+import { GPU_ACCELERATION_STYLES } from '@/components/common';
 
 interface NodeComponentProps {
   node: PathNode;
@@ -31,6 +32,7 @@ export const NodeComponent = memo(({ node, pathTheme, pathId, onUnlock }: NodeCo
   const progressPercent = (node.starsCurrent / node.starsRequired) * 100;
   const circumference = 2 * Math.PI * 38; // radius of 38 for progress ring
   const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
+  const [isAnimating, setIsAnimating] = useState(true);
   
   const isLocked = node.status === 'locked';
   const isUnlockable = node.status === 'unlockable';
@@ -42,6 +44,10 @@ export const NodeComponent = memo(({ node, pathTheme, pathId, onUnlock }: NodeCo
       onUnlock(node.id);
     }
   }, [isUnlockable, node.id, onUnlock]);
+  
+  const handleAnimationComplete = useCallback(() => {
+    setIsAnimating(false);
+  }, []);
 
   const getNodeStyles = () => {
     if (isCompleted) {
@@ -81,7 +87,8 @@ export const NodeComponent = memo(({ node, pathTheme, pathId, onUnlock }: NodeCo
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      style={{ zIndex: 2 }}
+      onAnimationComplete={handleAnimationComplete}
+      style={{ zIndex: 2, ...GPU_ACCELERATION_STYLES }}
     >
       {/* Node Seal Container */}
       <motion.button
@@ -110,10 +117,11 @@ export const NodeComponent = memo(({ node, pathTheme, pathId, onUnlock }: NodeCo
           style={{
             backgroundColor: 'rgba(15, 23, 42, 0.95)',
             border: `2px solid ${colors.primary}`,
-            boxShadow: `
+            boxShadow: isAnimating ? 'none' : `
               0 0 20px ${colors.glow},
               inset 0 0 20px ${colors.glow}
             `,
+            transition: 'box-shadow 200ms ease-out',
           }}
         >
           {/* Progress Ring */}
@@ -143,7 +151,8 @@ export const NodeComponent = memo(({ node, pathTheme, pathId, onUnlock }: NodeCo
             className="relative z-10"
             style={{
               color: (isLocked || isUnlockable) ? 'rgb(148, 163, 184)' : colors.primary,
-              filter: (!isLocked && !isUnlockable) ? `drop-shadow(0 0 8px ${colors.glow})` : 'none',
+              filter: (!isLocked && !isUnlockable && !isAnimating) ? `drop-shadow(0 0 8px ${colors.glow})` : 'none',
+              transition: 'filter 200ms ease-out',
             }}
           />
 
@@ -161,7 +170,8 @@ export const NodeComponent = memo(({ node, pathTheme, pathId, onUnlock }: NodeCo
         className="text-xs font-bold text-center uppercase tracking-wider max-w-[100px]"
         style={{
           color: (isLocked || isUnlockable) ? 'rgb(148, 163, 184)' : colors.primary,
-          textShadow: (!isLocked && !isUnlockable) ? `0 0 10px ${colors.glow}` : 'none',
+          textShadow: (!isLocked && !isUnlockable && !isAnimating) ? `0 0 10px ${colors.glow}` : 'none',
+          transition: 'text-shadow 200ms ease-out',
         }}
       >
         {node.title}

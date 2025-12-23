@@ -10,10 +10,11 @@
  * @module components/streak/StreakCounter
  */
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Flame } from 'lucide-react';
 import { getStreakVisualState } from '@/services/StreakManager';
+import { GPU_ACCELERATION_STYLES } from '@/components/common';
 
 // ==================== TYPES ====================
 
@@ -226,6 +227,12 @@ export const StreakCounter = memo(({
   level,
   className = '',
 }: StreakCounterProps) => {
+  const [isAnimating, setIsAnimating] = useState(true);
+  
+  const handleAnimationComplete = useCallback(() => {
+    setIsAnimating(false);
+  }, []);
+  
   const visualState = useMemo(
     () => getStreakVisualState(streak, level),
     [streak, level]
@@ -260,8 +267,9 @@ export const StreakCounter = memo(({
     }
   }, [stage]);
 
-  // Get glow style for counter number
+  // Get glow style for counter number - defer during animation
   const numberGlow = useMemo(() => {
+    if (isAnimating) return 'none';
     const color = STAGE_COLORS[stage];
     switch (stage) {
       case 'ember':
@@ -273,7 +281,7 @@ export const StreakCounter = memo(({
       case 'explosion':
         return `drop-shadow(0 0 20px ${color})`;
     }
-  }, [stage]);
+  }, [stage, isAnimating]);
 
   // Haptic feedback simulation via visual pulse
   const hapticIntensity = useMemo(() => {
@@ -292,6 +300,7 @@ export const StreakCounter = memo(({
     <div 
       className={`flex items-center gap-2 ${className}`}
       data-haptic={hapticIntensity}
+      style={GPU_ACCELERATION_STYLES}
     >
       <AnimatePresence mode="wait">
         <motion.div
@@ -300,6 +309,8 @@ export const StreakCounter = memo(({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.5, opacity: 0 }}
           transition={{ duration: 0.3 }}
+          onAnimationComplete={handleAnimationComplete}
+          style={GPU_ACCELERATION_STYLES}
         >
           <StageIndicator />
         </motion.div>
@@ -307,7 +318,11 @@ export const StreakCounter = memo(({
 
       <motion.span
         className={`font-black text-lg ${textColorClass}`}
-        style={{ filter: numberGlow }}
+        style={{ 
+          filter: numberGlow,
+          transition: 'filter 200ms ease-out',
+          ...GPU_ACCELERATION_STYLES,
+        }}
         animate={
           stage === 'explosion'
             ? { scale: [1, 1.1, 1] }

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { QUEST_COIN_REWARDS } from '@/store/questStore';
+import { GPU_ACCELERATION_STYLES } from '@/components/common';
 
 export type QuestStatus = 'today' | 'backlog' | 'completed';
 export type QuestDifficulty = 'Easy' | 'Moderate' | 'Difficult' | 'Hard' | 'Hell';
@@ -44,6 +45,7 @@ export const QuestCard = memo(({
   onTimeChange,
 }: QuestCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(quest.date);
@@ -52,7 +54,12 @@ export const QuestCard = memo(({
   const [pickerYear, setPickerYear] = useState<number>(new Date().getFullYear());
 
   const toggleExpansion = useCallback(() => {
+    setIsAnimating(true);
     setIsExpanded(prev => !prev);
+  }, []);
+  
+  const handleAnimationComplete = useCallback(() => {
+    setIsAnimating(false);
   }, []);
 
   // Calendar helper functions
@@ -129,11 +136,18 @@ export const QuestCard = memo(({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       onClick={toggleExpansion}
-      className={`relative rounded-lg p-4 cursor-pointer transition-all backdrop-blur-md ${
+      className={`relative rounded-lg p-4 cursor-pointer transition-all ${
         isCompleted 
           ? 'bg-slate-900/30 border border-slate-800' 
-          : 'bg-slate-900/50 border border-slate-800 hover:border-purple-500/50 hover:shadow-[0_0_10px_rgba(168,85,247,0.3)]'
+          : 'bg-slate-900/50 border border-slate-800 hover:border-purple-500/50'
       }`}
+      style={{
+        backdropFilter: isAnimating ? 'none' : 'blur(12px)',
+        WebkitBackdropFilter: isAnimating ? 'none' : 'blur(12px)',
+        boxShadow: isAnimating || isCompleted ? 'none' : '0 0 10px rgba(168,85,247,0.15)',
+        transition: 'backdrop-filter 200ms ease-out, box-shadow 200ms ease-out',
+        ...GPU_ACCELERATION_STYLES,
+      }}
     >
       {/* Collapsed View */}
       <div className="flex justify-between items-center">
@@ -172,6 +186,7 @@ export const QuestCard = memo(({
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
+            onAnimationComplete={handleAnimationComplete}
           >
             <div className="mt-4 pt-4 border-t border-slate-800 flex flex-col gap-3">
               {/* Subtasks */}

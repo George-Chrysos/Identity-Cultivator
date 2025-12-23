@@ -10,6 +10,7 @@
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
+import { GPU_ACCELERATION_STYLES } from '@/components/common';
 
 // ==================== TYPES ====================
 
@@ -68,10 +69,11 @@ CyanFlash.displayName = 'CyanFlash';
 const Shockwave = memo(() => (
   <motion.div
     className="fixed inset-0 z-[9998] pointer-events-none flex items-center justify-center"
+    style={GPU_ACCELERATION_STYLES}
   >
     <motion.div
       className="rounded-full border-4"
-      style={{ borderColor: CYAN_COLOR }}
+      style={{ borderColor: CYAN_COLOR, ...GPU_ACCELERATION_STYLES }}
       initial={{ width: 50, height: 50, opacity: 1 }}
       animate={{ 
         width: ['50px', '400vw'],
@@ -117,6 +119,7 @@ const ParticleRain = memo(() => {
             background: `linear-gradient(to top, ${CYAN_COLOR}, ${CYAN_COLOR}80)`,
             borderRadius: 2,
             boxShadow: `0 0 10px ${CYAN_COLOR}`,
+            ...GPU_ACCELERATION_STYLES,
           }}
           initial={{ y: 0, opacity: 1, rotate: 0 }}
           animate={{ 
@@ -142,6 +145,7 @@ ParticleRain.displayName = 'ParticleRain';
 const WillTemperedStamp = memo(({ willGained, level }: { willGained?: number; level?: number }) => (
   <motion.div
     className="fixed inset-0 z-[10000] pointer-events-none flex items-center justify-center"
+    style={GPU_ACCELERATION_STYLES}
   >
     <motion.div
       className="relative"

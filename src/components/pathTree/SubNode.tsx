@@ -1,8 +1,9 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Flame, Eye, Swords, Lock, Sparkles, Crown, Zap, Star, Brain, Heart, Target, Compass, BookOpen, Lightbulb, Mountain, Wind } from 'lucide-react';
 import type { PathNode, PathTheme } from '@/constants/pathTreeData';
 import { THEME_COLORS } from '@/constants/pathTreeData';
+import { GPU_ACCELERATION_STYLES } from '@/components/common';
 
 interface SubNodeProps {
   node: PathNode;
@@ -60,6 +61,7 @@ const getNodeIcon = (_nodeId: string, title: string) => {
 export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
   const colors = THEME_COLORS[pathTheme];
   const Icon = getNodeIcon(node.id, node.title);
+  const [isAnimating, setIsAnimating] = useState(true);
   
   const isLocked = node.status === 'locked';
   const isUnlockable = node.status === 'unlockable';
@@ -77,9 +79,19 @@ export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
     }
   }, [node.id, onClick]);
   
+  const handleAnimationComplete = useCallback(() => {
+    setIsAnimating(false);
+  }, []);
+  
   // Determine display color based on state
   const displayColor = isLocked ? 'rgb(71, 85, 105)' : isUnlockable ? 'rgb(192, 192, 192)' : colors.primary;
   const displayGlow = isUnlockable ? 'rgba(192, 192, 192, 0.4)' : colors.glow;
+  
+  // Performance: defer expensive filter during animation
+  const getFilterStyle = useCallback((defaultFilter: string) => {
+    if (isAnimating) return 'none';
+    return defaultFilter;
+  }, [isAnimating]);
 
   return (
     <motion.div
@@ -87,7 +99,8 @@ export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      style={{ minHeight: '100px' }}
+      onAnimationComplete={handleAnimationComplete}
+      style={{ minHeight: '100px', ...GPU_ACCELERATION_STYLES }}
     >
       {/* Price Badge - Absolute positioned top-right */}
       {isUnlockable && (
@@ -96,8 +109,9 @@ export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
           style={{
             background: 'rgba(15, 23, 42, 0.9)',
             border: '1px solid rgba(34, 211, 238, 0.6)',
-            boxShadow: '0 0 8px rgba(34, 211, 238, 0.3)',
+            boxShadow: isAnimating ? 'none' : '0 0 8px rgba(34, 211, 238, 0.3)',
             color: 'rgb(34, 211, 238)',
+            transition: 'box-shadow 200ms ease-out',
           }}
         >
           <Star size={10} fill="rgb(34, 211, 238)" />
@@ -139,7 +153,7 @@ export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
               stroke={colors.primary}
               strokeWidth="2"
               opacity={0.7}
-              filter={`url(#sub-glow-${node.id})`}
+              filter={getFilterStyle(`url(#sub-glow-${node.id})`)}
               animate={{
                 rotate: [0, 360],
               }}
@@ -148,7 +162,7 @@ export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
                 repeat: Infinity,
                 ease: 'linear',
               }}
-              style={{ transformOrigin: '100px 100px' }}
+              style={{ transition: 'filter 200ms ease-out', transformOrigin: '100px 100px' }}
             />
           )}
 
@@ -170,8 +184,8 @@ export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
             stroke={displayColor}
             strokeWidth="3"
             opacity={isLocked ? 0.4 : 1}
-            filter={isLocked ? 'none' : `url(#sub-glow-${node.id})`}
-            style={isUnlockable ? { filter: 'drop-shadow(0 0 8px rgba(192, 192, 192, 0.6))' } : undefined}
+            filter={isLocked ? 'none' : getFilterStyle(`url(#sub-glow-${node.id})`)}
+            style={isUnlockable ? { filter: getFilterStyle('drop-shadow(0 0 8px rgba(192, 192, 192, 0.6))'), transition: 'filter 200ms ease-out' } : { transition: 'filter 200ms ease-out' }}
           />
         </svg>
 
@@ -188,7 +202,8 @@ export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
               strokeWidth={1.5}
               style={{
                 color: isUnlockable ? 'rgb(192, 192, 192)' : colors.primary,
-                filter: `drop-shadow(0 0 8px ${displayGlow})`,
+                filter: getFilterStyle(`drop-shadow(0 0 8px ${displayGlow})`),
+                transition: 'filter 200ms ease-out',
               }}
             />
           )}
@@ -201,7 +216,8 @@ export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {
           className="font-semibold text-center uppercase tracking-wider max-w-[80px] sm:max-w-[90px] text-[11px] sm:text-xs md:text-sm leading-tight"
           style={{
             color: isLocked ? 'rgb(148, 163, 184)' : isUnlockable ? 'rgb(192, 192, 192)' : colors.primary,
-            textShadow: isLocked ? 'none' : isUnlockable ? '0 0 8px rgba(192, 192, 192, 0.6)' : `0 0 8px ${displayGlow}`,
+            textShadow: isLocked ? 'none' : isUnlockable ? (isAnimating ? 'none' : '0 0 8px rgba(192, 192, 192, 0.6)') : (isAnimating ? 'none' : `0 0 8px ${displayGlow}`),
+            transition: 'text-shadow 200ms ease-out',
           }}
         >
           {node.title}

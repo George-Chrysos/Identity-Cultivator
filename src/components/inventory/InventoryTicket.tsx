@@ -1,10 +1,11 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Package, TrendingUp, Clock } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import type { PlayerInventoryItem } from '@/types/database';
 import { BurningProgress } from './BurningProgress';
 import { useShopStore, type MarketState } from '@/store/shopStore';
+import { GPU_ACCELERATION_STYLES } from '@/components/common';
 
 interface InventoryTicketProps {
   item: PlayerInventoryItem;
@@ -78,6 +79,11 @@ export const InventoryTicket = memo(({
     state.getMarketState(item.item_template_id)
   );
   const getRemainingCooldownMs = useShopStore((state) => state.getRemainingCooldown);
+  const [isAnimating, setIsAnimating] = useState(true);
+  
+  const handleAnimationComplete = useCallback(() => {
+    setIsAnimating(false);
+  }, []);
   
   const hasQuantity = item.quantity > 0;
   
@@ -110,11 +116,13 @@ export const InventoryTicket = memo(({
       animate={{ opacity: 1, y: 0 }}
       exit={!isMarketActive && isGhost ? { opacity: 0, scale: 0.8 } : undefined}
       transition={{ duration: 0.3 }}
+      onAnimationComplete={handleAnimationComplete}
       className="relative"
+      style={GPU_ACCELERATION_STYLES}
     >
       {/* Main Card Container with Jagged edges and Silver Border */}
       <div
-        className={`relative backdrop-blur-md p-5 transition-all overflow-hidden ${
+        className={`relative p-5 transition-all overflow-hidden ${
           isGhost
             ? 'bg-slate-900/40'
             : 'bg-slate-900/60'
@@ -122,7 +130,10 @@ export const InventoryTicket = memo(({
         style={{
           clipPath: JAGGED_CLIP_PATH,
           filter: isGhost ? 'grayscale(100%) brightness(0.7)' : undefined,
-          boxShadow: `${isGhost ? 'none' : `0 0 15px ${neonColor}, 0 0 30px ${neonColor}40`}, inset 0 0 15px rgba(192, 192, 192, 0.6)`,
+          backdropFilter: isAnimating ? 'none' : 'blur(12px)',
+          WebkitBackdropFilter: isAnimating ? 'none' : 'blur(12px)',
+          boxShadow: `${isGhost || isAnimating ? 'none' : `0 0 15px ${neonColor}, 0 0 30px ${neonColor}40`}, inset 0 0 15px rgba(192, 192, 192, 0.6)`,
+          transition: 'backdrop-filter 200ms ease-out, box-shadow 200ms ease-out',
         }}
       >
         {/* Holographic scan-line overlay */}
@@ -146,9 +157,10 @@ export const InventoryTicket = memo(({
           className="absolute inset-0 pointer-events-none"
           style={{
             clipPath: JAGGED_CLIP_PATH,
-            boxShadow: isGhost 
+            boxShadow: isGhost || isAnimating
               ? 'none'
               : `inset 0 0 15px ${neonColor}30, inset 0 0 5px ${neonColor}50`,
+            transition: 'box-shadow 200ms ease-out',
           }}
         />
 
@@ -176,13 +188,15 @@ export const InventoryTicket = memo(({
                 }`}
                 style={{
                   clipPath: ICON_CLIP_PATH,
-                  boxShadow: isGhost ? 'none' : `0 0 12px ${neonColor}60`,
+                  boxShadow: isGhost || isAnimating ? 'none' : `0 0 12px ${neonColor}60`,
+                  transition: 'box-shadow 200ms ease-out',
                 }}
               >
                 <Icon 
                   className={`w-6 h-6 ${isGhost ? 'text-amber-400' : 'text-pink-400'}`}
-                  style={isGhost ? {} : {
-                    filter: `drop-shadow(0 0 4px ${neonColor})`,
+                  style={{
+                    filter: isGhost || isAnimating ? 'none' : `drop-shadow(0 0 4px ${neonColor})`,
+                    transition: 'filter 200ms ease-out',
                   }}
                 />
               </div>
@@ -226,8 +240,9 @@ export const InventoryTicket = memo(({
             <div className="flex-1">
               <h3 
                 className={`text-lg font-bold mb-1 ${isGhost ? 'text-slate-400' : 'text-white'}`}
-                style={isGhost ? {} : {
-                  textShadow: `0 0 8px ${neonColor}40`,
+                style={{
+                  textShadow: isGhost || isAnimating ? 'none' : `0 0 8px ${neonColor}40`,
+                  transition: 'text-shadow 200ms ease-out',
                 }}
               >
                 {item.item_template?.name || 'Unknown Item'}
@@ -247,7 +262,8 @@ export const InventoryTicket = memo(({
             }`}
             style={{
               clipPath: 'polygon(15% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 30%)',
-              boxShadow: isGhost ? 'none' : `0 0 8px ${neonColor}40`,
+              boxShadow: isGhost || isAnimating ? 'none' : `0 0 8px ${neonColor}40`,
+              transition: 'box-shadow 200ms ease-out',
             }}
           >
             <span className={`font-bold ${isGhost ? 'text-slate-400' : 'text-white'}`}>
@@ -307,7 +323,7 @@ export const InventoryTicket = memo(({
         ) : (
           /* Normal State: Use Button */
           <motion.button
-            whileHover={{ scale: 1.02, boxShadow: `0 0 20px ${neonColor}60` }}
+            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={(e) => {
               e.stopPropagation();
@@ -321,7 +337,9 @@ export const InventoryTicket = memo(({
             }`}
             style={{
               clipPath: 'polygon(3% 0%, 97% 0%, 100% 30%, 100% 70%, 97% 100%, 3% 100%, 0% 70%, 0% 30%)',
-              boxShadow: isActivating ? 'none' : `0 0 12px ${neonColor}50`,
+              boxShadow: isActivating || isAnimating ? 'none' : `0 0 12px ${neonColor}50`,
+              transition: 'box-shadow 200ms ease-out',
+              ...GPU_ACCELERATION_STYLES,
             }}
           >
             {isActivating ? (
