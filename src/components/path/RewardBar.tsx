@@ -1,5 +1,6 @@
 import { memo } from 'react';
-import { Swords, ArrowBigUp } from 'lucide-react';
+import { ArrowBigUp } from 'lucide-react';
+import { GiSwordSmithing } from 'react-icons/gi';
 
 interface RewardBarProps {
   xp?: number;
@@ -68,7 +69,7 @@ export const RewardBar = memo(({
           }}
           title={isStatCapped ? 'Gate stat limit reached for this level' : `${statPoints} ${stat} points`}
         >
-          <Swords 
+          <GiSwordSmithing 
             className={`w-4 h-4 sm:w-5 sm:h-5 ${isStatCapped ? 'text-slate-500' : 'text-rose-400'}`}
             style={!isStatCapped ? {
               filter: 'drop-shadow(0 0 4px rgba(225, 29, 72, 0.6))',

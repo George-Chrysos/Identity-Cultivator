@@ -350,6 +350,33 @@ export const gameDB = {
     }
   },
 
+  /**
+   * Update an identity's properties (e.g., streak, XP)
+   */
+  async updateIdentity(identityId: string, updates: Partial<PlayerIdentity>): Promise<PlayerIdentity> {
+    if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
+      return mockDB.updateIdentity(identityId, updates);
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLES.PLAYER_IDENTITIES)
+        .update(updates)
+        .eq('id', identityId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      logger.info('Identity updated', { identityId, updates });
+      return data;
+    } catch (error) {
+      logger.error('Failed to update identity', error);
+      throw error;
+    }
+  },
+
   // ==================== TASK COMPLETION ====================
 
   /**

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Swords, Brain, Shield } from 'lucide-react';
+import { GiSwordSmithing, GiBrain, GiFireShield, GiWaterBolt } from 'react-icons/gi';
 import { useGameStore } from '@/store/gameStore';
 import { useUIStore } from '@/store/uiStore';
 import { getRankStyle, getRankGlowColor } from '@/utils/rankStyles';
@@ -84,10 +84,10 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
 
   // Orbiting paths configuration - Static positioning around upper half circle
   const staticPaths = [
-    { icon: Swords, color: '#ef4444', label: 'Body', x: -80, y: -50 },
-    { icon: Brain, color: '#8b5cf6', label: 'Mind', x: -30, y: -90 },
-    { icon: Sparkles, color: '#06b6d4', label: 'Soul', x: 30, y: -90 },
-    { icon: Shield, color: '#f59e0b', label: 'Will', x: 80, y: -50 },
+    { icon: GiSwordSmithing, color: '#ef4444', label: 'Body', x: -80, y: -50 },
+    { icon: GiBrain, color: '#8b5cf6', label: 'Mind', x: -30, y: -90 },
+    { icon: GiWaterBolt, color: '#06b6d4', label: 'Soul', x: 30, y: -90 },
+    { icon: GiFireShield, color: '#f59e0b', label: 'Will', x: 80, y: -50 },
   ];
 
   // Stats configuration
@@ -95,28 +95,28 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
     { 
       key: 'body', 
       points: userProfile.body_points, 
-      icon: Swords, 
+      icon: GiSwordSmithing, 
       label: 'BODY',
       gradient: 'linear-gradient(to right, #f59e0b, #d97706)'
     },
     { 
       key: 'mind', 
       points: userProfile.mind_points, 
-      icon: Brain, 
+      icon: GiBrain, 
       label: 'MIND',
       gradient: 'linear-gradient(to right, #06b6d4, #0891b2)'
     },
     { 
       key: 'soul', 
       points: userProfile.soul_points, 
-      icon: Sparkles, 
+      icon: GiWaterBolt, 
       label: 'SOUL',
       gradient: 'linear-gradient(to right, #ec4899, #db2777)'
     },
     { 
       key: 'will', 
       points: userProfile.will_points || 0, 
-      icon: Shield, 
+      icon: GiFireShield, 
       label: 'WILL',
       gradient: 'linear-gradient(to right, #8b5cf6, #7c3aed)'
     },

@@ -1,9 +1,9 @@
 import { memo, useCallback, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Star, Lock, Zap, Shield, Flame, Eye, Sword, Crown, ChevronDown } from 'lucide-react';
+import { Star, Lock, Zap, Shield, Flame, Eye, Sword, Crown, ChevronDown } from 'lucide-react';
 import type { PathNode, PathTheme } from '@/constants/pathTreeData';
 import { THEME_COLORS } from '@/constants/pathTreeData';
+import { BaseModal } from '@/components/common';
 
 /**
  * CollapsibleMastery - Expandable mastery card component
@@ -306,91 +306,73 @@ export const NodeInfoModal = memo(({
     return 'text-slate-500';
   };
 
-  const modalContent = (
-    <AnimatePresence mode="wait">
-      {isOpen && node && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100]"
-            onClick={onClose}
-          />
-          
-          {/* Modal */}
-          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2, ease: 'easeInOut' }}
-              className="relative bg-slate-900/95 backdrop-blur-md border-2 rounded-2xl p-4 max-w-lg w-full shadow-lg pointer-events-auto my-2 max-h-[95vh] overflow-y-auto"
+  if (!node) return null;
+
+  return (
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="lg"
+      showCloseButton={true}
+      className="border-2 rounded-2xl"
+      overlayClassName="bg-black/90"
+    >
+      <div 
+        className="p-4"
+        style={{ 
+          borderColor: colors.primary,
+          boxShadow: `0 0 30px ${colors.glow}`,
+        }}
+      >
+        {/* Icon and Title Section */}
+        <div className="flex items-center gap-3 mb-3">
+          <div 
+            className="w-14 h-14 rounded-full flex items-center justify-center border-2"
+            style={{ 
+              borderColor: isUnlockable ? 'rgb(192, 192, 192)' : colors.primary,
+              background: `linear-gradient(135deg, ${colors.bg}, rgba(15, 23, 42, 0.9))`,
+              boxShadow: isUnlockable ? '0 0 20px rgba(192, 192, 192, 0.4)' : `0 0 20px ${colors.glow}`,
+            }}
+          >
+            <Icon 
+              className="w-7 h-7" 
               style={{ 
-                borderColor: colors.primary,
-                boxShadow: `0 0 30px ${colors.glow}`,
-              }}
-              onClick={(e) => e.stopPropagation()}
+                color: isUnlockable ? 'rgb(192, 192, 192)' : colors.primary,
+                filter: isUnlockable ? 'drop-shadow(0 0 8px rgba(192, 192, 192, 0.6))' : `drop-shadow(0 0 8px ${colors.glow})`,
+              }} 
+            />
+          </div>
+          <div className="flex-1 pr-8">
+            <h2 
+              className="text-xl font-bold text-white mb-0.5"
+              style={{ textShadow: `0 0 15px ${colors.glow}` }}
             >
-              {/* Close Button */}
-              <button
-                onClick={onClose}
-                className="absolute top-3 right-3 p-1.5 rounded-lg bg-slate-800/50 border border-slate-600 text-slate-400 hover:text-white hover:border-slate-500 transition-all"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              {node.title}
+            </h2>
+            <p className="text-xs text-slate-400">
+              {node.title === 'Tempering' ? 'The Awakening of the Vessel' : `${pathTitle} Path • Stage ${node.stage}`}
+            </p>
+          </div>
+        </div>
 
-              {/* Icon and Title Section */}
-              <div className="flex items-center gap-3 mb-3">
-                <div 
-                  className="w-14 h-14 rounded-full flex items-center justify-center border-2"
-                  style={{ 
-                    borderColor: isUnlockable ? 'rgb(192, 192, 192)' : colors.primary,
-                    background: `linear-gradient(135deg, ${colors.bg}, rgba(15, 23, 42, 0.9))`,
-                    boxShadow: isUnlockable ? '0 0 20px rgba(192, 192, 192, 0.4)' : `0 0 20px ${colors.glow}`,
-                  }}
-                >
-                  <Icon 
-                    className="w-7 h-7" 
-                    style={{ 
-                      color: isUnlockable ? 'rgb(192, 192, 192)' : colors.primary,
-                      filter: isUnlockable ? 'drop-shadow(0 0 8px rgba(192, 192, 192, 0.6))' : `drop-shadow(0 0 8px ${colors.glow})`,
-                    }} 
-                  />
-                </div>
-                <div className="flex-1 pr-8">
-                  <h2 
-                    className="text-xl font-bold text-white mb-0.5"
-                    style={{ textShadow: `0 0 15px ${colors.glow}` }}
-                  >
-                    {node.title}
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    {node.title === 'Tempering' ? 'The Awakening of the Vessel' : `${pathTitle} Path • Stage ${node.stage}`}
-                  </p>
-                </div>
-              </div>
+        {/* Status Badge */}
+        <div className="mb-3">
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor()}`}
+            style={{ 
+              borderColor: isActive || isCompleted ? colors.primary : undefined,
+              backgroundColor: isActive || isCompleted ? `${colors.bg}` : 'rgba(51, 65, 85, 0.5)',
+            }}
+          >
+            {(isLocked || isUnlockable) && <Lock className="w-3 h-3" />}
+            {getStatusText()}
+          </span>
+        </div>
 
-              {/* Status Badge */}
-              <div className="mb-3">
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor()}`}
-                  style={{ 
-                    borderColor: isActive || isCompleted ? colors.primary : undefined,
-                    backgroundColor: isActive || isCompleted ? `${colors.bg}` : 'rgba(51, 65, 85, 0.5)',
-                  }}
-                >
-                  {(isLocked || isUnlockable) && <Lock className="w-3 h-3" />}
-                  {getStatusText()}
-                </span>
-              </div>
-
-              {/* Divider */}
-              <div 
-                className="h-px mb-3"
-                style={{ background: `linear-gradient(to right, ${colors.primary}50, ${colors.primary}20, transparent)` }}
-              />
+        {/* Divider */}
+        <div 
+          className="h-px mb-3"
+          style={{ background: `linear-gradient(to right, ${colors.primary}50, ${colors.primary}20, transparent)` }}
+        />
 
               {/* Description */}
               <div className="mb-4">
@@ -546,14 +528,9 @@ export const NodeInfoModal = memo(({
                   Complete previous nodes to unlock
                 </div>
               )}
-            </motion.div>
-          </div>
-        </>
-      )}
-    </AnimatePresence>
+            </div>
+          </BaseModal>
   );
-
-  return createPortal(modalContent, document.body);
 });
 
 NodeInfoModal.displayName = 'NodeInfoModal';

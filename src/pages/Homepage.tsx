@@ -16,12 +16,22 @@ import { logger } from '@/utils/logger';
 import { shallow } from 'zustand/shallow';
 import { StatType } from '@/constants/statRanks';
 import { getTemperingLevel, generateTemperingTaskTemplates } from '@/constants/temperingPath';
+import { useChronosReset } from '@/hooks';
 
 const Homepage = () => {
   const { isAuthenticated, currentUser: authUser } = useAuthStore();
   const [showStatRankingModal, setShowStatRankingModal] = useState(false);
   const [showNewQuestModal, setShowNewQuestModal] = useState(false);
   const statModalCheckedRef = useRef(false); // Track if we've already checked for stat modal this session
+  
+  // Chronos Reset hook - handles day change detection and daily resets
+  // Note: showDawnSummary and dismissDawnSummary will be used for the Dawn Summary modal (future implementation)
+  // executeManualReset is exposed for testing via PlayerMenu
+  const chronosReset = useChronosReset();
+  // Expose for testing in dev console
+  if (typeof window !== 'undefined') {
+    (window as unknown as { __chronosReset?: typeof chronosReset }).__chronosReset = chronosReset;
+  }
   
   // ✅ OPTIMIZED: Use new game store
   const {
@@ -131,6 +141,7 @@ const Homepage = () => {
     date: string;
     time: string;
     subtasks: Array<{ id: string; title: string }>;
+    customRewards: Array<{ id: string; description: string }>;
   }) => {
     try {
       const { useQuestStore } = await import('@/store/questStore');
@@ -153,6 +164,7 @@ const Homepage = () => {
         status: isToday ? 'today' : 'backlog',
         difficulty: questData.difficulty as 'Easy' | 'Moderate' | 'Difficult' | 'Hard' | 'Hell',
         subtasks: questData.subtasks,
+        customRewards: questData.customRewards,
       });
       
       logger.info('New quest created successfully', questData);
@@ -421,6 +433,7 @@ const Homepage = () => {
                 return (
                   <div key={identity.id} className="w-full">
                     <PathCard
+                      identityId={identity.id}
                       title={identity.template.name}
                       subtitle={temperingConfig?.subtitle}
                       status={identity.completed_today ? 'completed' : 'pending'}
@@ -437,10 +450,10 @@ const Homepage = () => {
                         const didGainBody = (result.rewards.body_points ?? 0) > 0;
                         return { didGainBody };
                       }}
-                      onAllTasksComplete={async () => {
-                        logger.info('All tasks completed for identity', { identityId: identity.id });
-                        // TODO: Implement database identity completion logic
-                        return Promise.resolve();
+                      onAllTasksComplete={async (newStreak) => {
+                        logger.info('All tasks completed for identity', { identityId: identity.id, newStreak });
+                        // Persist streak to database
+                        await useGameStore.getState().updateIdentityStreak(identity.id, newStreak);
                       }}
                       onTrialStart={() => {
                         logger.info('Trial started for identity', { identityId: identity.id });

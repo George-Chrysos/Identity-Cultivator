@@ -1,6 +1,6 @@
 import { memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Swords, Brain, Sparkles, Shield } from 'lucide-react';
+import { GiSwordSmithing, GiBrain, GiFireShield, GiWaterBolt } from 'react-icons/gi';
 import type { CultivationPath } from '@/constants/pathTreeData';
 import { THEME_COLORS } from '@/constants/pathTreeData';
 
@@ -13,15 +13,15 @@ interface PathTabsProps {
 const getPathIcon = (pathId: string) => {
   switch (pathId) {
     case 'warrior':
-      return Swords;
+      return GiSwordSmithing;
     case 'mage':
-      return Brain;
+      return GiBrain;
     case 'mystic':
-      return Sparkles;
+      return GiWaterBolt;
     case 'guardian':
-      return Shield;
+      return GiFireShield;
     default:
-      return Swords;
+      return GiSwordSmithing;
   }
 };
 

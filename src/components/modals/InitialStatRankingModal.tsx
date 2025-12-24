@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 import { STAT_RANKING_DATA, StatType, StatRank } from '@/constants/statRanks';
 import { getRankStyle } from '@/utils/rankStyles';
 import { logger } from '@/utils/logger';
+import { BaseModal } from '@/components/common';
 
 interface InitialStatRankingModalProps {
   isOpen: boolean;
@@ -82,17 +83,15 @@ export const InitialStatRankingModal = memo(({ isOpen, onSubmit }: InitialStatRa
     onSubmit(allDRanks);
   }, [onSubmit]);
 
-  if (!isOpen) return null;
-
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          className="relative w-full max-w-3xl max-h-[90vh] bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-2xl border-2 border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.4)] overflow-hidden"
-        >
+    <BaseModal
+      isOpen={isOpen}
+      onClose={handleSkipToD}
+      maxWidth="2xl"
+      showCloseButton={false}
+      closeOnBackdrop={false}
+      closeOnEscape={false}
+    >
           {/* Header */}
           <div className="p-6 border-b border-purple-500/30">
             <div className="flex justify-between items-start">
@@ -235,9 +234,7 @@ export const InitialStatRankingModal = memo(({ isOpen, onSubmit }: InitialStatRa
               </button>
             )}
           </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+    </BaseModal>
   );
 });
 

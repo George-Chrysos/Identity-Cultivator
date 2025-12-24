@@ -117,11 +117,9 @@ export const BaseModal = memo(({
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.3, type: 'spring', damping: 25 }}
             onAnimationComplete={handleAnimationComplete}
-            className={`relative w-full ${MAX_WIDTH_CLASSES[maxWidth]} bg-slate-900/95 border border-slate-700/50 rounded-2xl overflow-hidden ${className}`}
+            className={`relative w-full ${MAX_WIDTH_CLASSES[maxWidth]} card-base glow-purple overflow-hidden ${className}`}
             onClick={(e) => e.stopPropagation()}
             style={{
-              boxShadow: isAnimating ? 'none' : '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-              transition: 'box-shadow 200ms ease-out',
               ...GPU_ACCELERATION_STYLES,
             }}
           >

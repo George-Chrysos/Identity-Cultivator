@@ -14,6 +14,7 @@ import {
   ItemTemplate,
   PlayerInventoryItem,
   PurchaseItemRequest,
+  DailyRecord,
 } from '@/types/database';
 import { 
   UserSealLog, 
@@ -33,9 +34,19 @@ const getYesterday = (): string => {
   return yesterday.toISOString().split('T')[0];
 };
 
+// Tracked task/subtask state per identity for today
+interface DailyTaskState {
+  completedTasks: string[];
+  completedSubtasks: string[];
+  date: string; // ISO date string to reset on new day
+}
+
 interface GameState {
   // User data
   userProfile: UserProfile | null;
+  
+  // Daily task tracking per identity (persisted but reset on new day)
+  dailyTaskStates: Record<string, DailyTaskState>;
   
   // Active player identities
   activeIdentities: PlayerIdentityWithDetails[];
@@ -57,6 +68,10 @@ interface GameState {
   sealLogs: UserSealLog[]; // Historical seal selections
   sealStats: UserSealStats[]; // Per-seal progression stats
   todaySealLog: UserSealLog | null; // Today's active seals
+  
+  // Chronos Reset System
+  showDawnSummary: boolean; // Show "New Day" summary modal
+  lastDailyRecord: DailyRecord | null; // Most recent daily snapshot
   
   // UI state
   isLoading: boolean;
@@ -83,9 +98,23 @@ interface GameState {
   completeTodaySeals: () => void;
   getSealStats: (sealId: string) => UserSealStats | null;
   
+  // Chronos Reset actions
+  setShowDawnSummary: (show: boolean) => void;
+  setLastDailyRecord: (record: DailyRecord | null) => void;
+  updateLastResetDate: (date: string) => Promise<void>;
+  resetDailyProgress: () => Promise<void>;
+  
+  // Daily task state actions
+  getCompletedTasks: (identityId: string) => Set<string>;
+  getCompletedSubtasks: (identityId: string) => Set<string>;
+  setCompletedTask: (identityId: string, taskId: string, completed: boolean) => void;
+  setCompletedSubtask: (identityId: string, subtaskId: string, completed: boolean) => void;
+  clearDailyTasks: (identityId: string) => void;
+  
   activateIdentity: (templateId: string) => Promise<void>;
   deactivateIdentity: (identityId: string) => Promise<void>;
   getIdentityById: (identityId: string) => PlayerIdentityWithDetails | null;
+  updateIdentityStreak: (identityId: string, streak: number) => Promise<void>;
   updateRewards: (coins: number, statType: string, statPoints: number, stars?: number) => Promise<void>;
   setCurrentPage: (page: 'home' | 'tavern') => void;
   clearGameData: () => void;
@@ -104,6 +133,9 @@ export const useGameStore = create<GameState>()(
       sealLogs: [],
       sealStats: [],
       todaySealLog: null,
+      showDawnSummary: false,
+      lastDailyRecord: null,
+      dailyTaskStates: {},
       isLoading: false,
       isInitialized: false,
       currentPage: 'home',
@@ -361,10 +393,12 @@ export const useGameStore = create<GameState>()(
         if (!identity) throw new Error('Identity not found');
 
         try {
-          // Optimistic update
+          // Optimistic update - DO NOT increment streak here!
+          // Streak is managed by PathCard and only increments when ALL tasks are completed
+          // Incrementing here causes duplicate streak gains when navigating away and back
           set({
             activeIdentities: activeIdentities.map((i) =>
-              i.id === identityId ? { ...i, completed_today: true, current_streak: i.current_streak + 1 } : i
+              i.id === identityId ? { ...i } : i
             ),
           });
 
@@ -375,11 +409,17 @@ export const useGameStore = create<GameState>()(
             task_template_id: taskTemplateId,
           });
 
-          // Update store with new data
+          // Update store with new data - use original streak, not database-incremented one
+          // Database also wrongly increments per task, so preserve the current streak
           set({
             userProfile: result.updated_profile,
             activeIdentities: activeIdentities.map((i) =>
-              i.id === identityId ? { ...i, ...result.updated_identity } : i
+              i.id === identityId ? { 
+                ...i, 
+                ...result.updated_identity,
+                // Preserve original streak - PathCard manages streak separately
+                current_streak: identity.current_streak,
+              } : i
             ),
           });
 
@@ -430,6 +470,39 @@ export const useGameStore = create<GameState>()(
         return get().activeIdentities.find((i) => i.id === identityId) || null;
       },
 
+      updateIdentityStreak: async (identityId: string, streak: number) => {
+        const { activeIdentities } = get();
+        const identity = activeIdentities.find((i) => i.id === identityId);
+        if (!identity) {
+          logger.error('Identity not found for streak update', { identityId });
+          return;
+        }
+
+        // Optimistic update
+        set({
+          activeIdentities: activeIdentities.map((i) =>
+            i.id === identityId ? { ...i, current_streak: streak, completed_today: true } : i
+          ),
+        });
+
+        try {
+          // Persist to database
+          await gameDB.updateIdentity(identityId, { 
+            current_streak: streak,
+          });
+          logger.info('Identity streak updated', { identityId, streak });
+        } catch (error) {
+          // Rollback on failure
+          set({
+            activeIdentities: activeIdentities.map((i) =>
+              i.id === identityId ? { ...i, current_streak: identity.current_streak } : i
+            ),
+          });
+          logger.error('Failed to update identity streak', { identityId, error });
+          throw error;
+        }
+      },
+
       updateRewards: async (coins: number, statType: string, statPoints: number, stars: number = 0) => {
         const { userProfile } = get();
         if (!userProfile) return;
@@ -468,6 +541,168 @@ export const useGameStore = create<GameState>()(
       setCurrentPage: (page: 'home' | 'tavern') => {
         set({ currentPage: page });
         logger.info('Page navigation', { page });
+      },
+
+      // ========== CHRONOS RESET SYSTEM ==========
+
+      setShowDawnSummary: (show: boolean) => {
+        set({ showDawnSummary: show });
+      },
+
+      setLastDailyRecord: (record: DailyRecord | null) => {
+        set({ lastDailyRecord: record });
+      },
+
+      updateLastResetDate: async (date: string) => {
+        const { userProfile } = get();
+        if (!userProfile) return;
+
+        try {
+          const updatedProfile = await gameDB.updateProfile(userProfile.id, { 
+            last_reset_date: date 
+          });
+          set({ userProfile: updatedProfile });
+          logger.info('Last reset date updated', { date });
+        } catch (error) {
+          logger.error('Failed to update last reset date', { error });
+          throw error;
+        }
+      },
+
+      resetDailyProgress: async () => {
+        const { userProfile, activeIdentities } = get();
+        if (!userProfile) return;
+
+        try {
+          // Evaluate each path and update streaks
+          const updatedIdentities = activeIdentities.map((identity) => {
+            const allTasksCompleted = identity.completed_today;
+            
+            // If all tasks were completed, increment streak; otherwise reset to 0
+            const newStreak = allTasksCompleted ? identity.current_streak + 1 : 0;
+
+            return {
+              ...identity,
+              completed_today: false, // Reset for new day
+              current_streak: newStreak,
+            };
+          });
+
+          set({ activeIdentities: updatedIdentities });
+
+          // Persist streak changes to database for each identity
+          for (const identity of updatedIdentities) {
+            try {
+              await gameDB.updateIdentity(identity.id, {
+                current_streak: identity.current_streak,
+                // completed_today is typically not stored in DB, it's derived
+              });
+            } catch (error) {
+              logger.error('Failed to update identity streak', { identityId: identity.id, error });
+            }
+          }
+
+          logger.info('Daily progress reset completed', { 
+            identitiesUpdated: updatedIdentities.length 
+          });
+        } catch (error) {
+          logger.error('Failed to reset daily progress', { error });
+          throw error;
+        }
+      },
+
+      // ========== DAILY TASK STATE (per identity) ==========
+      
+      getCompletedTasks: (identityId: string) => {
+        const today = getTodayDate();
+        const state = get().dailyTaskStates[identityId];
+        // Return empty set if no state or if state is from a previous day
+        if (!state || state.date !== today) {
+          return new Set<string>();
+        }
+        return new Set(state.completedTasks);
+      },
+      
+      getCompletedSubtasks: (identityId: string) => {
+        const today = getTodayDate();
+        const state = get().dailyTaskStates[identityId];
+        // Return empty set if no state or if state is from a previous day
+        if (!state || state.date !== today) {
+          return new Set<string>();
+        }
+        return new Set(state.completedSubtasks);
+      },
+      
+      setCompletedTask: (identityId: string, taskId: string, completed: boolean) => {
+        const today = getTodayDate();
+        const { dailyTaskStates } = get();
+        const currentState = dailyTaskStates[identityId];
+        
+        // If state is from a previous day, start fresh
+        const baseState: DailyTaskState = currentState?.date === today 
+          ? currentState 
+          : { completedTasks: [], completedSubtasks: [], date: today };
+        
+        const updatedTasks = new Set(baseState.completedTasks);
+        if (completed) {
+          updatedTasks.add(taskId);
+        } else {
+          updatedTasks.delete(taskId);
+        }
+        
+        set({
+          dailyTaskStates: {
+            ...dailyTaskStates,
+            [identityId]: {
+              ...baseState,
+              completedTasks: Array.from(updatedTasks),
+            },
+          },
+        });
+      },
+      
+      setCompletedSubtask: (identityId: string, subtaskId: string, completed: boolean) => {
+        const today = getTodayDate();
+        const { dailyTaskStates } = get();
+        const currentState = dailyTaskStates[identityId];
+        
+        // If state is from a previous day, start fresh
+        const baseState: DailyTaskState = currentState?.date === today 
+          ? currentState 
+          : { completedTasks: [], completedSubtasks: [], date: today };
+        
+        const updatedSubtasks = new Set(baseState.completedSubtasks);
+        if (completed) {
+          updatedSubtasks.add(subtaskId);
+        } else {
+          updatedSubtasks.delete(subtaskId);
+        }
+        
+        set({
+          dailyTaskStates: {
+            ...dailyTaskStates,
+            [identityId]: {
+              ...baseState,
+              completedSubtasks: Array.from(updatedSubtasks),
+            },
+          },
+        });
+      },
+      
+      clearDailyTasks: (identityId: string) => {
+        const today = getTodayDate();
+        const { dailyTaskStates } = get();
+        
+        set({
+          dailyTaskStates: {
+            ...dailyTaskStates,
+            [identityId]: {
+              completedTasks: [],
+              completedSubtasks: [],
+              date: today,
+            },
+          },
+        });
       },
 
       // ========== SEALS SYSTEM ==========

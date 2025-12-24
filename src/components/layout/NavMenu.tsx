@@ -44,7 +44,7 @@ export const NavMenu = memo(() => {
         ...GPU_ACCELERATION_STYLES,
       }}
     >
-      <div className="flex items-center justify-around h-14 px-2">
+      <div className="flex items-center justify-around h-16 px-2">
         {navItems.map(({ path, icon: Icon, label }) => (
           <motion.button
             key={path}
@@ -59,7 +59,7 @@ export const NavMenu = memo(() => {
             style={GPU_ACCELERATION_STYLES}
           >
             <Icon 
-              className={`h-5 w-5 flex-shrink-0`} 
+              className={`h-6 w-6 flex-shrink-0`} 
               style={{
                 filter: isActive(path) && !isAnimating
                   ? 'drop-shadow(0 0 4px rgba(168,85,247,0.6)) drop-shadow(0 0 8px rgba(168,85,247,0.3))'

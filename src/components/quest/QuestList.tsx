@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { QuestCard, QuestStatus, type Quest } from './QuestCard';
 import { useQuestStore } from '../../store/questStore';
+import { useTestingStore } from '@/store/testingStore';
 import { logger } from '@/utils/logger';
 
 interface QuestListProps {
@@ -31,6 +32,9 @@ export const QuestList = memo(({ onQuestAdd }: QuestListProps) => {
     loadQuests();
   }, [loadQuests]);
 
+  // Get current date (respects testing mode)
+  const { getTestingDateFormatted } = useTestingStore();
+
   // Dynamic title based on active tab
   const getTitle = useCallback(() => {
     switch (activeTab) {
@@ -45,12 +49,11 @@ export const QuestList = memo(({ onQuestAdd }: QuestListProps) => {
     }
   }, [activeTab]);
 
-  // Get today's date in the same format as quest dates
+  // Get today's date in the same format as quest dates (respects testing mode)
   const getTodayFormatted = useCallback(() => {
-    const today = new Date();
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${months[today.getMonth()]} ${today.getDate()}`;
-  }, []);
+    // Use testing store's date if in testing mode
+    return getTestingDateFormatted();
+  }, [getTestingDateFormatted]);
 
   // Filter quests by active tab with proper logic
   const filteredQuests = quests.filter((quest: Quest) => {
@@ -201,12 +204,21 @@ export const QuestList = memo(({ onQuestAdd }: QuestListProps) => {
     }
   }, [updateQuest]);
 
+  const handleRecurringToggle = useCallback(async (questId: string, isRecurring: boolean) => {
+    try {
+      await updateQuest(questId, { isRecurring });
+      logger.debug('Quest recurring toggled', { questId, isRecurring });
+    } catch (error) {
+      logger.error('Failed to toggle quest recurring', { error });
+    }
+  }, [updateQuest]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="relative bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/50 shadow-[0_0_12px_rgba(76,29,149,0.4)] rounded-2xl p-5 transition-all"
+      className="glass-panel-purple p-5 transition-all"
     >
       {/* Header with Title and Add Button */}
       <div className="flex items-start justify-between gap-3 mb-4 relative z-10">
@@ -293,6 +305,7 @@ export const QuestList = memo(({ onQuestAdd }: QuestListProps) => {
                   onSubtaskComplete={handleSubtaskComplete}
                   onDateChange={handleDateChange}
                   onTimeChange={handleTimeChange}
+                  onRecurringToggle={handleRecurringToggle}
                 />
               ))
             )}

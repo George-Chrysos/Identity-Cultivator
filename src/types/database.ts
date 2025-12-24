@@ -29,6 +29,33 @@ export interface UserProfile {
   timezone: string;
   created_at: string;
   updated_at: string;
+  last_reset_date?: string; // ISO date string (YYYY-MM-DD) for Chronos Reset tracking
+}
+
+/**
+ * Path statistics snapshot for daily records
+ */
+export interface PathDailyStat {
+  path_id: string;
+  path_name: string;
+  completed_count: number;
+  total_count: number;
+  streak_before: number;
+  streak_after: number;
+}
+
+/**
+ * Daily record for historical tracking
+ * Saved before daily reset to preserve yesterday's data
+ */
+export interface DailyRecord {
+  id: string;
+  user_id: string;
+  date: string; // ISO date string (YYYY-MM-DD)
+  path_stats: PathDailyStat[];
+  quests_completed: number;
+  total_coins_earned: number;
+  created_at: string;
 }
 
 /**

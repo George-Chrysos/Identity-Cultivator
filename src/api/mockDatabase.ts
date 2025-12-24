@@ -663,6 +663,21 @@ export const mockDB = {
     }
   },
 
+  async updateIdentity(identityId: string, updates: Partial<PlayerIdentity>): Promise<PlayerIdentity> {
+    const identity = mockPlayerIdentities.get(identityId);
+    if (!identity) throw new Error(`Identity not found: ${identityId}`);
+
+    const updatedIdentity = {
+      ...identity,
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+    
+    mockPlayerIdentities.set(identityId, updatedIdentity);
+    logger.info('Mock identity updated', { identityId, updates });
+    return updatedIdentity;
+  },
+
   // ==================== TASK COMPLETION ====================
 
   async completeTask(request: CompleteTaskRequest): Promise<CompleteTaskResponse> {
@@ -738,7 +753,9 @@ export const mockDB = {
       ...identity,
       current_xp: leveledUp ? newXp - xpForNextLevel : newXp,
       current_level: newLevel,
-      current_streak: identity.current_streak + 1,
+      // DO NOT increment streak here - streak is managed by PathCard component
+      // and only increments when ALL tasks are completed for the day
+      current_streak: identity.current_streak,
       updated_at: new Date().toISOString(),
     };
     mockPlayerIdentities.set(request.identity_instance_id, updatedIdentity);

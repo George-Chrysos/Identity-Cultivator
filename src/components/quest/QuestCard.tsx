@@ -13,6 +13,11 @@ export interface SubQuest {
   title: string;
 }
 
+export interface CustomReward {
+  id: string;
+  description: string;
+}
+
 export interface Quest {
   id: string;
   title: string;
@@ -23,6 +28,9 @@ export interface Quest {
   difficulty?: QuestDifficulty;
   completedAt?: string;
   subtasks?: SubQuest[];
+  customRewards?: CustomReward[];
+  isRecurring?: boolean;
+  daysNotCompleted?: number; // Counter for quest aging - escalates difficulty at 3/10/20 days
 }
 
 interface QuestCardProps {
@@ -33,6 +41,7 @@ interface QuestCardProps {
   onSubtaskComplete: (questId: string, subtaskId: string, e: React.MouseEvent) => void;
   onDateChange?: (questId: string, date: string) => void;
   onTimeChange?: (questId: string, time: string) => void;
+  onRecurringToggle?: (questId: string, isRecurring: boolean) => void;
 }
 
 export const QuestCard = memo(({
@@ -43,6 +52,7 @@ export const QuestCard = memo(({
   onSubtaskComplete,
   onDateChange,
   onTimeChange,
+  onRecurringToggle,
 }: QuestCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -130,22 +140,26 @@ export const QuestCard = memo(({
     });
   }, []);
 
+  // Handle recurring toggle
+  const handleRecurringToggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRecurringToggle?.(quest.id, !quest.isRecurring);
+  }, [onRecurringToggle, quest.id, quest.isRecurring]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       onClick={toggleExpansion}
-      className={`relative rounded-lg p-4 cursor-pointer transition-all ${
+      className={`glass-panel-purple p-4 cursor-pointer transition-all ${
         isCompleted 
-          ? 'bg-slate-900/30 border border-slate-800' 
-          : 'bg-slate-900/50 border border-slate-800 hover:border-purple-500/50'
+          ? 'opacity-60' 
+          : ''
       }`}
       style={{
-        backdropFilter: isAnimating ? 'none' : 'blur(12px)',
-        WebkitBackdropFilter: isAnimating ? 'none' : 'blur(12px)',
-        boxShadow: isAnimating || isCompleted ? 'none' : '0 0 10px rgba(168,85,247,0.15)',
-        transition: 'backdrop-filter 200ms ease-out, box-shadow 200ms ease-out',
+        backdropFilter: isAnimating ? 'none' : undefined,
+        WebkitBackdropFilter: isAnimating ? 'none' : undefined,
         ...GPU_ACCELERATION_STYLES,
       }}
     >
@@ -292,12 +306,24 @@ export const QuestCard = memo(({
               {quest.difficulty && (
                 <div>
                   <span className="text-xs text-slate-500 uppercase tracking-widest block mb-2">Rewards</span>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     {/* Coin Reward */}
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                       <span className="text-base">🪙</span>
                       <span className="text-sm font-semibold text-amber-300">+{QUEST_COIN_REWARDS[quest.difficulty]}</span>
                     </div>
+                    {/* Custom Rewards */}
+                    {quest.customRewards && quest.customRewards.length > 0 && (
+                      quest.customRewards.map((reward) => (
+                        <div 
+                          key={reward.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-lg"
+                        >
+                          <span className="text-base">🎁</span>
+                          <span className="text-sm font-semibold text-emerald-300">{reward.description}</span>
+                        </div>
+                      ))
+                    )}
                     {/* Difficulty Badge */}
                     <div className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider border ${
                       quest.difficulty === 'Easy' ? 'bg-green-500/10 border-green-500/30 text-green-300' :
@@ -311,6 +337,50 @@ export const QuestCard = memo(({
                   </div>
                 </div>
               )}
+
+              {/* Recurring Checkbox */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleRecurringToggle}
+                  className="flex items-center gap-2 py-2 px-3 rounded-lg border transition-all bg-slate-800/50 border-slate-700 hover:border-purple-500/50"
+                >
+                  <div
+                    className="relative w-4 h-4 rounded border-2 transition-all flex items-center justify-center flex-shrink-0"
+                    style={{
+                      borderColor: quest.isRecurring ? 'rgb(34, 197, 94)' : 'rgb(100, 116, 139)',
+                      backgroundColor: quest.isRecurring ? 'rgb(34, 197, 94)' : 'transparent',
+                      boxShadow: quest.isRecurring ? '0 0 6px rgba(34, 197, 94, 0.5)' : 'none'
+                    }}
+                  >
+                    {quest.isRecurring && (
+                      <motion.svg
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="w-2.5 h-2.5 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={3}
+                      >
+                        <motion.path
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: 1 }}
+                          transition={{ duration: 0.2 }}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 13l4 4L19 7"
+                        />
+                      </motion.svg>
+                    )}
+                  </div>
+                  <span className={`text-sm ${quest.isRecurring ? 'text-green-400' : 'text-slate-400'}`}>
+                    Recurring
+                  </span>
+                </button>
+                <span className="text-xs text-slate-500">
+                  {quest.isRecurring ? 'Resets daily, keeps rewards' : 'One-time quest'}
+                </span>
+              </div>
 
               {/* Complete Button */}
               <button

@@ -14,3 +14,4 @@ export {
 } from './useTransformedIdentity';
 export { useShopEngine, type ShopItemWithMeta, type ShopTab } from './useShopEngine';
 export { useInventoryManager, type InventoryItemWithMeta } from './useInventoryManager';
+export { useChronosReset } from './useChronosReset';

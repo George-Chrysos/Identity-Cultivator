@@ -1,6 +1,7 @@
 import { memo, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Swords, Flame, Eye, Lock } from 'lucide-react';
+import { Flame, Eye, Lock } from 'lucide-react';
+import { GiSwordSmithing } from 'react-icons/gi';
 import type { PathNode, PathTheme } from '@/constants/pathTreeData';
 import { THEME_COLORS } from '@/constants/pathTreeData';
 import { GPU_ACCELERATION_STYLES } from '@/components/common';
@@ -16,13 +17,13 @@ interface HeroNodeProps {
 const getIconComponent = (pathId: string) => {
   switch (pathId) {
     case 'warrior':
-      return Swords;
+      return GiSwordSmithing;
     case 'mage':
       return Flame;
     case 'mystic':
       return Eye;
     default:
-      return Swords;
+      return GiSwordSmithing;
   }
 };
 
@@ -184,14 +185,14 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
               key={angle}
               cx={100 + 75 * Math.cos((angle * Math.PI) / 180)}
               cy={100 + 75 * Math.sin((angle * Math.PI) / 180)}
-              r={3}
               fill={displayColor}
               opacity={isLocked ? 0.2 : isUnlockable ? 1 : 0.6}
               style={isUnlockable ? { filter: getFilterStyle('drop-shadow(0 0 8px rgba(192,192,192,0.6))'), transition: 'filter 200ms ease-out' } : undefined}
+              initial={{ r: 3 }}
               animate={(isActive || isCompleted) ? {
                 opacity: [0.4, 0.8, 0.4],
                 r: [2, 4, 2],
-              } : {}}
+              } : { r: 3 }}
               transition={{
                 duration: 2,
                 repeat: Infinity,

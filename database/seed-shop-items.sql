@@ -44,7 +44,9 @@ VALUES
   ('ticket-013', 'Fancy Coffee / Boba', 'High-priced liquid dopamine. A social status vice.', 250, 'luxury', 1, true, 'tickets', 'Aesthetic consumption.', 'High-priced liquid dopamine. A social status vice.', 24, 0.75, 'CupSoda', NOW()),
   ('ticket-014', 'Alcoholic Drink (1 Unit)', 'Dulled awareness and inhibited presence. Lowers the frequency of the vessel.', 350, 'luxury', 1, true, 'tickets', 'Numbing the senses.', 'Dulled awareness and inhibited presence. Lowers the frequency of the vessel.', 24, 2.0, 'Wine', NOW()),
   ('ticket-015', 'Vaping / Smoke Hit', 'Immediate nervous system hit. Highly damaging to the breath gate.', 150, 'luxury', 1, true, 'tickets', 'Toxic breath.', 'Immediate nervous system hit. Highly damaging to the breath gate.', 24, 2.5, 'Cigarette', NOW()),
-  ('ticket-016', 'Gossip / Venting Session', 'Talking about others or complaining. Drains spiritual pressure and presence.', 200, 'luxury', 1, true, 'tickets', 'Verbal energy leak.', 'Talking about others or complaining. Drains spiritual pressure and presence.', 24, 1.0, 'MessageCircle', NOW())
+  ('ticket-016', 'Gossip / Venting Session', 'Talking about others or complaining. Drains spiritual pressure and presence.', 200, 'luxury', 1, true, 'tickets', 'Verbal energy leak.', 'Talking about others or complaining. Drains spiritual pressure and presence.', 24, 1.0, 'MessageCircle', NOW()),
+  ('ticket-017', 'Eat Fast Food', 'Quick processed meal. Convenient but taxing on the body vessel.', 350, 'luxury', 1, true, 'tickets', 'Quick processed fuel.', 'Quick processed meal. Convenient but taxing on the body vessel. High in sodium and unhealthy fats.', 24, 1.0, 'Burger', NOW()),
+  ('ticket-018', 'Joint', 'Cannabis consumption. Alters consciousness and dulls presence. Use mindfully.', 500, 'luxury', 1, true, 'tickets', 'Mind fog.', 'Cannabis consumption. Alters consciousness and dulls presence. Can lead to lethargy and reduced motivation.', 48, 2.0, 'Leaf', NOW())
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,

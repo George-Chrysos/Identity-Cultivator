@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown, Info, ArrowBigUp, Swords } from 'lucide-react';
+import { ChevronDown, Info, ArrowBigUp } from 'lucide-react';
+import { GiSwordSmithing } from 'react-icons/gi';
 
 interface TaskCardProps {
   id: string;
@@ -42,11 +43,16 @@ export const TaskCard = memo(({
         borderColor: isCompleted 
           ? 'rgba(192, 132, 252, 0.5)' 
           : 'rgba(192, 132, 252, 0)',
+        boxShadow: isCompleted
+          ? '0 0 15px rgba(192, 132, 252, 0.5)'
+          : '0 0 0px rgba(192, 132, 252, 0)',
       }}
-      className={`flex items-center justify-between p-3 rounded-lg transition-all border ${
-        isCompleted 
-          ? 'shadow-[0_0_15px_rgba(192,132,252,0.5)]' 
-          : 'hover:bg-slate-800/30'
+      transition={{
+        duration: 0.3,
+        ease: 'easeOut',
+      }}
+      className={`flex items-center justify-between p-3 rounded-lg border ${
+        !isCompleted ? 'hover:bg-slate-800/30' : ''
       } ${className}`}
       whileTap={{ scale: 0.98 }}
     >
@@ -100,7 +106,7 @@ export const TaskCard = memo(({
             className="flex items-center gap-1 pr-2"
             aria-label="Body increased"
           >
-            <Swords className="w-4 h-4 text-amber-400" />
+            <GiSwordSmithing className="w-4 h-4 text-amber-400" />
             <motion.div
               animate={{ y: [0, -2, 0] }}
               transition={{ duration: 0.6, repeat: 1, ease: 'easeInOut' }}
@@ -117,7 +123,7 @@ export const TaskCard = memo(({
             aria-label="Gate stat capped"
             title="Gate stat limit reached"
           >
-            <Swords className="w-4 h-4 text-slate-500" />
+            <GiSwordSmithing className="w-4 h-4 text-slate-500" />
             <ArrowBigUp className="w-4 h-4 text-slate-500" />
           </div>
         )}

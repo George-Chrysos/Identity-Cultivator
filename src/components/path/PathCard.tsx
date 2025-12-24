@@ -65,8 +65,9 @@ interface PathCardProps {
   tasks: Task[];
   trialInfo?: TrialInfo;
   isStatCapped?: boolean;
+  identityId?: string; // For persisting task state across navigation
   onTaskComplete?: (taskId: string) => Promise<{ didGainBody?: boolean } | void>;
-  onAllTasksComplete?: () => Promise<void>;
+  onAllTasksComplete?: (newStreak: number) => Promise<void>;
   onTrialStart?: () => void;
   onLevelUp?: (newLevel: number) => { title: string; subtitle: string; tasks: Task[]; trialInfo?: TrialInfo; maxXP: number } | null;
 }
@@ -84,13 +85,73 @@ export const PathCard = memo(({
   tasks: initialTasks,
   trialInfo: initialTrialInfo,
   isStatCapped = false,
+  identityId,
   onTaskComplete,
   onAllTasksComplete,
   onTrialStart,
   onLevelUp,
 }: PathCardProps) => {
-  const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
-  const [completedSubtasks, setCompletedSubtasks] = useState<Set<string>>(new Set());
+  // Use store for persisted task state if identityId provided, otherwise fallback to local state
+  const storeCompletedTasks = useGameStore((s) => identityId ? s.getCompletedTasks(identityId) : new Set<string>());
+  const storeCompletedSubtasks = useGameStore((s) => identityId ? s.getCompletedSubtasks(identityId) : new Set<string>());
+  const setStoreCompletedTask = useGameStore((s) => s.setCompletedTask);
+  const setStoreCompletedSubtask = useGameStore((s) => s.setCompletedSubtask);
+  
+  // Local state as fallback when no identityId
+  const [localCompletedTasks, setLocalCompletedTasks] = useState<Set<string>>(new Set());
+  const [localCompletedSubtasks, setLocalCompletedSubtasks] = useState<Set<string>>(new Set());
+  
+  // Use store state if identityId provided, otherwise use local state
+  const completedTasks = identityId ? storeCompletedTasks : localCompletedTasks;
+  const completedSubtasks = identityId ? storeCompletedSubtasks : localCompletedSubtasks;
+  
+  // Wrapper functions to set task state (store or local)
+  const setCompletedTasks = useCallback((updater: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    if (identityId) {
+      const newSet = typeof updater === 'function' ? updater(storeCompletedTasks) : updater;
+      // Clear and re-add all tasks
+      const currentTasks = Array.from(storeCompletedTasks);
+      const newTasks = Array.from(newSet);
+      // Remove tasks that are no longer in the set
+      currentTasks.forEach(taskId => {
+        if (!newTasks.includes(taskId)) {
+          setStoreCompletedTask(identityId, taskId, false);
+        }
+      });
+      // Add new tasks
+      newTasks.forEach(taskId => {
+        if (!currentTasks.includes(taskId)) {
+          setStoreCompletedTask(identityId, taskId, true);
+        }
+      });
+    } else {
+      setLocalCompletedTasks(updater);
+    }
+  }, [identityId, storeCompletedTasks, setStoreCompletedTask]);
+  
+  const setCompletedSubtasks = useCallback((updater: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    if (identityId) {
+      const newSet = typeof updater === 'function' ? updater(storeCompletedSubtasks) : updater;
+      // Clear and re-add all subtasks
+      const currentSubtasks = Array.from(storeCompletedSubtasks);
+      const newSubtasks = Array.from(newSet);
+      // Remove subtasks that are no longer in the set
+      currentSubtasks.forEach(subtaskId => {
+        if (!newSubtasks.includes(subtaskId)) {
+          setStoreCompletedSubtask(identityId, subtaskId, false);
+        }
+      });
+      // Add new subtasks
+      newSubtasks.forEach(subtaskId => {
+        if (!currentSubtasks.includes(subtaskId)) {
+          setStoreCompletedSubtask(identityId, subtaskId, true);
+        }
+      });
+    } else {
+      setLocalCompletedSubtasks(updater);
+    }
+  }, [identityId, storeCompletedSubtasks, setStoreCompletedSubtask]);
+  
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [currentXP, setCurrentXP] = useState(initialXP);
   const [maxXP, setMaxXP] = useState(initialMaxXP);
@@ -303,9 +364,9 @@ export const PathCard = memo(({
       if (!wasCompleted) {
         await onTaskComplete?.(taskId);
         
-        // If all tasks completed, notify parent
+        // If all tasks completed, notify parent with new streak value
         if (newCompletedTasks.size === tasks.length && !prevAllTasksCompleted) {
-          await onAllTasksComplete?.();
+          await onAllTasksComplete?.(newStreak);
         }
       }
     } catch (error) {
@@ -471,10 +532,10 @@ export const PathCard = memo(({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className={`relative bg-slate-900/80 backdrop-blur-md border-2 rounded-2xl p-5 transition-all ${
+      className={`glass-panel-purple p-5 transition-all ${
         isTrialReady && !trialDismissed
-          ? 'border-amber-500 animate-shadow-pulse'
-          : 'border-purple-500/50 shadow-[0_0_12px_rgba(76,29,149,0.4)]'
+          ? '!border-amber-500 animate-shadow-pulse'
+          : ''
       }`}
       style={{
         animation: isTrialReady && !trialDismissed ? 'shadow-pulse 2s ease-in-out infinite' : undefined,
@@ -552,6 +613,7 @@ export const PathCard = memo(({
 
             {/* The Fill Bar */}
             <motion.div
+              initial={{ width: 0 }}
               animate={{ width: `${progressPercentage}%` }}
               transition={{ duration: 0.6, ease: "easeOut" }}
               className="relative h-full rounded-full"

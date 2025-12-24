@@ -1,6 +1,7 @@
 import { memo, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Flame, Eye, Swords, Lock, Sparkles, Crown, Zap, Star, Brain, Heart, Target, Compass, BookOpen, Lightbulb, Mountain, Wind } from 'lucide-react';
+import { Flame, Eye, Lock, Crown, Zap, Star, Heart, Target, Compass, BookOpen, Lightbulb, Mountain, Wind } from 'lucide-react';
+import { GiSwordSmithing, GiBrain, GiFireShield, GiWaterBolt } from 'react-icons/gi';
 import type { PathNode, PathTheme } from '@/constants/pathTreeData';
 import { THEME_COLORS } from '@/constants/pathTreeData';
 import { GPU_ACCELERATION_STYLES } from '@/components/common';
@@ -19,17 +20,17 @@ const getNodeIcon = (_nodeId: string, title: string) => {
   if (titleLower.includes('temper')) return Flame;
   if (titleLower.includes('fluid')) return Wind;
   if (titleLower.includes('density')) return Mountain;
-  if (titleLower.includes('ronin') || titleLower.includes('blade')) return Swords;
+  if (titleLower.includes('ronin') || titleLower.includes('blade')) return GiSwordSmithing;
   if (titleLower.includes('samurai') || titleLower.includes('shogun')) return Crown;
-  if (titleLower.includes('knight') || titleLower.includes('paladin')) return Shield;
+  if (titleLower.includes('knight') || titleLower.includes('paladin')) return GiFireShield;
   if (titleLower.includes('vagabond')) return Compass;
-  if (titleLower.includes('war-lord') || titleLower.includes('iron-wall')) return Shield;
+  if (titleLower.includes('war-lord') || titleLower.includes('iron-wall')) return GiFireShield;
   if (titleLower.includes('grandmaster')) return Crown;
   
   // Mage path icons
   if (titleLower.includes('focus')) return Target;
-  if (titleLower.includes('synthesis')) return Sparkles;
-  if (titleLower.includes('logic')) return Brain;
+  if (titleLower.includes('synthesis')) return GiWaterBolt;
+  if (titleLower.includes('logic')) return GiBrain;
   if (titleLower.includes('scholar') || titleLower.includes('adept')) return BookOpen;
   if (titleLower.includes('sage') || titleLower.includes('arch-mage')) return Star;
   if (titleLower.includes('strategist') || titleLower.includes('tactician')) return Target;
@@ -40,14 +41,14 @@ const getNodeIcon = (_nodeId: string, title: string) => {
   if (titleLower.includes('presence') || titleLower.includes('stillness')) return Heart;
   if (titleLower.includes('reflection')) return Eye;
   if (titleLower.includes('seer') || titleLower.includes('oracle') || titleLower.includes('ethereal')) return Eye;
-  if (titleLower.includes('enlighten') || titleLower.includes('hierophant')) return Sparkles;
+  if (titleLower.includes('enlighten') || titleLower.includes('hierophant')) return GiWaterBolt;
   if (titleLower.includes('ascetic') || titleLower.includes('anchor')) return Mountain;
   if (titleLower.includes('void') || titleLower.includes('spirit')) return Star;
   if (titleLower.includes('saint')) return Crown;
   
   // Guardian path icons
   if (titleLower.includes('vow') || titleLower.includes('votary')) return Heart;
-  if (titleLower.includes('resistance') || titleLower.includes('sentinel') || titleLower.includes('aegis')) return Shield;
+  if (titleLower.includes('resistance') || titleLower.includes('sentinel') || titleLower.includes('aegis')) return GiFireShield;
   if (titleLower.includes('command') || titleLower.includes('imperator') || titleLower.includes('monarch')) return Crown;
   if (titleLower.includes('warden') || titleLower.includes('inquisitor')) return Eye;
   if (titleLower.includes('sovereign') || titleLower.includes('exemplar')) return Crown;
@@ -55,7 +56,7 @@ const getNodeIcon = (_nodeId: string, title: string) => {
   // Fallback
   if (titleLower.includes('berserker') || titleLower.includes('rage')) return Zap;
   if (titleLower.includes('master') || titleLower.includes('god')) return Crown;
-  return Sparkles;
+  return GiWaterBolt;
 };
 
 export const SubNode = memo(({ node, pathTheme, onClick }: SubNodeProps) => {

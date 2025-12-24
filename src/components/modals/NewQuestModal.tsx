@@ -1,14 +1,18 @@
 import { useState, memo, useCallback } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Gift } from 'lucide-react';
 import { DateTimePicker } from '@/components/common/DateTimePicker';
+import { BaseModal } from '@/components/common';
 
 type Difficulty = 'Easy' | 'Moderate' | 'Difficult' | 'Hard' | 'Hell';
 
 interface Subtask {
   id: string;
   title: string;
+}
+
+interface CustomReward {
+  id: string;
+  description: string;
 }
 
 interface NewQuestModalProps {
@@ -21,6 +25,7 @@ interface NewQuestModalProps {
     date: string;
     time: string;
     subtasks: Subtask[];
+    customRewards: CustomReward[];
   }) => void;
 }
 
@@ -40,6 +45,8 @@ export const NewQuestModal = memo(({
   const [selectedTime, setSelectedTime] = useState<string>('--:--');
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [customRewards, setCustomRewards] = useState<CustomReward[]>([]);
+  const [newRewardDescription, setNewRewardDescription] = useState('');
 
   const handleAddSubtask = useCallback(() => {
     if (!newSubtaskTitle.trim()) return;
@@ -57,6 +64,22 @@ export const NewQuestModal = memo(({
     setSubtasks(prev => prev.filter(st => st.id !== subtaskId));
   }, []);
 
+  const handleAddCustomReward = useCallback(() => {
+    if (!newRewardDescription.trim()) return;
+    
+    const newReward: CustomReward = {
+      id: `reward-${Date.now()}`,
+      description: newRewardDescription.trim(),
+    };
+    
+    setCustomRewards(prev => [...prev, newReward]);
+    setNewRewardDescription('');
+  }, [newRewardDescription]);
+
+  const handleRemoveCustomReward = useCallback((rewardId: string) => {
+    setCustomRewards(prev => prev.filter(r => r.id !== rewardId));
+  }, []);
+
   const handleSubmit = useCallback(() => {
     if (!title.trim() || !project.trim()) {
       return;
@@ -69,6 +92,7 @@ export const NewQuestModal = memo(({
       date: selectedDate,
       time: selectedTime,
       subtasks,
+      customRewards,
     });
 
     // Reset form
@@ -81,8 +105,10 @@ export const NewQuestModal = memo(({
     setSelectedTime('--:--');
     setSubtasks([]);
     setNewSubtaskTitle('');
+    setCustomRewards([]);
+    setNewRewardDescription('');
     onClose();
-  }, [title, project, difficulty, selectedDate, selectedTime, subtasks, onSubmit, onClose]);
+  }, [title, project, difficulty, selectedDate, selectedTime, subtasks, customRewards, onSubmit, onClose]);
 
   const handleDateChange = useCallback((date: string) => {
     setSelectedDate(date);
@@ -94,50 +120,26 @@ export const NewQuestModal = memo(({
 
   const difficultyOptions: Difficulty[] = ['Easy', 'Moderate', 'Difficult', 'Hard', 'Hell'];
 
-  const modalContent = (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100]"
-            onClick={onClose}
-          />
-
-          {/* Modal */}
-          <div className="fixed inset-0 z-[100] flex items-start justify-center pt-16 p-4 pointer-events-none overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="relative bg-slate-900/95 backdrop-blur-md border-2 border-purple-500 rounded-2xl p-6 shadow-[0_0_30px_rgba(168,85,247,0.6)] w-full max-w-2xl pointer-events-auto my-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Close Button */}
-              <button
-                onClick={onClose}
-                className="absolute top-4 right-4 p-2 rounded-lg bg-slate-800/50 border border-slate-600 text-slate-400 hover:text-white hover:border-slate-500 transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              {/* Header */}
-              <div className="mb-6 pr-10">
-                <h2 
-                  className="text-3xl font-bold text-white font-section tracking-wide mb-2"
-                  style={{ textShadow: '0 0 15px rgba(168, 85, 247, 0.5)' }}
-                >
-                  CREATE NEW QUEST
-                </h2>
-                <p className="text-sm text-purple-400/80 font-medium">
-                  Define your next challenge
-                </p>
-              </div>
+  return (
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="2xl"
+      showCloseButton={true}
+    >
+      <div className="p-6">
+        {/* Header */}
+        <div className="mb-6">
+          <h2 
+            className="text-3xl font-bold text-white font-section tracking-wide mb-2"
+            style={{ textShadow: '0 0 15px rgba(168, 85, 247, 0.5)' }}
+          >
+            CREATE NEW QUEST
+          </h2>
+          <p className="text-sm text-purple-400/80 font-medium">
+            Define your next challenge
+          </p>
+        </div>
 
               {/* Form */}
               <div className="space-y-4">
@@ -246,6 +248,57 @@ export const NewQuestModal = memo(({
                     </button>
                   </div>
                 </div>
+
+                {/* Custom Rewards */}
+                <div>
+                  <label className="text-xs text-slate-500 uppercase tracking-widest block mb-2">
+                    Custom Rewards <span className="text-slate-600">(optional)</span>
+                  </label>
+                  
+                  {/* Custom Rewards List */}
+                  {customRewards.length > 0 && (
+                    <div className="mb-3 space-y-2">
+                      {customRewards.map(reward => (
+                        <div
+                          key={reward.id}
+                          className="flex items-center gap-2 p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg group"
+                        >
+                          <Gift className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                          <span className="flex-1 text-sm text-emerald-300">{reward.description}</span>
+                          <button
+                            onClick={() => handleRemoveCustomReward(reward.id)}
+                            className="p-1 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add Custom Reward Input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newRewardDescription}
+                      onChange={(e) => setNewRewardDescription(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddCustomReward();
+                        }
+                      }}
+                      placeholder="Add a custom reward..."
+                      className="flex-1 py-2 px-3 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all"
+                    />
+                    <button
+                      onClick={handleAddCustomReward}
+                      className="p-2 rounded-lg bg-emerald-600/20 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-600/30 hover:border-emerald-400 transition-all"
+                    >
+                      <Gift className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Action Buttons */}
@@ -268,14 +321,9 @@ export const NewQuestModal = memo(({
                   Create Quest
                 </button>
               </div>
-            </motion.div>
-          </div>
-        </>
-      )}
-    </AnimatePresence>
+            </div>
+    </BaseModal>
   );
-
-  return createPortal(modalContent, document.body);
 });
 
 NewQuestModal.displayName = 'NewQuestModal';

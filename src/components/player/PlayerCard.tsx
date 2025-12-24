@@ -43,34 +43,48 @@ const PlasmaSphere = ({ rankTier, glowColor, rankStyle }: { rankTier: string; gl
           boxShadow: '0 0 12px rgba(76,29,149,0.4)'
         }}
       >
+        {/* Dark Core Background - Deep radial gradient fading to near-black */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: `radial-gradient(circle at center, rgba(15, 23, 42, 0.6) 0%, #020617 70%, #020617 100%)`
+          }}
+        />
         
-        {/* 3. Plasma Layer 1 (Slow base swirl) */}
+        {/* 3. Plasma Layer 1 (Slow base swirl) - Outer ring only */}
         <motion.div
           className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] opacity-70 mix-blend-screen"
           {...spinClockwise}
           style={{
-            // Offset radial gradient to create "strands"
-            background: `radial-gradient(circle at 30% 40%, ${glowColor} 0%, transparent 40%),
-                         radial-gradient(circle at 70% 60%, ${glowColor}40 0%, transparent 50%)`
+            // Ring-shaped gradients that stay on the outer edge
+            background: `
+              radial-gradient(circle at 30% 40%, ${glowColor} 0%, transparent 30%),
+              radial-gradient(circle at 70% 60%, ${glowColor}40 0%, transparent 35%),
+              radial-gradient(circle at 50% 20%, ${glowColor}60 0%, transparent 25%),
+              radial-gradient(circle at 80% 40%, ${glowColor}50 0%, transparent 30%)
+            `
           }}
         />
 
-        {/* 4. Plasma Layer 2 (Faster, opposing swirl for interference patterns) */}
+        {/* 4. Plasma Layer 2 (Faster, opposing swirl for interference patterns) - Outer ring only */}
         <motion.div
           className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] opacity-80 mix-blend-screen"
           {...spinCounterClockwise}
           style={{
-            // Different offset positions
-            background: `radial-gradient(circle at 60% 30%, ${glowColor} 0%, transparent 35%),
-                         radial-gradient(circle at 20% 80%, ${glowColor}60 0%, transparent 45%)`
+            // Different offset positions, keeping to outer edges
+            background: `
+              radial-gradient(circle at 60% 30%, ${glowColor} 0%, transparent 28%),
+              radial-gradient(circle at 20% 80%, ${glowColor}60 0%, transparent 32%),
+              radial-gradient(circle at 85% 70%, ${glowColor}50 0%, transparent 25%)
+            `
           }}
         />
 
-         {/* 5. Core Hotspot (Center intensity) */}
+         {/* 5. Core Mask - Darkens the center to create the outer ring effect */}
          <div 
-            className="absolute inset-0 opacity-50 mix-blend-overlay"
+            className="absolute inset-0 z-10"
             style={{
-                background: `radial-gradient(circle at center, ${glowColor}, transparent 70%)`
+                background: `radial-gradient(circle at center, #020617 0%, #020617 35%, transparent 60%)`
             }}
          />
 
@@ -81,16 +95,13 @@ const PlasmaSphere = ({ rankTier, glowColor, rankStyle }: { rankTier: string; gl
             style={{ 
               ...rankStyle,
               marginLeft: '-5%',
-              // Subtle black outline for visibility + colored glow for aesthetics
+              // Subtle black outline for visibility + stronger colored glow for aesthetics
               textShadow: `
-                -1px -1px 0 rgba(0, 0, 0, 0.6),
-                1px -1px 0 rgba(0, 0, 0, 0.7),
-                -1px 1px 0 rgba(0, 0, 0, 0.6),
-                1px 1px 0 rgba(0, 0, 0, 0.7),
-                0 0 10px ${glowColor},
-                0 0 20px ${glowColor},
-                0 0 30px ${glowColor}80,
-                0 0 5px white
+                -1px -1px 0 rgba(0, 0, 0, 0.8),
+                1px -1px 0 rgba(0, 0, 0, 0.8),
+                0 0 24px ${glowColor}20,
+                0 0 32px ${glowColor}40,
+                0 0 40px ${glowColor}60
               ` 
             }}
           >
@@ -140,14 +151,10 @@ const PlayerCard = memo(() => {
         <div className="relative max-w-2xl w-full" style={{ overflow: 'visible', minHeight: '88px', display: 'flex', alignItems: 'center' }}>
           {/* The Obsidian Bar Container with CSS Mask Cutout */}
           <motion.div
-            className="relative w-full h-14 flex items-center justify-between px-6 cursor-pointer group border-2 border-purple-500/50 rounded-2xl"
+            className="glass-panel-purple w-full h-14 flex items-center justify-between px-6 cursor-pointer group"
             style={{
-              background: 'rgba(2, 6, 23, 0.92)',
-              backdropFilter: 'blur(24px)',
-              WebkitBackdropFilter: 'blur(24px)',
               maskImage: `radial-gradient(circle ${CUTOUT_RADIUS}px at center, transparent 99%, black 100%)`,
               WebkitMaskImage: `radial-gradient(circle ${CUTOUT_RADIUS}px at center, transparent 99%, black 100%)`,
-              boxShadow: '0 0 12px rgba(76,29,149,0.4)',
               overflow: 'visible',
             }}
             onClick={handleOpenProfile}

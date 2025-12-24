@@ -32,19 +32,19 @@ export const SealFrame = memo(({ theme, isActive, isMastered }: SealFrameProps) 
       <motion.circle
         cx={50}
         cy={50}
-        r={38}
         fill="none"
         stroke={colors.primary}
         strokeWidth={2}
         opacity={isMastered ? 0.8 : 0.4}
         filter={`url(#glow-${theme})`}
+        initial={{ r: 38 }}
         animate={
           isActive
             ? {
                 opacity: [0.4, 0.8, 0.4],
                 r: [37, 39, 37],
               }
-            : {}
+            : { r: 38 }
         }
         transition={{
           duration: 2,

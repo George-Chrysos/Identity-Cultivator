@@ -1,11 +1,28 @@
 import { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, ChevronDown, Eye, Shield, Flame, Heart, Info } from 'lucide-react';
-import { SEALS, type UserSealLog } from '@/constants/seals';
+import { Lock, ChevronDown, Eye, Shield, Flame, Heart, Info, AlertCircle } from 'lucide-react';
+import { SEALS, type UserSealLog, getMaxDailySealActivations } from '@/constants/seals';
 import { SEALS_CONTENT, getSubPillarContent, type SubPillarContent } from '@/constants/sealsContent';
 import SubPillarInfoModal from '@/components/modals/SubPillarInfoModal';
 import { useGameStore } from '@/store/gameStore';
 import { shallow } from 'zustand/shallow';
+
+// Will points to rank mapping
+const getWillRank = (willPoints: number): string => {
+  if (willPoints >= 60) return 'S';
+  if (willPoints >= 55) return 'A+';
+  if (willPoints >= 50) return 'A';
+  if (willPoints >= 45) return 'B+';
+  if (willPoints >= 40) return 'B';
+  if (willPoints >= 35) return 'C+';
+  if (willPoints >= 30) return 'C';
+  if (willPoints >= 25) return 'D+';
+  if (willPoints >= 20) return 'D';
+  if (willPoints >= 15) return 'E+';
+  if (willPoints >= 10) return 'E';
+  if (willPoints >= 5) return 'F+';
+  return 'F';
+};
 
 interface SealsCardProps {
   todayLog?: UserSealLog;
@@ -24,19 +41,34 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
   const [selectedSubPillar, setSelectedSubPillar] = useState<SubPillarContent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Get setActiveSealIds and sealStats from store
-  const { setActiveSealIds, sealStats } = useGameStore(
+  // Get setActiveSealIds, sealStats, and userProfile from store
+  const { setActiveSealIds, sealStats, userProfile } = useGameStore(
     (state) => ({
       setActiveSealIds: state.setActiveSealIds,
       sealStats: state.sealStats,
+      userProfile: state.userProfile,
     }),
     shallow
   );
+
+  // Get current will rank and max activations
+  const willRank = useMemo(() => {
+    return getWillRank(userProfile?.will_points || 0);
+  }, [userProfile?.will_points]);
+
+  const maxActivations = useMemo(() => {
+    return getMaxDailySealActivations(willRank);
+  }, [willRank]);
 
   // Track active subpillar IDs (these are what actually get toggled)
   const activeSubPillarIds = useMemo(() => {
     return todayLog?.activeSealIds || [];
   }, [todayLog]);
+
+  // Check if max is reached
+  const isMaxReached = useMemo(() => {
+    return activeSubPillarIds.length >= maxActivations;
+  }, [activeSubPillarIds.length, maxActivations]);
 
   // Get subpillar level from sealStats
   const getSubPillarLevel = useCallback((sealId: string, subPillarId: string): number => {
@@ -73,12 +105,19 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
   const handleSubPillarToggle = useCallback((subPillarId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    const newActiveIds = activeSubPillarIds.includes(subPillarId)
+    const isCurrentlyActive = activeSubPillarIds.includes(subPillarId);
+    
+    // If trying to activate and max is reached, don't allow
+    if (!isCurrentlyActive && activeSubPillarIds.length >= maxActivations) {
+      return;
+    }
+    
+    const newActiveIds = isCurrentlyActive
       ? activeSubPillarIds.filter(id => id !== subPillarId)
       : [...activeSubPillarIds, subPillarId];
     
     setActiveSealIds(newActiveIds);
-  }, [activeSubPillarIds, setActiveSealIds]);
+  }, [activeSubPillarIds, setActiveSealIds, maxActivations]);
 
   const handleInfoClick = useCallback((subPillarId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -104,10 +143,7 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
         {/* Main Card */}
         <motion.div
           layout
-          className="relative bg-slate-950/80 backdrop-blur-md border border-purple-500/50 rounded-2xl cursor-pointer overflow-visible"
-          style={{
-            boxShadow: '0 0 12px rgba(76, 29, 149, 0.4)',
-          }}
+          className="glass-panel-purple cursor-pointer overflow-visible"
           onClick={() => setIsExpanded(!isExpanded)}
           whileHover={{ 
             borderColor: 'rgba(168, 85, 247, 0.7)',
@@ -231,6 +267,7 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
                               const content = sealContent?.subPillars.find(sp => sp.id === subPillar.id);
                               const isSubActive = isSubPillarActive(subPillar.id);
                               const subPillarLevel = getSubPillarLevel(seal.id, subPillar.id);
+                              const isDisabled = !isSubActive && isMaxReached;
                               
                               return (
                                 <div
@@ -238,7 +275,9 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
                                   className={`rounded-lg p-3 transition-all ${
                                     isSubActive 
                                       ? 'bg-violet-900/20 border border-violet-700/30' 
-                                      : 'bg-slate-800/20 border border-slate-700/20'
+                                      : isDisabled
+                                        ? 'bg-slate-800/10 border border-slate-700/10 opacity-50'
+                                        : 'bg-slate-800/20 border border-slate-700/20'
                                   }`}
                                 >
                                   {/* Header Row: Toggle + Title + Level + Info Button */}
@@ -247,21 +286,27 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
                                       {/* Toggle Switch */}
                                       <button
                                         onClick={(e) => handleSubPillarToggle(subPillar.id, e)}
+                                        disabled={isDisabled}
                                         className={`relative w-10 h-5 rounded-full transition-all flex-shrink-0 ${
                                           isSubActive 
                                             ? 'bg-purple-600 shadow-[0_0_8px_rgba(147,51,234,0.5)]' 
-                                            : 'bg-slate-700'
+                                            : isDisabled
+                                              ? 'bg-slate-800 cursor-not-allowed'
+                                              : 'bg-slate-700 hover:bg-slate-600'
                                         }`}
-                                        aria-label={`Toggle ${subPillar.name}`}
+                                        aria-label={isDisabled ? `Max seals reached - cannot toggle ${subPillar.name}` : `Toggle ${subPillar.name}`}
+                                        title={isDisabled ? 'Max seals reached. Increase Will rank to unlock more.' : undefined}
                                       >
                                         <motion.div
-                                          className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md"
+                                          className={`absolute top-0.5 w-4 h-4 rounded-full shadow-md ${
+                                            isDisabled ? 'bg-slate-500' : 'bg-white'
+                                          }`}
                                           animate={{ left: isSubActive ? '22px' : '2px' }}
                                           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                                         />
                                       </button>
                                       <h5 className={`font-semibold text-sm ${
-                                        isSubActive ? 'text-purple-300' : 'text-slate-400'
+                                        isSubActive ? 'text-purple-300' : isDisabled ? 'text-slate-600' : 'text-slate-400'
                                       }`}>
                                         {subPillar.name}
                                       </h5>
@@ -273,6 +318,10 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
                                       }`}>
                                         Lv.{subPillarLevel}
                                       </span>
+                                      {/* Locked indicator when disabled */}
+                                      {isDisabled && (
+                                        <Lock className="w-3 h-3 text-slate-600" />
+                                      )}
                                     </div>
                                     <button
                                       onClick={(e) => handleInfoClick(subPillar.id, e)}
@@ -304,13 +353,22 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
 
                   {/* Footer Note */}
                   <div className="mt-4 text-center">
-                    <p className="text-xs text-slate-500 italic">
-                      {activeCount > 0
-                        ? `${activeCount} subpillar${
-                            activeCount > 1 ? 's' : ''
-                          } active today`
-                        : 'No subpillars active today'}
-                    </p>
+                    {isMaxReached ? (
+                      <div className="flex items-center justify-center gap-2 text-amber-400">
+                        <AlertCircle className="w-4 h-4" />
+                        <p className="text-xs font-medium">
+                          Max reached ({activeCount}/{maxActivations}) - Increase Will rank to unlock more
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 italic">
+                        {activeCount > 0
+                          ? `${activeCount}/${maxActivations} subpillar${
+                              activeCount > 1 ? 's' : ''
+                            } active today`
+                          : `No subpillars active today (0/${maxActivations})`}
+                      </p>
+                    )}
                   </div>
                 </div>
               </motion.div>
