@@ -30,7 +30,7 @@ const PlayerMenu = () => {
         animate={{ opacity: 1, x: 0 }}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/50 rounded-lg px-3 py-1.5 shadow-[0_0_8px_rgba(192,132,252,0.3)] hover:bg-slate-900/90 transition-colors"
+        className="flex items-center gap-2 transition-colors"
         aria-haspopup="menu"
         aria-expanded={openMenu}
       >

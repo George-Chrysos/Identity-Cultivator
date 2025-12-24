@@ -179,7 +179,7 @@ export const ShopPage = memo(() => {
         fallbackMessage="Failed to load shop items. Please try again."
         onRetry={() => window.location.reload()}
       >
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24 pb-24">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-5 pb-24">
 
         {/* Header Image Section */}
         <motion.div

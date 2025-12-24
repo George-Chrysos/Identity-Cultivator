@@ -162,7 +162,7 @@ const InventoryPage = memo(() => {
           fallbackMessage="Failed to load your inventory. Please try again."
           onRetry={() => window.location.reload()}
         >
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24 pb-24">
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-5 pb-24">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

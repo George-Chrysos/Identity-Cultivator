@@ -394,7 +394,7 @@ const PathTreePage = memo(() => {
           fallbackMessage="Failed to load cultivation path. Please try again."
           onRetry={() => window.location.reload()}
         >
-          <main className="max-w-md mx-auto px-4 py-8 pt-24 pb-32">
+          <main className="max-w-md mx-auto px-4 py-8 pt-5 pb-32">
           {/* Title */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}

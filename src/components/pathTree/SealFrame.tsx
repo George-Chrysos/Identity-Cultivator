@@ -30,12 +30,12 @@ export const SealFrame = memo(({ theme, isActive, isMastered }: SealFrameProps) 
 
       {/* Inner Glow Ring */}
       <motion.circle
-        cx="50"
-        cy="50"
-        r="38"
+        cx={50}
+        cy={50}
+        r={38}
         fill="none"
         stroke={colors.primary}
-        strokeWidth="2"
+        strokeWidth={2}
         opacity={isMastered ? 0.8 : 0.4}
         filter={`url(#glow-${theme})`}
         animate={
@@ -78,12 +78,12 @@ export const SealFrame = memo(({ theme, isActive, isMastered }: SealFrameProps) 
 
       {/* Inner Mandala Ring */}
       <motion.circle
-        cx="50"
-        cy="50"
-        r="32"
+        cx={50}
+        cy={50}
+        r={32}
         fill="none"
         stroke={colors.primary}
-        strokeWidth="1"
+        strokeWidth={1}
         strokeDasharray="5 3"
         opacity={0.5}
         animate={
@@ -104,12 +104,12 @@ export const SealFrame = memo(({ theme, isActive, isMastered }: SealFrameProps) 
       {/* Outer Energy Circle */}
       {isActive && (
         <motion.circle
-          cx="50"
-          cy="50"
-          r="45"
+          cx={50}
+          cy={50}
+          r={45}
           fill="none"
           stroke={colors.primary}
-          strokeWidth="2"
+          strokeWidth={2}
           initial={{ scale: 1, opacity: 0.8 }}
           animate={{
             scale: [1, 1.2, 1],

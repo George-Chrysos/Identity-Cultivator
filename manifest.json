@@ -1,0 +1,20 @@
+{
+  "name": "Anima Forger",
+  "short_name": "Anima Forger",
+  "icons": [
+    {
+      "src": "https://ecxiqlwdehbrvzvyyssx.supabase.co/storage/v1/object/sign/Images/logo%201x1.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lYTg2YWQwNi1jMjc2LTRiMDAtOWFhMy03YWJhMWUzYTg5NTkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJJbWFnZXMvbG9nbyAxeDEucG5nIiwiaWF0IjoxNzY2NTY0MzkwLCJleHAiOjE4NjExNzIzOTB9.i50icFePyMwM_jovGPkiX4HPFNapWVPiW4wOOY1QN_o",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://ecxiqlwdehbrvzvyyssx.supabase.co/storage/v1/object/sign/Images/logo%201x1.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lYTg2YWQwNi1jMjc2LTRiMDAtOWFhMy03YWJhMWUzYTg5NTkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJJbWFnZXMvbG9nbyAxeDEucG5nIiwiaWF0IjoxNzY2NTY0MzkwLCJleHAiOjE4NjExNzIzOTB9.i50icFePyMwM_jovGPkiX4HPFNapWVPiW4wOOY1QN_o",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0728",
+  "theme_color": "#a855f7"
+}

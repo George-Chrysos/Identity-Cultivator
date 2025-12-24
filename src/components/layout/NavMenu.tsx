@@ -3,11 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, ShoppingBag, Network, Store } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { GPU_ACCELERATION_STYLES } from '@/components/common';
+import { useUIStore } from '@/store/uiStore';
 
 export const NavMenu = memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAnimating, setIsAnimating] = useState(false);
+  const showNavMenu = useUIStore((state) => state.showNavMenu);
 
   const isActive = useCallback((path: string) => {
     return location.pathname === path;
@@ -16,6 +18,8 @@ export const NavMenu = memo(() => {
   const handleNavigate = useCallback((path: string) => {
     setIsAnimating(true);
     navigate(path);
+    // Scroll to top on navigation
+    window.scrollTo(0, 0);
     // Reset animation state after navigation completes
     setTimeout(() => setIsAnimating(false), 200);
   }, [navigate]);
@@ -27,9 +31,11 @@ export const NavMenu = memo(() => {
     { path: '/inventory', icon: ShoppingBag, label: 'Inventory' }
   ];
 
+  if (!showNavMenu) return null;
+
   return (
     <nav 
-      className="fixed bottom-0 left-0 right-0 z-50 w-full bg-slate-900/95 border-t border-slate-700/50"
+      className="nav-menu fixed bottom-0 left-0 right-0 z-50 w-full bg-slate-950/80 backdrop-blur-md border-t border-purple-500/20"
       style={{
         backdropFilter: isAnimating ? 'none' : 'blur(12px)',
         WebkitBackdropFilter: isAnimating ? 'none' : 'blur(12px)',
@@ -56,7 +62,7 @@ export const NavMenu = memo(() => {
               className={`h-5 w-5 flex-shrink-0`} 
               style={{
                 filter: isActive(path) && !isAnimating
-                  ? 'drop-shadow(0 0 8px rgba(168,85,247,1)) drop-shadow(0 0 2px rgba(168,85,247,0.6)) drop-shadow(0 0 32px rgba(168,85,247,0.5)) drop-shadow(0 0 12px rgba(255,255,255,0.4))'
+                  ? 'drop-shadow(0 0 4px rgba(168,85,247,0.6)) drop-shadow(0 0 8px rgba(168,85,247,0.3))'
                   : 'none',
                 transition: 'filter 200ms ease-out',
               }}

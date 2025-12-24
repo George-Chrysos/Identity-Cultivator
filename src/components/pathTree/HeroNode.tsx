@@ -137,12 +137,12 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
 
           {/* Inner Decorative Ring - Only animate if active */}
           <motion.circle
-            cx="100"
-            cy="100"
-            r="70"
+            cx={100}
+            cy={100}
+            r={70}
             fill="none"
             stroke={displayColor}
-            strokeWidth="2"
+            strokeWidth={2}
             strokeDasharray="8 4"
             opacity={isLocked ? 0.2 : isUnlockable ? 1 : 0.4}
             animate={(isActive || isCompleted) ? {
@@ -184,7 +184,7 @@ export const HeroNode = memo(({ node, pathTheme, pathId, onClick }: HeroNodeProp
               key={angle}
               cx={100 + 75 * Math.cos((angle * Math.PI) / 180)}
               cy={100 + 75 * Math.sin((angle * Math.PI) / 180)}
-              r="3"
+              r={3}
               fill={displayColor}
               opacity={isLocked ? 0.2 : isUnlockable ? 1 : 0.6}
               style={isUnlockable ? { filter: getFilterStyle('drop-shadow(0 0 8px rgba(192,192,192,0.6))'), transition: 'filter 200ms ease-out' } : undefined}

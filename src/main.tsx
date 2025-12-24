@@ -3,9 +3,15 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
+import { syncPathsToDatabase } from './services/pathSyncService'
 
 // Add dark class to html element for dark mode
 document.documentElement.classList.add('dark');
+
+// Sync paths to database on app load (runs in background)
+syncPathsToDatabase().catch(err => {
+  console.warn('Path sync failed on startup, using fallback:', err);
+});
 
 // Global error handler for uncaught errors
 window.onerror = (message, source, lineno, colno, error) => {

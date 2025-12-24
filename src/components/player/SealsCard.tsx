@@ -102,9 +102,17 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
     >
       <div className="relative max-w-2xl w-full">
         {/* Main Card */}
-        <div
-          className="relative bg-slate-900/90 backdrop-blur-md border border-purple-500/50 rounded-2xl cursor-pointer shadow-[0_0_12px_rgba(76,29,149,0.4)] hover:border-purple-500/70 transition-colors"
+        <motion.div
+          layout
+          className="relative bg-slate-950/80 backdrop-blur-md border border-purple-500/50 rounded-2xl cursor-pointer overflow-visible"
+          style={{
+            boxShadow: '0 0 12px rgba(76, 29, 149, 0.4)',
+          }}
           onClick={() => setIsExpanded(!isExpanded)}
+          whileHover={{ 
+            borderColor: 'rgba(168, 85, 247, 0.7)',
+            boxShadow: '0 0 20px rgba(76, 29, 149, 0.6)',
+          }}
         >
           {/* Collapsed State - Header */}
           <div className="px-6 py-4 flex items-center justify-between">
@@ -308,7 +316,7 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </motion.div>
       </div>
 
       {/* Sub-Pillar Info Modal */}

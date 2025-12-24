@@ -85,6 +85,8 @@ const GlobeAnimation = memo(({
     <>
       {/* Main sphere with radial gradient */}
       <circle
+        cx="0"
+        cy="0"
         r="5"
         fill={`url(#sphere-gradient-${theme})`}
         filter={`url(#globe-glow-${theme})`}
@@ -99,6 +101,8 @@ const GlobeAnimation = memo(({
       </circle>
       {/* Bright center core */}
       <circle
+        cx="0"
+        cy="0"
         r="2"
         fill="white"
         opacity={0.9}
@@ -113,6 +117,8 @@ const GlobeAnimation = memo(({
       </circle>
       {/* Trailing particle 1 */}
       <circle
+        cx="0"
+        cy="0"
         r="3"
         fill={colors.primary}
         opacity={0.5}
@@ -129,6 +135,8 @@ const GlobeAnimation = memo(({
       </circle>
       {/* Trailing particle 2 */}
       <circle
+        cx="0"
+        cy="0"
         r="2"
         fill={colors.primary}
         opacity={0.3}

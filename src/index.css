@@ -275,3 +275,21 @@
   0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.4); }
   50% { box-shadow: 0 0 30px rgba(245, 158, 11, 0.7); }
 }
+
+@keyframes lightning-flow {
+  0% { background-position: 0 0; }
+  100% { background-position: 30px 0; }
+}
+
+/* Hide header and nav when Soul Interface is open */
+body.soul-interface-open header {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+body.soul-interface-open .nav-menu {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}

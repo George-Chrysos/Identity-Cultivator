@@ -1,6 +1,6 @@
 import { memo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 import { STAT_RANKING_DATA, StatType, StatRank } from '@/constants/statRanks';
 import { getRankStyle } from '@/utils/rankStyles';
 import { logger } from '@/utils/logger';
@@ -69,6 +69,19 @@ export const InitialStatRankingModal = memo(({ isOpen, onSubmit }: InitialStatRa
     onSubmit(pointValues);
   }, [selectedRanks, onSubmit]);
 
+  const handleSkipToD = useCallback(() => {
+    // Initialize all stats to D rank (point value 1)
+    const allDRanks: Record<StatType, number> = {
+      body: 1,
+      mind: 1,
+      soul: 1,
+      will: 1,
+    };
+
+    logger.info('Stats initialized to D rank', { allDRanks });
+    onSubmit(allDRanks);
+  }, [onSubmit]);
+
   if (!isOpen) return null;
 
   return (
@@ -82,12 +95,23 @@ export const InitialStatRankingModal = memo(({ isOpen, onSubmit }: InitialStatRa
         >
           {/* Header */}
           <div className="p-6 border-b border-purple-500/30">
-            <h2 className="text-2xl font-bold text-white text-center mb-2">
-              Rate Your Current Level
-            </h2>
-            <p className="text-sm text-slate-400 text-center">
-              Step {currentStatIndex + 1} of {STAT_ORDER.length}
-            </p>
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-white text-center mb-2">
+                  Rate Your Current Level
+                </h2>
+                <p className="text-sm text-slate-400 text-center">
+                  Step {currentStatIndex + 1} of {STAT_ORDER.length}
+                </p>
+              </div>
+              <button
+                onClick={handleSkipToD}
+                className="flex-shrink-0 p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 hover:border-red-500 text-slate-400 hover:text-red-400 transition-all"
+                title="Skip and initialize all stats to D rank"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Content */}

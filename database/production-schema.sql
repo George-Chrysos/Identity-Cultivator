@@ -72,13 +72,13 @@ CREATE TABLE public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view own profile" ON public.profiles
-    FOR SELECT USING (auth.uid() = id);
+    FOR SELECT USING ((select auth.uid()) = id);
 
 CREATE POLICY "Users can update own profile" ON public.profiles
-    FOR UPDATE USING (auth.uid() = id);
+    FOR UPDATE USING ((select auth.uid()) = id);
 
 CREATE POLICY "Users can insert own profile" ON public.profiles
-    FOR INSERT WITH CHECK (auth.uid() = id);
+    FOR INSERT WITH CHECK ((select auth.uid()) = id);
 
 -- ============================================================
 -- 2. IDENTITY_TEMPLATES TABLE
@@ -151,16 +151,16 @@ CREATE TABLE public.player_identities (
 ALTER TABLE public.player_identities ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view own identities" ON public.player_identities
-    FOR SELECT USING (auth.uid() = user_id);
+    FOR SELECT USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can insert own identities" ON public.player_identities
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+    FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can update own identities" ON public.player_identities
-    FOR UPDATE USING (auth.uid() = user_id);
+    FOR UPDATE USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can delete own identities" ON public.player_identities
-    FOR DELETE USING (auth.uid() = user_id);
+    FOR DELETE USING ((select auth.uid()) = user_id);
 
 -- Index for user lookups
 CREATE INDEX idx_player_identities_user ON public.player_identities(user_id, is_active);
@@ -184,10 +184,10 @@ CREATE TABLE public.task_logs (
 ALTER TABLE public.task_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view own task logs" ON public.task_logs
-    FOR SELECT USING (auth.uid() = user_id);
+    FOR SELECT USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can insert own task logs" ON public.task_logs
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+    FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
 
 -- Index for history lookups
 CREATE INDEX idx_task_logs_user ON public.task_logs(user_id, completed_at DESC);
@@ -247,16 +247,16 @@ CREATE TABLE public.player_inventory (
 ALTER TABLE public.player_inventory ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view own inventory" ON public.player_inventory
-    FOR SELECT USING (auth.uid() = user_id);
+    FOR SELECT USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can insert own inventory" ON public.player_inventory
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+    FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can update own inventory" ON public.player_inventory
-    FOR UPDATE USING (auth.uid() = user_id);
+    FOR UPDATE USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can delete own inventory" ON public.player_inventory
-    FOR DELETE USING (auth.uid() = user_id);
+    FOR DELETE USING ((select auth.uid()) = user_id);
 
 -- Index for inventory lookups
 CREATE INDEX idx_player_inventory_user ON public.player_inventory(user_id);
@@ -267,12 +267,15 @@ CREATE INDEX idx_player_inventory_user ON public.player_inventory(user_id);
 
 -- Auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER update_profiles_updated_at 
     BEFORE UPDATE ON public.profiles
@@ -284,7 +287,11 @@ CREATE TRIGGER update_player_identities_updated_at
 
 -- Auto-create profile on user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+SET search_path = public
+LANGUAGE plpgsql 
+SECURITY DEFINER
+AS $$
 BEGIN
     INSERT INTO public.profiles (id, display_name, coins, stars, body_points, mind_points, soul_points, will_points, final_score, rank_tier, timezone)
     VALUES (
@@ -302,7 +309,7 @@ BEGIN
     );
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Drop existing trigger if exists, then create
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;

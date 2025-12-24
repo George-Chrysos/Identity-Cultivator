@@ -257,7 +257,7 @@ const Homepage = () => {
       
       {/* Animation Events - TODO: Add back animation system later */}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-20 pb-24 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-4 pb-24 relative z-10">
         {/* NEW DESIGN: Combined Player Card with Expandable Stats */}
         <PlayerCard />
 
