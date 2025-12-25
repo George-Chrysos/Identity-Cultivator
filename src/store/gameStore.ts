@@ -27,6 +27,23 @@ import {
   SEALS,
 } from '@/constants/seals';
 
+// Track hydration status for the persist middleware
+let _hasHydrated = false;
+// Export for debugging - can check if store has hydrated
+export const isStoreHydrated = () => _hasHydrated;
+
+// Promise that resolves when hydration is complete
+let hydrationPromise: Promise<void>;
+let hydrationResolve: () => void;
+
+// Create the hydration promise
+hydrationPromise = new Promise((resolve) => {
+  hydrationResolve = resolve;
+});
+
+// Export function to wait for hydration
+export const waitForHydration = () => hydrationPromise;
+
 // Helper to get yesterday's date as ISO string
 const getYesterday = (): string => {
   const yesterday = new Date();
@@ -144,6 +161,11 @@ export const useGameStore = create<GameState>()(
       initializeUser: async (userId: string) => {
         set({ isLoading: true });
         try {
+          // Wait for hydration to complete before loading anything
+          // This ensures persisted dailyTaskStates are available
+          await waitForHydration();
+          logger.debug('Hydration complete, loading user data', { userId });
+          
           // Load user profile first
           await get().loadUserProfile(userId);
           
@@ -281,6 +303,30 @@ export const useGameStore = create<GameState>()(
             persistedStateCount: Object.keys(persistedStates).length,
           });
           
+          // If DB returned no records but we have persisted states from today, keep them
+          // This handles the case where Supabase is not configured or DB is empty
+          if (progressRecords.length === 0) {
+            // Filter persisted states to only keep today's data
+            const todayStates: Record<string, DailyTaskState> = {};
+            Object.entries(persistedStates).forEach(([identityId, state]) => {
+              if (state.date === today) {
+                todayStates[identityId] = state;
+              }
+            });
+            
+            if (Object.keys(todayStates).length > 0) {
+              logger.info('DB returned no records, keeping persisted localStorage states', {
+                count: Object.keys(todayStates).length,
+              });
+              // Keep the persisted states, don't overwrite
+              set({ dailyTaskStates: todayStates });
+              return;
+            }
+            
+            logger.info('No task states found in DB or localStorage');
+            return;
+          }
+          
           // Start with persisted states that are from today (filter out old dates)
           const newDailyTaskStates: Record<string, DailyTaskState> = {};
           
@@ -330,6 +376,7 @@ export const useGameStore = create<GameState>()(
         } catch (error) {
           logger.error('Failed to load daily task states', error);
           // Don't throw - this is non-critical, tasks will use persisted localStorage state
+          // DON'T clear dailyTaskStates on error - keep persisted data
         }
       },
 
@@ -980,6 +1027,20 @@ export const useGameStore = create<GameState>()(
         // These will be validated against DB on next load
         dailyTaskStates: state.dailyTaskStates,
       }),
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            logger.error('Failed to rehydrate game store', error);
+          } else {
+            logger.info('Game store rehydrated', {
+              hasTaskStates: state?.dailyTaskStates ? Object.keys(state.dailyTaskStates).length : 0,
+            });
+          }
+          // Mark hydration as complete
+          _hasHydrated = true;
+          hydrationResolve();
+        };
+      },
     }
   )
 );

@@ -500,7 +500,7 @@ export const PathCard = memo(({
           newSet.delete(taskId);
           return newSet;
         });
-      }, 2000);
+      }, 1000);
     }
   }, [tasks, maxXP, currentXP, status, streak, completedTasks, completedSubtasks, allTasksWereCompleted, initialStreak, onTaskComplete, onAllTasksComplete, updateRewards, showToast, processingTasks, cooldownTasks]);
 
