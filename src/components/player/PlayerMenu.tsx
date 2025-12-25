@@ -86,16 +86,9 @@ const PlayerMenu = () => {
       logger.info('🔄 Starting user data reset...');
       
       // 1. Reset coins and stars via gameStore
-      const { userProfile, updateRewards } = useGameStore.getState();
+      const { userProfile } = useGameStore.getState();
       if (userProfile) {
-        // Calculate delta to reach target values
-        const coinDelta = 100 - userProfile.coins;
-        const starDelta = 5 - (userProfile.stars || 0);
-        
-        // Reset stats to 0
-        await updateRewards(coinDelta, '', 0, starDelta);
-        
-        // Import gameDB to reset stats directly
+        // Import gameDB to reset all data directly
         const { gameDB } = await import('@/api/gameDatabase');
         await gameDB.updateProfile(userProfile.id, {
           coins: 100,
@@ -106,7 +99,7 @@ const PlayerMenu = () => {
           will_points: 0,
         });
         
-        // Reload profile
+        // Reload profile to ensure state is updated properly
         await useGameStore.getState().loadUserProfile(userProfile.id);
         logger.info('✅ Reset coins to 100, stars to 5, stats to 0');
       }
@@ -264,19 +257,19 @@ const PlayerMenu = () => {
                   <span className="flex-1">Run All Tests</span>
                   <span className="text-xs text-slate-500">Console</span>
                 </button>
-
-                {/* Reset User Button - Debug Only */}
-                <button
-                  onClick={handleResetUser}
-                  className="w-full text-left px-4 py-3 text-sm flex items-center gap-3 text-red-300 hover:bg-red-500/10 transition-colors border-t border-slate-700/50"
-                  role="menuitem"
-                >
-                  <RotateCcw className="w-4 h-4 text-red-400" />
-                  <span className="flex-1">Reset User (Debug)</span>
-                  <span className="text-xs text-red-400/70">⚠️</span>
-                </button>
               </>
             )}
+
+            {/* Reset User Button - Always visible */}
+            <button
+              onClick={handleResetUser}
+              className="w-full text-left px-4 py-3 text-sm flex items-center gap-3 text-red-300 hover:bg-red-500/10 transition-colors border-t border-slate-700/50"
+              role="menuitem"
+            >
+              <RotateCcw className="w-4 h-4 text-red-400" />
+              <span className="flex-1">Reset User</span>
+              <span className="text-xs text-red-400/70">⚠️</span>
+            </button>
 
             {/* Divider */}
             <div className="border-t border-slate-700/50" />

@@ -13,8 +13,10 @@
       "type": "image/png"
     }
   ],
-  "start_url": "/",
+  "start_url": "https://animaforger.fun/",
+  "scope": "https://animaforger.fun/",
   "display": "standalone",
   "background_color": "#0f0728",
-  "theme_color": "#a855f7"
+  "theme_color": "#a855f7",
+  "description": "Master yourself through gamified habit tracking and progression"
 }

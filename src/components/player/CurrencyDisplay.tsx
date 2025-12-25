@@ -41,8 +41,8 @@ const CurrencyDisplay = () => {
     shallow
   );
 
-  // Return null only if we have no data at all
-  if (coins === 0 && stars === 0) return null;
+  // Always render - even if coins and stars are 0 (for new/reset users)
+  // This prevents the display from disappearing
 
   return (
     <motion.div

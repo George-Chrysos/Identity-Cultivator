@@ -240,7 +240,8 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
                       style={{
                         background: `${path.color}20`,
                         border: `1px solid ${path.color}60`,
-                        boxShadow: `0 0 20px ${path.color}60`,
+                        boxShadow: isAnimating ? 'none' : `0 0 20px ${path.color}60`,
+                        transition: 'box-shadow 200ms ease-out',
                       }}
                     >
                       <Icon 
@@ -274,11 +275,12 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
                       linear-gradient(135deg, rgba(30, 27, 75, 0.8) 0%, rgba(15, 10, 45, 0.9) 100%)
                     `,
                     border: `3px solid ${getRankGlowColor(overallRank.rankTier)}`,
-                    boxShadow: `
+                    boxShadow: isAnimating ? 'none' : `
                       0 0 30px ${getRankGlowColor(overallRank.rankTier)}80,
                       inset 0 0 30px ${getRankGlowColor(overallRank.rankTier)}20,
                       0 0 60px ${getRankGlowColor(overallRank.rankTier)}40
                     `,
+                    transition: 'box-shadow 200ms ease-out',
                   }}
                 >
                   {/* Rank Letter */}
@@ -286,16 +288,9 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
                     className="text-5xl font-black"
                     style={{
                       ...getRankStyle(overallRank.rankTier),
-                      textShadow: `0 0 20px ${getRankGlowColor(overallRank.rankTier)}`,
+                      textShadow: isAnimating ? 'none' : `0 0 20px ${getRankGlowColor(overallRank.rankTier)}`,
+                      transition: 'text-shadow 200ms ease-out',
                     }}
-                    animate={overallRank.rankTier.startsWith('S') ? {
-                      filter: [
-                        'drop-shadow(0 0 10px rgba(251, 191, 36, 0.9))',
-                        'drop-shadow(0 0 20px rgba(251, 191, 36, 0.5))',
-                        'drop-shadow(0 0 10px rgba(251, 191, 36, 0.9))'
-                      ]
-                    } : {}}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                   >
                     {overallRank.rankTier}
                   </motion.span>
@@ -345,7 +340,8 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
                           strokeWidth={2.5}
                           style={{ 
                             color: getRankGlowColor(rank),
-                            filter: `drop-shadow(0 0 4px ${getRankGlowColor(rank)}80)`
+                            filter: isAnimating ? 'none' : `drop-shadow(0 0 4px ${getRankGlowColor(rank)}80)`,
+                            transition: 'filter 200ms ease-out',
                           }}
                         />
                         <span className="text-xs font-bold tracking-widest text-slate-300">

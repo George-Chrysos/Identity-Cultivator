@@ -78,12 +78,12 @@ export const TrialModal = memo(({
     >
       <div className="px-6 pb-6">
         {/* Subtitle */}
-        <p className="text-sm text-amber-400/80 font-medium mb-6">
+        <p className="text-sm text-amber-400/80 font-medium mb-4 mt-4">
           {pathName} • Level {level} Trial
         </p>
 
         {/* Description */}
-        <div className="mb-6 p-4 bg-slate-800/40 border border-slate-700/50 rounded-lg">
+        <div className="mb-4 p-4 bg-slate-800/40 border border-slate-700/50 rounded-lg">
           <p className="text-sm text-slate-300 leading-relaxed">
             {description}
           </p>
