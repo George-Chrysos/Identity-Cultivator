@@ -218,7 +218,9 @@ export const toggleTask = async (
       userId,
       pathId,
       tasks.length,
-      newCompletedTasks.size
+      newCompletedTasks.size,
+      Array.from(newCompletedTasks),
+      Array.from(newCompletedSubtasks)
     );
   } catch (error) {
     logger.error('Failed to update daily path progress', { error, pathId });

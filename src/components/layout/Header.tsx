@@ -23,7 +23,7 @@ const Header = () => {
         className="fixed top-0 left-0 right-0 w-full h-16 md:h-20 flex items-center justify-between px-4 md:px-6 bg-slate-950/80 backdrop-blur-md border-b border-purple-500/20 z-50"
         style={{ transform: 'translateZ(0)' }}
       >
-        {/* Left Section: Player Profile (Integrated) */}
+        {/* Left Section: Player Profile */}
         <div className="flex items-center gap-3 z-10">
           {isAuthenticated ? (
             <PlayerMenu />

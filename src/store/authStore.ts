@@ -97,6 +97,28 @@ export const useAuthStore = create<AuthState>()(
           set({ currentUser: null, isAuthenticated: false, isLocalAuth: false });
           storage.remove(STORE_KEYS.GAME);
           logger.info('Signed out demo user');
+          
+          // Clear all stores
+          try {
+            const { useGameStore } = await import('./gameStore');
+            const { usePathStore } = await import('./pathStore');
+            const { useShopStore } = await import('./shopStore');
+            const { useQuestStore } = await import('./questStore');
+            const { useUIStore } = await import('./uiStore');
+            
+            useGameStore.getState().clearGameData();
+            usePathStore.getState().clearCache();
+            useShopStore.getState().clearMarketStates();
+            useQuestStore.getState().clearQuests();
+            useUIStore.getState().resetUI();
+          } catch (error) {
+            logger.error('Error clearing stores on logout', error);
+          }
+          
+          // Navigate to homepage
+          if (typeof window !== 'undefined') {
+            window.location.href = '/';
+          }
           return;
         }
 
@@ -106,8 +128,31 @@ export const useAuthStore = create<AuthState>()(
           logger.error('Sign out error', err);
         }
         set({ currentUser: null, isAuthenticated: false, isLocalAuth: false });
+        
         // Clear storage to reset cultivator data
         storage.remove(STORE_KEYS.GAME);
+        
+        // Clear all stores
+        try {
+          const { useGameStore } = await import('./gameStore');
+          const { usePathStore } = await import('./pathStore');
+          const { useShopStore } = await import('./shopStore');
+          const { useQuestStore } = await import('./questStore');
+          const { useUIStore } = await import('./uiStore');
+          
+          useGameStore.getState().clearGameData();
+          usePathStore.getState().clearCache();
+          useShopStore.getState().clearMarketStates();
+          useQuestStore.getState().clearQuests();
+          useUIStore.getState().resetUI();
+        } catch (error) {
+          logger.error('Error clearing stores on logout', error);
+        }
+        
+        // Navigate to homepage
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
       },
 
       setUser: (user: AuthUser | null) => set({ currentUser: user, isAuthenticated: Boolean(user) }),

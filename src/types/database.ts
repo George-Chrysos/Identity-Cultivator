@@ -66,12 +66,14 @@ export interface DailyRecord {
 export interface DailyPathProgress {
   id: string;
   user_id: string;
-  path_id: string; // References player_identities.id
+  path_id: string; // References player_identities.template_id (path identifier)
   date: string; // ISO date string (YYYY-MM-DD)
   tasks_total: number;
   tasks_completed: number;
   percentage: number; // 0-100, auto-calculated
   status: 'PENDING' | 'COMPLETED';
+  completed_task_ids: string[]; // Array of completed task IDs
+  completed_subtask_ids: string[]; // Array of completed subtask IDs
   created_at: string;
   updated_at: string;
 }

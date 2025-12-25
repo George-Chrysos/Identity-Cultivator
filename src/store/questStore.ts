@@ -92,6 +92,7 @@ interface QuestState {
   getQuestById: (questId: string) => Quest | undefined;
   moveIncompleteQuestsToDate: (newDate: Date) => void;
   resetRecurringQuests: (newDate: Date) => void;
+  clearQuests: () => void;
 }
 
 export const useQuestStore = create<QuestState>()(
@@ -392,6 +393,11 @@ export const useQuestStore = create<QuestState>()(
             };
           }),
         }));
+      },
+      
+      clearQuests: () => {
+        set({ quests: [], isLoading: false, error: null });
+        logger.info('Quests cleared');
       },
     }),
     {

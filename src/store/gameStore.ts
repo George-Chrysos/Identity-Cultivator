@@ -83,6 +83,7 @@ interface GameState {
   loadUserProfile: (userId: string) => Promise<void>;
   loadActiveIdentities: (userId: string) => Promise<void>;
   loadPlayerInventory: (userId: string) => Promise<void>;
+  loadDailyTaskStates: (userId: string) => Promise<void>;
   purchaseItem: (itemTemplateId: string) => Promise<void>;
   useItem: (inventoryItemId: string) => Promise<void>;
   removeExpiredTickets: () => void;
@@ -146,17 +147,18 @@ export const useGameStore = create<GameState>()(
           // Load user profile first
           await get().loadUserProfile(userId);
           
-          // Load templates (static data)
+          // Load templates (static data) and user's active identities
           await Promise.all([
             get().loadIdentityTemplates(),
             get().loadTaskTemplates(),
             get().loadShopItems(),
             get().loadSealData(userId), // Load seal data
             get().loadPlayerInventory(userId), // Load inventory
+            get().loadActiveIdentities(userId), // Load identities (needed for task states)
           ]);
           
-          // Load user's active identities
-          await get().loadActiveIdentities(userId);
+          // Load daily task states AFTER active identities are loaded
+          await get().loadDailyTaskStates(userId);
           
           set({ isInitialized: true, isLoading: false });
           logger.info('Game data initialized successfully');
@@ -261,6 +263,41 @@ export const useGameStore = create<GameState>()(
         } catch (error) {
           logger.error('Failed to load player inventory', error);
           throw error;
+        }
+      },
+      
+      loadDailyTaskStates: async (userId: string) => {
+        try {
+          const today = getTodayDate();
+          const progressRecords = await gameDB.getAllDailyPathProgress(userId, today);
+          
+          // Convert progress records to dailyTaskStates format
+          const newDailyTaskStates: Record<string, DailyTaskState> = {};
+          
+          // Map progress records to identity IDs
+          // Note: We need to find the identity ID for each path_id
+          const { activeIdentities } = get();
+          
+          progressRecords.forEach(record => {
+            // Find the identity that matches this path_id
+            const identity = activeIdentities.find(id => id.template_id === record.path_id);
+            
+            if (identity) {
+              newDailyTaskStates[identity.id] = {
+                completedTasks: record.completed_task_ids || [],
+                completedSubtasks: record.completed_subtask_ids || [],
+                date: today,
+              };
+            }
+          });
+          
+          set({ dailyTaskStates: newDailyTaskStates });
+          logger.info('Loaded daily task states from DB', { 
+            count: Object.keys(newDailyTaskStates).length 
+          });
+        } catch (error) {
+          logger.error('Failed to load daily task states', error);
+          // Don't throw - this is non-critical, tasks will start fresh
         }
       },
 

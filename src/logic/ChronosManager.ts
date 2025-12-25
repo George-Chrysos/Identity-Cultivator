@@ -118,7 +118,9 @@ export const upsertDailyPathProgress = async (
   userId: string,
   pathId: string,
   totalTasks: number,
-  completedTasks: number
+  completedTasks: number,
+  completedTaskIds: string[] = [],
+  completedSubtaskIds: string[] = []
 ): Promise<DailyPathProgress | null> => {
   const today = getTodayISO();
   const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -132,6 +134,8 @@ export const upsertDailyPathProgress = async (
       tasks_total: totalTasks,
       tasks_completed: completedTasks,
       status,
+      completed_task_ids: completedTaskIds,
+      completed_subtask_ids: completedSubtaskIds,
     });
 
     logger.debug('Daily path progress upserted', {
@@ -141,6 +145,8 @@ export const upsertDailyPathProgress = async (
       totalTasks,
       percentage,
       status,
+      taskIds: completedTaskIds.length,
+      subtaskIds: completedSubtaskIds.length,
     });
 
     return result;

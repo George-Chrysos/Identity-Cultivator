@@ -7,6 +7,7 @@ interface UIState {
   setHeaderVisibility: (visible: boolean) => void;
   setNavMenuVisibility: (visible: boolean) => void;
   setUIVisibility: (visible: boolean) => void;
+  resetUI: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -16,4 +17,5 @@ export const useUIStore = create<UIState>((set) => ({
   setHeaderVisibility: (visible) => set({ showHeader: visible }),
   setNavMenuVisibility: (visible) => set({ showNavMenu: visible }),
   setUIVisibility: (visible) => set({ showHeader: visible, showNavMenu: visible }),
+  resetUI: () => set({ showHeader: true, showNavMenu: true }),
 }));

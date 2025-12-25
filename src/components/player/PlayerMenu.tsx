@@ -4,7 +4,6 @@ import { FlaskConical, CalendarPlus, Coins, Star, RotateCcw } from 'lucide-react
 import { useGameStore } from '@/store/gameStore';
 import { useAuthStore } from '@/store/authStore';
 import { useTestingStore } from '@/store/testingStore';
-import { useQuestStore } from '@/store/questStore';
 import { runAllTests } from '@/tests';
 import { logger } from '@/utils/logger';
 
@@ -64,84 +63,52 @@ const PlayerMenu = () => {
     setOpenMenu(false);
   }, []);
 
-  // Reset User (Debug) - Resets coins, stars, paths, quests, and daily records
+  // Reset User - Complete database wipe for clean slate
   const handleResetUser = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     
     // Browser confirmation
     const confirmed = window.confirm(
-      '⚠️ RESET USER DATA?\n\n' +
-      'This will:\n' +
-      '• Reset Coins to 100\n' +
-      '• Reset Stars to 5\n' +
-      '• Lock all Paths (reset levels/xp to 0)\n' +
-      '• Clear all Quests\n' +
-      '• Clear daily records history\n\n' +
-      'This action cannot be undone!'
+      '⚠️ RESET ALL PROGRESS?\n\n' +
+      'This will permanently delete:\n' +
+      '• All identities and progress\n' +
+      '• All quest completions\n' +
+      '• All daily records\n' +
+      '• All inventory items\n' +
+      '• Your overall rank (reset to D)\n\n' +
+      'This action CANNOT be undone!\n\n' +
+      'You will remain logged in.'
     );
     
     if (!confirmed) return;
     
     try {
-      logger.info('🔄 Starting user data reset...');
+      const { currentUser } = useAuthStore.getState();
+      if (!currentUser?.id) {
+        logger.warn('No user logged in, cannot reset');
+        return;
+      }
+
+      logger.info('🔄 Starting complete data reset...', { userId: currentUser.id });
       
-      // 1. Reset coins and stars via gameStore
-      const { userProfile } = useGameStore.getState();
-      if (userProfile) {
-        // Import gameDB to reset all data directly
-        const { gameDB } = await import('@/api/gameDatabase');
-        await gameDB.updateProfile(userProfile.id, {
-          coins: 100,
-          stars: 5,
-          body_points: 0,
-          mind_points: 0,
-          soul_points: 0,
-          will_points: 0,
-        });
+      const { resetUserData } = await import('@/services/resetUserService');
+      const success = await resetUserData(currentUser.id);
+      
+      if (success) {
+        // Reinitialize game state
+        await useGameStore.getState().initializeUser(currentUser.id);
+        logger.info('✅ User data reset successful');
         
-        // Reload profile to ensure state is updated properly
-        await useGameStore.getState().loadUserProfile(userProfile.id);
-        logger.info('✅ Reset coins to 100, stars to 5, stats to 0');
-      }
-      
-      // 2. Clear all quests
-      const questState = useQuestStore.getState();
-      const questIds = questState.quests.map(q => q.id);
-      for (const id of questIds) {
-        await questState.deleteQuest(id);
-      }
-      logger.info('✅ Cleared all quests');
-      
-      // 3. Delete all paths (instead of deactivate to avoid UNIQUE constraint conflicts)
-      const gameState = useGameStore.getState();
-      if (userProfile && gameState.activeIdentities) {
-        // Delete all identities using gameDB
-        const { gameDB } = await import('@/api/gameDatabase');
-        for (const identity of gameState.activeIdentities) {
-          await gameDB.deleteIdentity(identity.id);
-          gameState.clearDailyTasks(identity.id);
-        }
+        setOpenMenu(false);
         
-        // Reload active identities (should be empty now)
-        await gameState.loadActiveIdentities(userProfile.id);
-        logger.info('✅ Deleted all paths');
+        // Reload page to ensure clean state
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      } else {
+        logger.error('Reset failed');
+        alert('Failed to reset user data. Check console for details.');
       }
-      
-      // 4. Clear daily task states from store
-      useGameStore.setState({ 
-        dailyTaskStates: {},
-        activeIdentities: [],
-      });
-      logger.info('✅ Reset daily task states');
-      
-      // 5. Force page reload to reset path tree state
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
-      
-      setOpenMenu(false);
-      logger.info('🎉 User data reset complete!');
-      
     } catch (error) {
       logger.error('Failed to reset user data', { error });
       alert('Failed to reset user data. Check console for details.');

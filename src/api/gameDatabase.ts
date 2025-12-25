@@ -934,6 +934,8 @@ export const gameDB = {
     tasks_total: number;
     tasks_completed: number;
     status: 'PENDING' | 'COMPLETED';
+    completed_task_ids: string[];
+    completed_subtask_ids: string[];
   }): Promise<import('@/types/database').DailyPathProgress> {
     if (!isSupabaseConfigured()) {
       // Return mock data for local dev
@@ -950,6 +952,8 @@ export const gameDB = {
         tasks_completed: progress.tasks_completed,
         percentage,
         status: progress.status,
+        completed_task_ids: progress.completed_task_ids,
+        completed_subtask_ids: progress.completed_subtask_ids,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -965,6 +969,8 @@ export const gameDB = {
           tasks_total: progress.tasks_total,
           tasks_completed: progress.tasks_completed,
           status: progress.status,
+          completed_task_ids: progress.completed_task_ids,
+          completed_subtask_ids: progress.completed_subtask_ids,
         }, {
           onConflict: 'user_id,path_id,date',
         })
@@ -977,6 +983,7 @@ export const gameDB = {
         pathId: progress.path_id, 
         date: progress.date,
         percentage: data.percentage,
+        completedTasks: progress.completed_task_ids.length,
       });
       return data;
     } catch (error) {
@@ -1040,6 +1047,11 @@ export const gameDB = {
 
       if (error) throw error;
 
+      logger.debug('Loaded daily path progress for date', { 
+        userId, 
+        date, 
+        count: data?.length || 0 
+      });
       return data || [];
     } catch (error) {
       logger.error('Failed to get all daily path progress', error);
