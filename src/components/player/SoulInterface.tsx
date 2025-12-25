@@ -6,6 +6,7 @@ import { useUIStore } from '@/store/uiStore';
 import { getRankStyle, getRankGlowColor } from '@/utils/rankStyles';
 import { calculateOverallRank } from '@/utils/overallRank';
 import { shallow } from 'zustand/shallow';
+import RankCircle from './RankCircle';
 
 interface SoulInterfaceProps {
   isOpen: boolean;
@@ -14,7 +15,7 @@ interface SoulInterfaceProps {
 
 const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
   const [isAnimating, setIsAnimating] = useState(true);
-  
+
   const userProfile = useGameStore(
     (state) => state.userProfile,
     shallow
@@ -97,10 +98,10 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
 
   // Orbiting paths configuration - Static positioning around upper half circle
   const staticPaths = [
-    { icon: GiSwordSmithing, color: '#ef4444', label: 'Body', x: -80, y: -50 },
-    { icon: GiBrain, color: '#8b5cf6', label: 'Mind', x: -30, y: -90 },
-    { icon: GiWaterBolt, color: '#06b6d4', label: 'Soul', x: 30, y: -90 },
-    { icon: GiFireShield, color: '#f59e0b', label: 'Will', x: 80, y: -50 },
+    { icon: GiSwordSmithing, color: '#ef4444', label: 'Body', x: -90, y: -35 },
+    { icon: GiBrain, color: '#8b5cf6', label: 'Mind', x: -40, y: -90 },
+    { icon: GiWaterBolt, color: '#06b6d4', label: 'Soul', x: 40, y: -90 },
+    { icon: GiFireShield, color: '#f59e0b', label: 'Will', x: 90, y: -35 },
   ];
 
   // Stats configuration
@@ -143,7 +144,7 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-6"
           onClick={onClose}
           style={{ transform: 'translateZ(0)' }}
         >
@@ -151,11 +152,11 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
           <div 
             className="absolute inset-0 bg-slate-950/90"
             style={{
-              backdropFilter: isAnimating ? 'none' : 'blur(16px)',
-              WebkitBackdropFilter: isAnimating ? 'none' : 'blur(16px)',
+              backdropFilter: isAnimating ? 'none' : 'blur(6px)',
+              WebkitBackdropFilter: isAnimating ? 'none' : 'blur(6px)',
               background: `
-                radial-gradient(circle at center, rgba(46, 16, 101, 0.3) 0%, transparent 70%),
-                linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(2, 6, 23, 0.95) 100%)
+                radial-gradient(circle at center, rgba(46, 16, 101, 0.3) 0%, transparent 40%),
+                linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(2, 6, 23, 0.95) 70%)
               `,
               transition: 'backdrop-filter 200ms ease-out',
             }}
@@ -181,162 +182,85 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
               damping: 25,
             }}
             onAnimationComplete={handleAnimationComplete}
-            className="relative max-w-md w-full bg-slate-900/40 border-2 border-purple-500/30 rounded-3xl"
+            className="relative max-w-md w-full bg-slate-900/90 border-2 border-purple-500/30 rounded-3xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
             style={{ 
-              transform: 'translateZ(0)',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              backdropFilter: isAnimating ? 'none' : 'blur(12px)',
-              WebkitBackdropFilter: isAnimating ? 'none' : 'blur(12px)',
-              boxShadow: isAnimating ? 'none' : '0 0 50px rgba(139, 92, 246, 0.3)',
-              transition: 'backdrop-filter 200ms ease-out, box-shadow 200ms ease-out',
             }}
           >
             {/* Header Title */}
-            <div className="pt-8 pb-4 text-center mb-16">
-              <motion.h1 
-                className="text-3xl font-black tracking-wider text-purple-400"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+            <div className="pt-4 pb-6 text-center mb-16 mt-4 ">
+              <h1 
+                className="text-3xl font-black text-purple-400"
                 style={{
-                  textShadow: '0 0 20px rgba(168, 85, 247, 0.6)',
+                  textShadow: '0 1px 0 rgba(0, 0, 0, 0.8), 0 0 10px rgba(168, 85, 247, 0.6)'
                 }}
               >
                 {userProfile.display_name.toUpperCase()}
-              </motion.h1>
+              </h1>
             </div>
 
             {/* Central Rank Emblem with Static Path Icons */}
             <div className="relative flex items-center justify-center py-6 ">
               {/* Static Path Icons around upper half circle */}
-              {staticPaths.map((path, index) => {
+              {staticPaths.map((path) => {
                 const Icon = path.icon;
                 return (
-                  <motion.div
+                  <div
                     key={path.label}
                     className="absolute z-30"
-                    initial={{ opacity: 0, scale: 0 }}
-                    animate={{ 
-                      opacity: 1, 
-                      scale: 1,
-                    }}
-                    transition={{
-                      opacity: { delay: 0.3 + index * 0.1, duration: 0.4 },
-                      scale: { delay: 0.3 + index * 0.1, duration: 0.4 },
-                    }}
                     style={{
-                      left: `calc(50% + ${path.x}px - 18px)`,
-                      top: `calc(50% + ${path.y}px - 15px )`,
+                      left: `calc(50% + ${path.x}px)`,
+                      top: `calc(50% + ${path.y}px)`,
                       transform: 'translate(-50%, -50%)',
                     }}
                   >
                     <div
-                      className="rounded-full p-2 backdrop-blur-sm"
+                      className="rounded-full p-3 backdrop-blur-sm"
                       style={{
                         background: `${path.color}20`,
                         border: `1px solid ${path.color}60`,
-                        boxShadow: isAnimating ? 'none' : `0 0 20px ${path.color}60`,
+                        boxShadow: isAnimating ? 'none' : `0 0 10px ${path.color}60`,
                         transition: 'box-shadow 200ms ease-out',
                       }}
                     >
                       <Icon 
-                        className="h-5 w-5" 
-                        strokeWidth={2.5}
+                        className="h-7 w-7" 
+                        strokeWidth={5}
                         style={{ color: path.color }}
                       />
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
 
               {/* Central Shield/Emblem */}
-              <motion.div
-                initial={{ scale: 0, rotate: -180, opacity: 0 }}
-                animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                transition={{ 
-                  type: 'spring',
-                  stiffness: 200,
-                  damping: 20,
-                  delay: 0.1,
-                }}
-                className="relative z-10  "
-              >
-                {/* Hexagonal Shield Background */}
-                <div 
-                  className="relative w-20 h-20 flex items-center justify-center rounded-full"
-                  style={{
-                    background: `
-                      radial-gradient(circle, ${getRankGlowColor(overallRank.rankTier)}40 0%, ${getRankGlowColor(overallRank.rankTier)}10 50%, transparent 100%),
-                      linear-gradient(135deg, rgba(30, 27, 75, 0.8) 0%, rgba(15, 10, 45, 0.9) 100%)
-                    `,
-                    border: `3px solid ${getRankGlowColor(overallRank.rankTier)}`,
-                    boxShadow: isAnimating ? 'none' : `
-                      0 0 30px ${getRankGlowColor(overallRank.rankTier)}80,
-                      inset 0 0 30px ${getRankGlowColor(overallRank.rankTier)}20,
-                      0 0 60px ${getRankGlowColor(overallRank.rankTier)}40
-                    `,
-                    transition: 'box-shadow 200ms ease-out',
-                  }}
-                >
-                  {/* Rank Letter */}
-                  <motion.span
-                    className="text-5xl font-black"
-                    style={{
-                      ...getRankStyle(overallRank.rankTier),
-                      textShadow: isAnimating ? 'none' : `0 0 20px ${getRankGlowColor(overallRank.rankTier)}`,
-                      transition: 'text-shadow 200ms ease-out',
-                    }}
-                  >
-                    {overallRank.rankTier}
-                  </motion.span>
-                </div>
-
-                {/* Rotating Ring */}
-                <motion.div
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    border: `1px solid ${getRankGlowColor(overallRank.rankTier)}30`,
-                  }}
-                  animate={{ rotate: 360 }}
-                  transition={{
-                    duration: 30,
-                    repeat: Infinity,
-                    ease: 'linear',
-                  }}
+              <div className="relative z-10">
+                <RankCircle
+                  rankTier={overallRank.rankTier}
+                  glowColor={getRankGlowColor(overallRank.rankTier)}
+                  rankStyle={getRankStyle(overallRank.rankTier)}
+                  size={80}
                 />
-              </motion.div>
+              </div>
             </div>
 
             {/* Glass Conduit Stats */}
-            <div className="px-8 pb-8 space-y-4 ">
+            <div className="px-10 pb-8 space-y-4 ">
               {stats.map((stat, index) => {
                 const rank = getStatRank(stat.points);
                 const progress = getProgressToNextRank(stat.points);
                 const Icon = stat.icon;
 
                 return (
-                  <motion.div
+                  <div
                     key={stat.key}
-                    initial={{ opacity: 0, x: -50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ 
-                      delay: 0.5 + index * 0.1,
-                      type: 'spring',
-                      stiffness: 200,
-                      damping: 20,
-                    }}
-                    className="space-y-2"
+                    className="space-y-1"
                   >
                     {/* Label Row */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="ml-1 flex items-center gap-2">
                         <Icon 
-                          className="h-4 w-4" 
+                          className="h-8 w-8" 
                           strokeWidth={2.5}
                           style={{ 
                             color: getRankGlowColor(rank),
@@ -344,12 +268,12 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
                             transition: 'filter 200ms ease-out',
                           }}
                         />
-                        <span className="text-xs font-bold tracking-widest text-slate-300">
+                        <span className="text-sm font-bold mt-1 tracking-widest text-slate-300">
                           {stat.label}
                         </span>
                       </div>
                       <span 
-                        className="text-sm font-black mr-2"
+                        className="text-3xl font-black mr-3"
                         style={getRankStyle(rank)}
                       >
                         {rank}
@@ -398,7 +322,7 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
                         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-[110%] blur-md rounded-full -translate-x-1/2" style={{ background: `${getRankGlowColor(rank)}20` }} />
                       </motion.div>
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
@@ -407,8 +331,8 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.9 }}
-              className="px-8 pb-8"
+              transition={{ delay: 1.5, duration: 0.3 }}
+              className="px-9 pb-8"
             >
               <button
                 onClick={onClose}
@@ -424,7 +348,7 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
                     x: ['-100%', '200%'],
                   }}
                   transition={{
-                    duration: 1.5,
+                    duration: 2,
                     repeat: Infinity,
                     ease: 'linear',
                   }}

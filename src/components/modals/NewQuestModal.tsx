@@ -134,7 +134,7 @@ export const NewQuestModal = memo(({
             className="text-3xl font-bold text-white font-section tracking-wide mb-2"
             style={{ textShadow: '0 0 15px rgba(168, 85, 247, 0.5)' }}
           >
-            CREATE NEW QUEST
+            NEW QUEST
           </h2>
           <p className="text-sm text-purple-400/80 font-medium">
             Define your next challenge
