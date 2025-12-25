@@ -6,6 +6,7 @@ import { getPathTaskRewards, isPathRegistered } from '@/constants/pathRegistry';
 // Import temperingPath to ensure it registers with the path registry before we use it
 import '@/constants/temperingPath';
 import { logger } from '@/utils/logger';
+import { ChronosManager } from '@/logic/ChronosManager';
 import TrialModal from '../modals/TrialModal';
 import LevelUpNotification from '../notifications/LevelUpNotification';
 import SubtaskInfoModal from '../modals/SubtaskInfoModal';
@@ -95,11 +96,14 @@ export const PathCard = memo(({
   const storeCompletedTasks = useGameStore((s) => identityId ? s.getCompletedTasks(identityId) : new Set<string>());
   const storeCompletedSubtasks = useGameStore((s) => identityId ? s.getCompletedSubtasks(identityId) : new Set<string>());
   const setStoreCompletedTask = useGameStore((s) => s.setCompletedTask);
-  const setStoreCompletedSubtask = useGameStore((s) => s.setCompletedSubtask);
+  const setStoreCompletedSubtask = useGameStore ((s) => s.setCompletedSubtask);
   
   // Local state as fallback when no identityId
   const [localCompletedTasks, setLocalCompletedTasks] = useState<Set<string>>(new Set());
   const [localCompletedSubtasks, setLocalCompletedSubtasks] = useState<Set<string>>(new Set());
+  
+  // Track processing tasks to prevent spam clicks
+  const [processingTasks, setProcessingTasks] = useState<Set<string>>(new Set());
   
   // Use store state if identityId provided, otherwise use local state
   const completedTasks = identityId ? storeCompletedTasks : localCompletedTasks;
@@ -243,6 +247,15 @@ export const PathCard = memo(({
     
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
+    
+    // Prevent spam clicks - ignore if already processing this task
+    if (processingTasks.has(taskId)) {
+      logger.debug('Task already processing, ignoring click', { taskId });
+      return;
+    }
+    
+    // Mark task as processing
+    setProcessingTasks(prev => new Set([...prev, taskId]));
 
     // Store previous state for rollback
     const prevCompletedTasks = new Set(completedTasks);
@@ -377,6 +390,36 @@ export const PathCard = memo(({
     setAllTasksWereCompleted(newAllTasksCompleted);
 
     try {
+      // Save task state to database with template_id (not identity UUID)
+      if (identityId) {
+        const userProfile = useGameStore.getState().userProfile;
+        const identity = useGameStore.getState().getIdentityById(identityId);
+        
+        if (userProfile && identity) {
+          // Use template_id as path_id for DB storage
+          const pathId = identity.template_id || identity.template?.id;
+          
+          if (pathId) {
+            await ChronosManager.upsertDailyPathProgress(
+              userProfile.id,
+              pathId, // Use template_id, not identity UUID
+              tasks.length,
+              newCompletedTasks.size,
+              Array.from(newCompletedTasks),
+              Array.from(newCompletedSubtasks)
+            );
+            logger.debug('Task progress saved to DB', { 
+              identityId, 
+              pathId, 
+              completedCount: newCompletedTasks.size,
+              totalTasks: tasks.length 
+            });
+          } else {
+            logger.warn('No template_id found for identity, skipping DB save', { identityId });
+          }
+        }
+      }
+      
       // Call parent callback to update database
       if (!wasCompleted) {
         await onTaskComplete?.(taskId);
@@ -402,8 +445,15 @@ export const PathCard = memo(({
       
       // Show error toast
       showToast('Failed to update task completion. Please try again.', 'error');
+    } finally {
+      // Always clear processing flag
+      setProcessingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
     }
-  }, [tasks, maxXP, currentXP, status, streak, completedTasks, completedSubtasks, allTasksWereCompleted, initialStreak, onTaskComplete, onAllTasksComplete, updateRewards, showToast]);
+  }, [tasks, maxXP, currentXP, status, streak, completedTasks, completedSubtasks, allTasksWereCompleted, initialStreak, onTaskComplete, onAllTasksComplete, updateRewards, showToast, processingTasks]);
 
   const toggleTaskExpansion = useCallback((taskId: string, e: React.MouseEvent) => {
     e.stopPropagation();

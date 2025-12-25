@@ -271,29 +271,52 @@ export const useGameStore = create<GameState>()(
           const today = getTodayDate();
           const progressRecords = await gameDB.getAllDailyPathProgress(userId, today);
           
+          logger.debug('Loading daily task states', { 
+            userId, 
+            today, 
+            recordCount: progressRecords.length 
+          });
+          
           // Convert progress records to dailyTaskStates format
           const newDailyTaskStates: Record<string, DailyTaskState> = {};
           
           // Map progress records to identity IDs
-          // Note: We need to find the identity ID for each path_id
+          // Note: We need to find the identity ID for each path_id (template_id)
           const { activeIdentities } = get();
           
           progressRecords.forEach(record => {
-            // Find the identity that matches this path_id
+            // Find the identity that matches this path_id (template_id)
             const identity = activeIdentities.find(id => id.template_id === record.path_id);
             
             if (identity) {
               newDailyTaskStates[identity.id] = {
-                completedTasks: record.completed_task_ids || [],
-                completedSubtasks: record.completed_subtask_ids || [],
+                completedTasks: Array.isArray(record.completed_task_ids) ? record.completed_task_ids : [],
+                completedSubtasks: Array.isArray(record.completed_subtask_ids) ? record.completed_subtask_ids : [],
                 date: today,
               };
+              logger.debug('Mapped task state', { 
+                identityId: identity.id, 
+                templateId: identity.template_id, 
+                pathId: record.path_id,
+                taskCount: newDailyTaskStates[identity.id].completedTasks.length,
+                subtaskCount: newDailyTaskStates[identity.id].completedSubtasks.length,
+              });
+            } else {
+              logger.warn('No identity found for path_id', { 
+                pathId: record.path_id,
+                availableIdentities: activeIdentities.map(i => ({ id: i.id, templateId: i.template_id }))
+              });
             }
           });
           
           set({ dailyTaskStates: newDailyTaskStates });
           logger.info('Loaded daily task states from DB', { 
-            count: Object.keys(newDailyTaskStates).length 
+            count: Object.keys(newDailyTaskStates).length,
+            states: Object.entries(newDailyTaskStates).map(([id, state]) => ({
+              identityId: id,
+              taskCount: state.completedTasks.length,
+              subtaskCount: state.completedSubtasks.length,
+            }))
           });
         } catch (error) {
           logger.error('Failed to load daily task states', error);
