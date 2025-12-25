@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, Info, ArrowBigUp } from 'lucide-react';
 import { GiSwordSmithing } from 'react-icons/gi';
@@ -11,6 +11,7 @@ interface TaskCardProps {
   hasExpand?: boolean;
   hasInfo?: boolean;
   description?: string;
+  isDisabled?: boolean; // When true, prevents clicks and dims the card
   onToggleComplete: (id: string, e: React.MouseEvent) => void;
   onToggleExpansion?: (id: string, e: React.MouseEvent) => void;
   onInfoClick?: (id: string, e: React.MouseEvent) => void;
@@ -26,6 +27,7 @@ export const TaskCard = memo(({
   isExpanded = false,
   hasExpand = true,
   hasInfo = false,
+  isDisabled = false,
   onToggleComplete,
   onToggleExpansion,
   onInfoClick,
@@ -33,6 +35,16 @@ export const TaskCard = memo(({
   isGateCapped = false,
   className = '',
 }: TaskCardProps) => {
+  // Prevent clicks when disabled (cooldown active)
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    if (isDisabled) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    onToggleComplete(id, e);
+  }, [id, isDisabled, onToggleComplete]);
+
   return (
     <motion.div
       initial={false}
@@ -46,20 +58,21 @@ export const TaskCard = memo(({
         boxShadow: isCompleted
           ? '0 0 15px rgba(192, 132, 252, 0.5)'
           : '0 0 0px rgba(192, 132, 252, 0)',
+        opacity: isDisabled ? 0.6 : 1,
       }}
       transition={{
         duration: 0.3,
         ease: 'easeOut',
       }}
       className={`flex items-center justify-between p-3 rounded-lg border ${
-        !isCompleted ? 'hover:bg-slate-800/30' : ''
-      } ${className}`}
-      whileTap={{ scale: 0.98 }}
+        !isCompleted && !isDisabled ? 'hover:bg-slate-800/30' : ''
+      } ${isDisabled ? 'pointer-events-none' : ''} ${className}`}
+      whileTap={isDisabled ? undefined : { scale: 0.98 }}
     >
       {/* Left Side - Completion Trigger */}
       <div 
-        className="flex items-center gap-3 flex-1 cursor-pointer"
-        onClick={(e) => onToggleComplete(id, e)}
+        className={`flex items-center gap-3 flex-1 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+        onClick={handleClick}
       >
         {/* Icon */}
         <div className="flex-shrink-0">

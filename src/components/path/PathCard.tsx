@@ -102,8 +102,11 @@ export const PathCard = memo(({
   const [localCompletedTasks, setLocalCompletedTasks] = useState<Set<string>>(new Set());
   const [localCompletedSubtasks, setLocalCompletedSubtasks] = useState<Set<string>>(new Set());
   
-  // Track processing tasks to prevent spam clicks
+  // Track processing tasks to prevent spam clicks during async operation
   const [processingTasks, setProcessingTasks] = useState<Set<string>>(new Set());
+  
+  // Track tasks in cooldown (2 second delay after completion to prevent farming)
+  const [cooldownTasks, setCooldownTasks] = useState<Set<string>>(new Set());
   
   // Use store state if identityId provided, otherwise use local state
   const completedTasks = identityId ? storeCompletedTasks : localCompletedTasks;
@@ -248,9 +251,9 @@ export const PathCard = memo(({
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
     
-    // Prevent spam clicks - ignore if already processing this task
-    if (processingTasks.has(taskId)) {
-      logger.debug('Task already processing, ignoring click', { taskId });
+    // Prevent spam clicks - ignore if already processing this task or in cooldown
+    if (processingTasks.has(taskId) || cooldownTasks.has(taskId)) {
+      logger.debug('Task blocked - processing or in cooldown', { taskId, isProcessing: processingTasks.has(taskId), inCooldown: cooldownTasks.has(taskId) });
       return;
     }
     
@@ -395,11 +398,34 @@ export const PathCard = memo(({
         const userProfile = useGameStore.getState().userProfile;
         const identity = useGameStore.getState().getIdentityById(identityId);
         
+        logger.debug('Attempting to save task state', { 
+          identityId, 
+          hasUserProfile: !!userProfile,
+          hasIdentity: !!identity,
+          identity: identity ? {
+            id: identity.id,
+            template_id: identity.template_id,
+            templateId: identity.template?.id,
+            name: identity.template?.name
+          } : null
+        });
+        
         if (userProfile && identity) {
           // Use template_id as path_id for DB storage
           const pathId = identity.template_id || identity.template?.id;
           
           if (pathId) {
+            logger.info('Saving task progress to database', { 
+              userId: userProfile.id,
+              identityId, 
+              pathId,
+              templateId: identity.template_id,
+              completedTasks: Array.from(newCompletedTasks),
+              completedSubtasks: Array.from(newCompletedSubtasks),
+              totalTasks: tasks.length,
+              completedCount: newCompletedTasks.size
+            });
+            
             await ChronosManager.upsertDailyPathProgress(
               userProfile.id,
               pathId, // Use template_id, not identity UUID
@@ -408,15 +434,28 @@ export const PathCard = memo(({
               Array.from(newCompletedTasks),
               Array.from(newCompletedSubtasks)
             );
-            logger.debug('Task progress saved to DB', { 
+            
+            logger.info('✅ Task progress saved to DB successfully', { 
               identityId, 
               pathId, 
               completedCount: newCompletedTasks.size,
               totalTasks: tasks.length 
             });
           } else {
-            logger.warn('No template_id found for identity, skipping DB save', { identityId });
+            logger.error('❌ No template_id found for identity, cannot save to DB', { 
+              identityId,
+              identity: {
+                template_id: identity.template_id,
+                templateId: identity.template?.id
+              }
+            });
           }
+        } else {
+          logger.error('❌ Missing userProfile or identity, cannot save to DB', {
+            identityId,
+            hasUserProfile: !!userProfile,
+            hasIdentity: !!identity
+          });
         }
       }
       
@@ -446,14 +485,24 @@ export const PathCard = memo(({
       // Show error toast
       showToast('Failed to update task completion. Please try again.', 'error');
     } finally {
-      // Always clear processing flag
+      // Clear processing flag
       setProcessingTasks(prev => {
         const newSet = new Set(prev);
         newSet.delete(taskId);
         return newSet;
       });
+      
+      // Start 2-second cooldown to prevent spam clicks/farming
+      setCooldownTasks(prev => new Set([...prev, taskId]));
+      setTimeout(() => {
+        setCooldownTasks(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(taskId);
+          return newSet;
+        });
+      }, 2000);
     }
-  }, [tasks, maxXP, currentXP, status, streak, completedTasks, completedSubtasks, allTasksWereCompleted, initialStreak, onTaskComplete, onAllTasksComplete, updateRewards, showToast, processingTasks]);
+  }, [tasks, maxXP, currentXP, status, streak, completedTasks, completedSubtasks, allTasksWereCompleted, initialStreak, onTaskComplete, onAllTasksComplete, updateRewards, showToast, processingTasks, cooldownTasks]);
 
   const toggleTaskExpansion = useCallback((taskId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -752,6 +801,7 @@ export const PathCard = memo(({
           {tasks.map((task, index) => {
             const isCompleted = completedTasks.has(task.id);
             const isExpanded = expandedTasks.has(task.id);
+            const isTaskDisabled = processingTasks.has(task.id) || cooldownTasks.has(task.id);
 
             return (
               <div key={task.id} className="space-y-0">
@@ -768,6 +818,7 @@ export const PathCard = memo(({
                   isExpanded={isExpanded}
                   hasExpand={true}
                   isGateCapped={isStatCapped}
+                  isDisabled={isTaskDisabled}
                   onToggleComplete={handleTaskComplete}
                   onToggleExpansion={toggleTaskExpansion}
                 />

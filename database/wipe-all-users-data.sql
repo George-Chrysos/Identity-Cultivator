@@ -5,6 +5,9 @@
 
 BEGIN;
 
+-- Delete all daily path progress (task completion tracking)
+DELETE FROM public.daily_path_progress;
+
 -- Delete all daily records (if table exists)
 DELETE FROM public.daily_records;
 
@@ -34,7 +37,9 @@ SET
 COMMIT;
 
 -- Verify the reset
-SELECT 'daily_records count:' as info, COUNT(*) as count FROM public.daily_records
+SELECT 'daily_path_progress count:' as info, COUNT(*) as count FROM public.daily_path_progress
+UNION ALL
+SELECT 'daily_records count:', COUNT(*) FROM public.daily_records
 UNION ALL
 SELECT 'task_logs count:', COUNT(*) FROM public.task_logs
 UNION ALL
