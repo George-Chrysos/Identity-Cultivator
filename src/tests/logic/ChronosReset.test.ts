@@ -148,6 +148,8 @@ const createMockDailyProgress = (overrides: Partial<DailyPathProgress> = {}): Da
   tasks_completed: 3,
   percentage: 100,
   status: 'COMPLETED',
+  completed_task_ids: [],
+  completed_subtask_ids: [],
   created_at: '2025-12-24T00:00:00Z',
   updated_at: '2025-12-24T23:59:00Z',
   ...overrides,
