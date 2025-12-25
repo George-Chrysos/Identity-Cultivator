@@ -71,8 +71,8 @@ BEGIN
     END IF;
 END$$;
 
--- Users table (extends Supabase auth.users)
-CREATE TABLE public.users (
+-- Profiles table (extends Supabase auth.users)
+CREATE TABLE public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     tier identity_tier DEFAULT 'D',
@@ -83,22 +83,22 @@ CREATE TABLE public.users (
 );
 
 -- Enable Row Level Security
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for users
-CREATE POLICY "Users can view own profile" ON public.users
+-- RLS Policies for profiles
+CREATE POLICY "Users can view own profile" ON public.profiles
     FOR SELECT USING ((SELECT auth.uid()) = id);
 
-CREATE POLICY "Users can update own profile" ON public.users
+CREATE POLICY "Users can update own profile" ON public.profiles
     FOR UPDATE USING ((SELECT auth.uid()) = id);
 
-CREATE POLICY "Users can insert own profile" ON public.users
+CREATE POLICY "Users can insert own profile" ON public.profiles
     FOR INSERT WITH CHECK ((SELECT auth.uid()) = id);
 
 -- Identities table
 CREATE TABLE IF NOT EXISTS public.identities (
     id UUID PRIMARY KEY DEFAULT COALESCE(uuid_generate_v4(), gen_random_uuid()),
-    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     title VARCHAR(200) NOT NULL,
     image_url VARCHAR(500),
     tier identity_tier DEFAULT 'D',
@@ -131,7 +131,7 @@ CREATE POLICY "Users can delete own identities" ON public.identities
 -- User Progress table
 CREATE TABLE IF NOT EXISTS public.user_progress (
     id UUID PRIMARY KEY DEFAULT COALESCE(uuid_generate_v4(), gen_random_uuid()),
-    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     identity_id UUID NOT NULL REFERENCES public.identities(id) ON DELETE CASCADE,
     days_completed INT DEFAULT 0,
     level INT DEFAULT 1,
@@ -160,7 +160,7 @@ CREATE POLICY "Users can update own progress" ON public.user_progress
 -- Task Completions (History) table
 CREATE TABLE IF NOT EXISTS public.task_completions (
     id UUID PRIMARY KEY DEFAULT COALESCE(uuid_generate_v4(), gen_random_uuid()),
-    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     identity_id UUID NOT NULL REFERENCES public.identities(id) ON DELETE CASCADE,
     completion_date DATE NOT NULL,
     completed_at TIMESTAMPTZ DEFAULT NOW(),
@@ -204,7 +204,7 @@ END;
 $$ language 'plpgsql';
 
 -- Triggers for updated_at
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_identities_updated_at BEFORE UPDATE ON public.identities
@@ -214,7 +214,7 @@ CREATE TRIGGER update_identities_updated_at BEFORE UPDATE ON public.identities
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.users (id, name, tier, total_days_active)
+    INSERT INTO public.profiles (id, name, tier, total_days_active)
     VALUES (
         NEW.id,
         COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email, 'Cultivator'),
@@ -249,7 +249,49 @@ WHERE i.is_active = TRUE;
 -- Grant access to authenticated users
 GRANT SELECT ON active_identities_with_progress TO authenticated;
 
-COMMENT ON TABLE public.users IS 'Extended user profiles linked to Supabase auth';
+-- Daily Records Table
+-- Stores historical snapshots of daily progress before reset
+-- Used for Dawn Summary and progress analytics
+CREATE TABLE IF NOT EXISTS public.daily_records (
+    id UUID PRIMARY KEY DEFAULT COALESCE(uuid_generate_v4(), gen_random_uuid()),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    date DATE NOT NULL, -- The day this record represents (YYYY-MM-DD)
+    
+    -- Path statistics (stored as JSONB for flexibility)
+    path_stats JSONB NOT NULL DEFAULT '[]',
+    
+    -- Quest metrics
+    quests_completed INT DEFAULT 0,
+    
+    -- Economy metrics
+    total_coins_earned INT DEFAULT 0,
+    
+    -- Timestamps
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    -- Ensure one record per user per day
+    UNIQUE(user_id, date)
+);
+
+-- Enable Row Level Security
+ALTER TABLE public.daily_records ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Users can view own daily records" ON public.daily_records
+    FOR SELECT USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can insert own daily records" ON public.daily_records
+    FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can update own daily records" ON public.daily_records
+    FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+
+-- Indexes for performance
+CREATE INDEX idx_daily_records_user_date ON public.daily_records(user_id, date DESC);
+CREATE INDEX idx_daily_records_date ON public.daily_records(date DESC);
+
+COMMENT ON TABLE public.profiles IS 'Extended user profiles linked to Supabase auth';
 COMMENT ON TABLE public.identities IS 'User cultivator identities with tier and level tracking';
 COMMENT ON TABLE public.user_progress IS 'Daily progress tracking for each identity';
 COMMENT ON TABLE public.task_completions IS 'Historical record of all task completions';
+COMMENT ON TABLE public.daily_records IS 'Historical daily snapshots taken before midnight reset';

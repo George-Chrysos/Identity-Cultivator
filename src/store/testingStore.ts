@@ -135,7 +135,7 @@ export const useTestingStore = create<TestingState>()(
         window.location.reload();
       },
 
-      advanceToNextDay: () => {
+      advanceToNextDay: async () => {
         const { testingDate, isTestingMode } = get();
         
         if (!isTestingMode) {
@@ -143,24 +143,51 @@ export const useTestingStore = create<TestingState>()(
           return;
         }
 
-        // Ensure we create a proper Date object (testingDate might be string from localStorage)
+        // Calculate next day OUTSIDE try block so it's accessible in dispatch
         const currentDate = new Date(testingDate);
         const nextDay = new Date(currentDate);
         nextDay.setDate(nextDay.getDate() + 1);
         nextDay.setHours(0, 0, 0, 0);
 
-        set({ testingDate: nextDay });
+        // Import stores dynamically to avoid circular dependency
+        try {
+          const { useGameStore } = await import('./gameStore');
+          
+          // IMPORTANT: Capture task states BEFORE changing the date
+          const { dailyTaskStates } = useGameStore.getState();
+          const previousDayTaskStates = { ...dailyTaskStates };
 
-        logger.info('Advanced to next day in testing mode', { 
-          newDate: nextDay.toISOString() 
-        });
+          // Now advance the date
+          set({ testingDate: nextDay });
 
-        // Move incomplete quests to the new date
-        // Import dynamically to avoid circular dependency
-        import('./questStore').then(({ useQuestStore }) => {
-          const { moveIncompleteQuestsToDate } = useQuestStore.getState();
+          logger.info('Advanced to next day in testing mode', { 
+            newDate: nextDay.toISOString() 
+          });
+
+          // 1. Trigger daily reset with previous day's task states
+          const { resetDailyProgress } = useGameStore.getState();
+          await resetDailyProgress(previousDayTaskStates);
+
+          // 2. Move/reset quests for the new date
+          const { useQuestStore } = await import('./questStore');
+          const { moveIncompleteQuestsToDate, resetRecurringQuests } = useQuestStore.getState();
+          
+          // Reset recurring quests (move to new date and uncheck)
+          resetRecurringQuests(nextDay);
+          
+          // Move incomplete non-recurring quests to new date
           moveIncompleteQuestsToDate(nextDay);
-        });
+
+          // 3. Force refresh active identities to reflect new day state
+          const { loadActiveIdentities, userProfile } = useGameStore.getState();
+          if (userProfile) {
+            await loadActiveIdentities(userProfile.id);
+          }
+
+          logger.info('Daily reset completed for testing mode', { date: nextDay });
+        } catch (error) {
+          logger.error('Failed to complete daily reset', { error });
+        }
 
         // Dispatch custom event so other parts of the app can react
         window.dispatchEvent(new CustomEvent('testing-day-advanced', { 

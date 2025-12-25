@@ -14,9 +14,10 @@ interface CollapsibleMasteryProps {
   title: string;
   benefit: string;
   index: number;
+  themeColor: string; // Add theme color prop
 }
 
-const CollapsibleMastery = memo(({ title, benefit, index }: CollapsibleMasteryProps) => {
+const CollapsibleMastery = memo(({ title, benefit, index, themeColor }: CollapsibleMasteryProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleExpand = useCallback(() => {
@@ -29,7 +30,7 @@ const CollapsibleMastery = memo(({ title, benefit, index }: CollapsibleMasteryPr
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.1 }}
       className="rounded-lg bg-slate-800/50 border-l-4 overflow-hidden"
-      style={{ borderLeftColor: '#e11d48' }}
+      style={{ borderLeftColor: themeColor }}
     >
       {/* Header - Always visible, clickable */}
       <button
@@ -314,18 +315,14 @@ export const NodeInfoModal = memo(({
       onClose={onClose}
       maxWidth="lg"
       showCloseButton={true}
-      className="border-2 rounded-2xl"
+      className="rounded-2xl"
       overlayClassName="bg-black/90"
+      borderColor={colors.primary}
+      glowColor={colors.glow}
     >
-      <div 
-        className="p-4"
-        style={{ 
-          borderColor: colors.primary,
-          boxShadow: `0 0 30px ${colors.glow}`,
-        }}
-      >
+      <div className="px-6 pb-6">
         {/* Icon and Title Section */}
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center mt-4 gap-3 mb-4">
           <div 
             className="w-14 h-14 rounded-full flex items-center justify-center border-2"
             style={{ 
@@ -342,7 +339,7 @@ export const NodeInfoModal = memo(({
               }} 
             />
           </div>
-          <div className="flex-1 pr-8">
+          <div className="flex-1">
             <h2 
               className="text-xl font-bold text-white mb-0.5"
               style={{ textShadow: `0 0 15px ${colors.glow}` }}
@@ -404,6 +401,7 @@ export const NodeInfoModal = memo(({
                         title={mastery.title}
                         benefit={mastery.benefit}
                         index={index}
+                        themeColor={colors.primary}
                       />
                     ))
                   ) : (

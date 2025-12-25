@@ -213,6 +213,24 @@ export const QuestList = memo(({ onQuestAdd }: QuestListProps) => {
     }
   }, [updateQuest]);
 
+  // Load deleteQuest from store
+  const deleteQuest = useQuestStore((state: any) => state.deleteQuest);
+
+  const handleDeleteQuest = useCallback(async (questId: string) => {
+    try {
+      await deleteQuest(questId);
+      // Remove from local completed state if present
+      setCompletedQuests(prev => {
+        const next = new Set(prev);
+        next.delete(questId);
+        return next;
+      });
+      logger.info('Quest deleted', { questId });
+    } catch (error) {
+      logger.error('Failed to delete quest', { error });
+    }
+  }, [deleteQuest]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -306,6 +324,7 @@ export const QuestList = memo(({ onQuestAdd }: QuestListProps) => {
                   onDateChange={handleDateChange}
                   onTimeChange={handleTimeChange}
                   onRecurringToggle={handleRecurringToggle}
+                  onDelete={handleDeleteQuest}
                 />
               ))
             )}

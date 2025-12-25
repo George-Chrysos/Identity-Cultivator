@@ -5,6 +5,8 @@
  * Detects when a new day has started and processes the transition
  * of Paths, Streaks, and Quests.
  * 
+ * Uses ChronosManager for centralized logic implementation.
+ * 
  * @module hooks/useChronosReset
  */
 
@@ -12,42 +14,11 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { useQuestStore } from '@/store/questStore';
 import { logger } from '@/utils/logger';
+import { ChronosManager } from '@/logic/ChronosManager';
 import type { DailyRecord, PathDailyStat } from '@/types/database';
 
-// Helper to get today's date as ISO string (YYYY-MM-DD)
-const getTodayISO = (): string => {
-  return new Date().toISOString().split('T')[0];
-};
-
-// Helper to format date for quest system
-const getDateFormatted = (date: Date): string => {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[date.getMonth()]} ${date.getDate()}`;
-};
-
-// Local storage key for daily records
-const DAILY_RECORDS_KEY = 'chronos-daily-records';
-
-// Get stored daily records
-const getDailyRecords = (): DailyRecord[] => {
-  try {
-    const stored = localStorage.getItem(DAILY_RECORDS_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-};
-
-// Save daily records
-const saveDailyRecords = (records: DailyRecord[]): void => {
-  try {
-    // Keep only last 30 days of records
-    const trimmed = records.slice(-30);
-    localStorage.setItem(DAILY_RECORDS_KEY, JSON.stringify(trimmed));
-  } catch (error) {
-    logger.error('Failed to save daily records', { error });
-  }
-};
+// Re-export utility functions from ChronosManager for backwards compatibility
+const getTodayISO = ChronosManager.getTodayISO;
 
 interface ChronosResetState {
   showDawnSummary: boolean;
@@ -56,8 +27,8 @@ interface ChronosResetState {
 }
 
 interface ChronosResetActions {
-  executeReset: () => Promise<DailyRecord | null>;
-  executeManualReset: () => Promise<DailyRecord | null>;
+  executeReset: () => Promise<void>;
+  executeManualReset: () => Promise<void>;
   dismissDawnSummary: () => void;
 }
 
@@ -68,12 +39,16 @@ interface UseChronosResetReturn extends ChronosResetState, ChronosResetActions {
  * 
  * Trigger: On app initialization, compares userProfile.last_reset_date with current date
  * 
- * Reset Algorithm:
- * A. Path Evaluation: Check if all tasks completed, increment/reset streak
- * B. Task Reset: Set all task is_completed = false
- * C. Quest Migration: Update recurring quests to current date, reset status
- * D. Record Creation: Push snapshot to daily_records history
- * E. Timestamp Update: Set userProfile.last_reset_date to current date
+ * Reset Algorithm (implemented in ChronosManager):
+ * Rule 1: PathCard status → COMPLETED when all tasks done
+ * Rule 2: Streak +1 when all tasks done
+ * Rule 3: Tasks reset at midnight (rewards kept)
+ * Rule 4: PathCard status → PENDING at midnight
+ * Rule 5: Homepage shows new date
+ * Rule 6: Uncompleted quests move to new day
+ * Rule 7: Recurring quests reset (rewards kept)
+ * Rule 8: daily_path_progress tracking + streak verification
+ * Rule 9: Per-path streak/XP tracking
  */
 export const useChronosReset = (): UseChronosResetReturn => {
   const hasRunRef = useRef(false);
@@ -81,6 +56,7 @@ export const useChronosReset = (): UseChronosResetReturn => {
   // Game store selectors
   const userProfile = useGameStore((state) => state.userProfile);
   const activeIdentities = useGameStore((state) => state.activeIdentities);
+  const dailyTaskStates = useGameStore((state) => state.dailyTaskStates);
   
   // Quest store selectors
   const quests = useQuestStore((state) => state.quests);
@@ -92,25 +68,31 @@ export const useChronosReset = (): UseChronosResetReturn => {
   const dailyRecord = useGameStore((state) => state.lastDailyRecord);
   const setLastDailyRecord = useGameStore((state) => state.setLastDailyRecord);
   const updateLastResetDate = useGameStore((state) => state.updateLastResetDate);
+  const updateIdentityStreak = useGameStore((state) => state.updateIdentityStreak);
 
   /**
    * Creates a daily snapshot before reset
+   * Note: Used for local fallback if ChronosManager fails
    */
-  const createDailySnapshot = useCallback((): DailyRecord => {
+  const _createDailySnapshot = useCallback((): Omit<DailyRecord, 'id' | 'created_at'> => {
     const today = getTodayISO();
     
-    // Build path stats from active identities
+    // Build path stats from active identities using dailyTaskStates
     const pathStats: PathDailyStat[] = activeIdentities.map((identity) => {
       const tasks = identity.available_tasks || [];
-      const completedCount = identity.completed_today ? tasks.length : 0;
+      const taskState = dailyTaskStates[identity.id];
+      const completedTaskIds = taskState ? new Set(taskState.completedTasks) : new Set<string>();
+      const completedCount = completedTaskIds.size;
+      const totalCount = tasks.length;
+      const allCompleted = totalCount > 0 && completedCount === totalCount;
       
       return {
         path_id: identity.id,
         path_name: identity.template?.name || 'Unknown Path',
         completed_count: completedCount,
-        total_count: tasks.length,
+        total_count: totalCount,
         streak_before: identity.current_streak,
-        streak_after: identity.completed_today 
+        streak_after: allCompleted 
           ? identity.current_streak + 1 
           : 0,
       };
@@ -119,97 +101,88 @@ export const useChronosReset = (): UseChronosResetReturn => {
     // Count completed quests
     const questsCompleted = quests.filter(q => q.status === 'completed').length;
 
-    const record: DailyRecord = {
-      id: `record-${Date.now()}`,
+    const record: Omit<DailyRecord, 'id' | 'created_at'> = {
       user_id: userProfile?.id || 'anonymous',
       date: today,
       path_stats: pathStats,
       quests_completed: questsCompleted,
       total_coins_earned: 0, // Could be calculated from task logs if needed
-      created_at: new Date().toISOString(),
     };
 
     return record;
-  }, [activeIdentities, quests, userProfile?.id]);
+  }, [activeIdentities, dailyTaskStates, quests, userProfile?.id]);
+  void _createDailySnapshot; // Suppress unused warning - kept for fallback
 
   /**
-   * Executes the full reset algorithm
+   * Executes the full reset algorithm using ChronosManager
+   * Implements all 9 rules for daily reset
    */
-  const executeReset = useCallback(async (): Promise<DailyRecord | null> => {
+  const executeReset = useCallback(async (): Promise<void> => {
     if (!userProfile) {
       logger.warn('Cannot execute reset: No user profile');
-      return null;
+      return;
     }
 
     const today = getTodayISO();
-    const todayFormatted = getDateFormatted(new Date());
 
-    logger.info('Executing Chronos Reset', { 
+    logger.info('Executing Chronos Reset via ChronosManager', { 
       lastResetDate: userProfile.last_reset_date, 
       today 
     });
 
     try {
-      // Step D: Create daily snapshot BEFORE any changes
-      const snapshot = createDailySnapshot();
-      
-      // Save to local storage
-      const existingRecords = getDailyRecords();
-      existingRecords.push(snapshot);
-      saveDailyRecords(existingRecords);
-      
-      // Store in gameStore for UI access
-      setLastDailyRecord(snapshot);
-
-      // Step A & B: Path Evaluation and Task Reset
-      // This is handled by the gameStore.resetDailyProgress action
-      // For now, we'll trigger a reload of identities which should handle the reset
-      
-      // Step C: Quest Migration
-      // For recurring quests: reset to 'today' status with new date
-      // For non-recurring quests: move to today if incomplete
-      for (const quest of quests) {
-        if (quest.isRecurring) {
-          // Recurring quest: reset to today, uncheck (rewards kept)
-          await updateQuest(quest.id, {
-            date: todayFormatted,
-            status: 'today',
-            // Note: We don't reset completedAt to keep history
-          });
-          logger.debug('Reset recurring quest', { questId: quest.id, questTitle: quest.title });
-        } else if (quest.status !== 'completed') {
-          // Non-recurring incomplete quest: move to today
-          await updateQuest(quest.id, {
-            date: todayFormatted,
-            status: 'today',
-          });
-          logger.debug('Moved incomplete quest to today', { questId: quest.id });
+      // Execute the centralized reset logic
+      const result = await ChronosManager.executeDailyReset(
+        userProfile,
+        activeIdentities,
+        quests,
+        dailyTaskStates,
+        {
+          updateQuest,
+          updateIdentityStreak,
+          updateLastResetDate,
+          clearDailyTaskStates: () => {
+            // Clear all daily task states in the store
+            // This is done by setting dailyTaskStates to {}
+            // The gameStore.resetDailyProgress handles this
+            useGameStore.getState().resetDailyProgress(dailyTaskStates);
+          },
         }
+      );
+
+      // Store the daily record for Dawn Summary display
+      if (result.dailyRecord) {
+        setLastDailyRecord(result.dailyRecord);
       }
 
-      // Step E: Update last reset date
-      await updateLastResetDate(today);
+      // Show dawn summary if successful
+      if (result.success) {
+        setShowDawnSummary(true);
+      }
 
-      // Show dawn summary
-      setShowDawnSummary(true);
-
-      logger.info('Chronos Reset completed successfully', { 
-        pathsProcessed: activeIdentities.length,
-        questsProcessed: quests.length,
-        snapshot 
+      logger.info('Chronos Reset completed', { 
+        success: result.success,
+        pathsProcessed: result.pathsProcessed,
+        questsProcessed: result.questsProcessed,
+        streaksReset: result.streaksReset.length,
+        streaksMaintained: result.streaksMaintained.length,
+        errors: result.errors,
       });
 
-      return snapshot;
+      if (result.errors.length > 0) {
+        logger.warn('Chronos Reset completed with errors', { errors: result.errors });
+      }
     } catch (error) {
       logger.error('Chronos Reset failed', { error });
-      return null;
+      throw error;
     }
   }, [
     userProfile, 
     activeIdentities, 
     quests, 
+    dailyTaskStates,
     updateQuest, 
-    createDailySnapshot, 
+    updateIdentityStreak,
     setLastDailyRecord,
     setShowDawnSummary,
     updateLastResetDate,
@@ -218,9 +191,9 @@ export const useChronosReset = (): UseChronosResetReturn => {
   /**
    * Manual reset trigger for testing
    */
-  const executeManualReset = useCallback(async (): Promise<DailyRecord | null> => {
+  const executeManualReset = useCallback(async (): Promise<void> => {
     logger.info('Manual Chronos Reset triggered');
-    return executeReset();
+    await executeReset();
   }, [executeReset]);
 
   /**

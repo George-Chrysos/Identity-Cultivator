@@ -15,6 +15,8 @@ interface BaseModalProps {
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
   className?: string;
   overlayClassName?: string;
+  borderColor?: string; // Custom border color (e.g., '#e11d48' for warrior red)
+  glowColor?: string;   // Custom glow color for shadow
 }
 
 const MAX_WIDTH_CLASSES = {
@@ -47,6 +49,8 @@ export const BaseModal = memo(({
   maxWidth = 'lg',
   className = '',
   overlayClassName = '',
+  borderColor = 'rgba(168, 85, 247, 0.5)', // Default purple
+  glowColor = 'rgba(76, 29, 149, 0.4)',    // Default purple glow
 }: BaseModalProps) => {
   const [isAnimating, setIsAnimating] = useState(true);
   
@@ -117,28 +121,29 @@ export const BaseModal = memo(({
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.3, type: 'spring', damping: 25 }}
             onAnimationComplete={handleAnimationComplete}
-            className={`relative w-full ${MAX_WIDTH_CLASSES[maxWidth]} card-base glow-purple overflow-hidden ${className}`}
+            className={`relative w-full ${MAX_WIDTH_CLASSES[maxWidth]} card-base overflow-hidden ${className}`}
             onClick={(e) => e.stopPropagation()}
             style={{
               ...GPU_ACCELERATION_STYLES,
+              border: `2px solid ${borderColor}`,
+              boxShadow: `0 0 12px ${glowColor}, 0 4px 20px -5px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)`,
             }}
           >
-            {/* Header with title and close button */}
-            {(title || showCloseButton) && (
-              <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
-                {title && (
-                  <h2 className="text-lg font-bold text-white">{title}</h2>
-                )}
-                {!title && <div />}
-                {showCloseButton && (
-                  <button
-                    onClick={handleCloseClick}
-                    className="p-2 rounded-lg hover:bg-slate-800/50 transition-colors text-slate-400 hover:text-white"
-                    aria-label="Close modal"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                )}
+            {/* Close button - absolute positioned top-right */}
+            {showCloseButton && (
+              <button
+                onClick={handleCloseClick}
+                className="absolute top-4 right-4 z-10 p-1.5 rounded-lg border border-slate-600 hover:border-slate-500 hover:bg-slate-800/50 transition-all text-slate-400 hover:text-white"
+                aria-label="Close modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+            
+            {/* Header with title - flush to top */}
+            {title && (
+              <div className="px-6 pt-3 pb-4 pr-14 border-b border-slate-700/50">
+                <h2 className="text-xl font-bold text-white m-0 leading-tight">{title}</h2>
               </div>
             )}
 

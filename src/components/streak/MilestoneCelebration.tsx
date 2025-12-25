@@ -34,10 +34,10 @@ interface Particle {
 // ==================== CONSTANTS ====================
 
 const CYAN_COLOR = '#00f2ff';
-const FLASH_DURATION = 100; // ms - faster flash
-const SHOCKWAVE_DURATION = 400; // ms - faster shockwave
+const FLASH_DURATION = 200; // ms - doubled
+const SHOCKWAVE_DURATION = 800; // ms - doubled
 const PARTICLE_COUNT = 30;
-const CELEBRATION_TOTAL_DURATION = 1800; // ms - faster overall animation
+const CELEBRATION_TOTAL_DURATION = 3600; // ms - doubled
 
 // ==================== SUB-COMPONENTS ====================
 

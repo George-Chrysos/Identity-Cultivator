@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FlaskConical, CalendarPlus, Coins, Star } from 'lucide-react';
+import { FlaskConical, CalendarPlus, Coins, Star, RotateCcw } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import { useAuthStore } from '@/store/authStore';
 import { useTestingStore } from '@/store/testingStore';
+import { useQuestStore } from '@/store/questStore';
+import { runAllTests } from '@/tests';
+import { logger } from '@/utils/logger';
 
 const PlayerMenu = () => {
   const [openMenu, setOpenMenu] = useState(false);
@@ -53,6 +56,103 @@ const PlayerMenu = () => {
     e.stopPropagation();
     addTestStars(50);
   }, [addTestStars]);
+
+  const handleRunTests = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('🧪 Running all tests...');
+    runAllTests();
+    setOpenMenu(false);
+  }, []);
+
+  // Reset User (Debug) - Resets coins, stars, paths, quests, and daily records
+  const handleResetUser = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Browser confirmation
+    const confirmed = window.confirm(
+      '⚠️ RESET USER DATA?\n\n' +
+      'This will:\n' +
+      '• Reset Coins to 100\n' +
+      '• Reset Stars to 5\n' +
+      '• Lock all Paths (reset levels/xp to 0)\n' +
+      '• Clear all Quests\n' +
+      '• Clear daily records history\n\n' +
+      'This action cannot be undone!'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      logger.info('🔄 Starting user data reset...');
+      
+      // 1. Reset coins and stars via gameStore
+      const { userProfile, updateRewards } = useGameStore.getState();
+      if (userProfile) {
+        // Calculate delta to reach target values
+        const coinDelta = 100 - userProfile.coins;
+        const starDelta = 5 - (userProfile.stars || 0);
+        
+        // Reset stats to 0
+        await updateRewards(coinDelta, '', 0, starDelta);
+        
+        // Import gameDB to reset stats directly
+        const { gameDB } = await import('@/api/gameDatabase');
+        await gameDB.updateProfile(userProfile.id, {
+          coins: 100,
+          stars: 5,
+          body_points: 0,
+          mind_points: 0,
+          soul_points: 0,
+          will_points: 0,
+        });
+        
+        // Reload profile
+        await useGameStore.getState().loadUserProfile(userProfile.id);
+        logger.info('✅ Reset coins to 100, stars to 5, stats to 0');
+      }
+      
+      // 2. Clear all quests
+      const questState = useQuestStore.getState();
+      const questIds = questState.quests.map(q => q.id);
+      for (const id of questIds) {
+        await questState.deleteQuest(id);
+      }
+      logger.info('✅ Cleared all quests');
+      
+      // 3. Deactivate all paths and reset path tree
+      const gameState = useGameStore.getState();
+      if (userProfile && gameState.activeIdentities) {
+        // Deactivate all identities using gameStore method
+        for (const identity of gameState.activeIdentities) {
+          await gameState.deactivateIdentity(identity.id);
+          gameState.clearDailyTasks(identity.id);
+        }
+        
+        // Reload active identities (should be empty now)
+        await gameState.loadActiveIdentities(userProfile.id);
+        logger.info('✅ Deactivated all paths');
+      }
+      
+      // 4. Clear daily task states from store
+      useGameStore.setState({ 
+        dailyTaskStates: {},
+        activeIdentities: [],
+      });
+      logger.info('✅ Reset daily task states');
+      
+      // 5. Force page reload to reset path tree state
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+      
+      setOpenMenu(false);
+      logger.info('🎉 User data reset complete!');
+      
+    } catch (error) {
+      logger.error('Failed to reset user data', { error });
+      alert('Failed to reset user data. Check console for details.');
+    }
+  }, []);
 
   if (!userProfile) return null;
 
@@ -153,6 +253,27 @@ const PlayerMenu = () => {
                   <span className="text-xs text-slate-500">
                     {userProfile.stars || 0}
                   </span>
+                </button>
+
+                <button
+                  onClick={handleRunTests}
+                  className="w-full text-left px-4 py-3 text-sm flex items-center gap-3 text-green-300 hover:bg-green-500/10 transition-colors border-t border-slate-700/50"
+                  role="menuitem"
+                >
+                  <FlaskConical className="w-4 h-4 text-green-400" />
+                  <span className="flex-1">Run All Tests</span>
+                  <span className="text-xs text-slate-500">Console</span>
+                </button>
+
+                {/* Reset User Button - Debug Only */}
+                <button
+                  onClick={handleResetUser}
+                  className="w-full text-left px-4 py-3 text-sm flex items-center gap-3 text-red-300 hover:bg-red-500/10 transition-colors border-t border-slate-700/50"
+                  role="menuitem"
+                >
+                  <RotateCcw className="w-4 h-4 text-red-400" />
+                  <span className="flex-1">Reset User (Debug)</span>
+                  <span className="text-xs text-red-400/70">⚠️</span>
                 </button>
               </>
             )}

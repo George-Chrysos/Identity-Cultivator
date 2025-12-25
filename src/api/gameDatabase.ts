@@ -463,12 +463,15 @@ export const gameDB = {
       const leveledUp = newXp >= xpForNextLevel;
       const newLevel = leveledUp ? identity.current_level + 1 : identity.current_level;
 
+      // ❌ BUG FIX: DO NOT increment streak here! 
+      // Streak should only increment once per day when ALL tasks are completed.
+      // This is managed by PathCard.tsx and gameStore.updateIdentityStreak()
       const { data: updatedIdentity, error: updateError } = await supabase
         .from(SUPABASE_TABLES.PLAYER_IDENTITIES)
         .update({
           current_xp: leveledUp ? newXp - xpForNextLevel : newXp,
           current_level: newLevel,
-          current_streak: identity.current_streak + 1,
+          // REMOVED: current_streak increment - handled by PathCard only
         })
         .eq('id', request.identity_instance_id)
         .select()
@@ -516,7 +519,17 @@ export const gameDB = {
     }
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      // Use getTodayDate which respects testing mode
+      const today = (() => {
+        const testingStore = (window as any).__testingStore;
+        if (testingStore) {
+          const state = testingStore.getState();
+          if (state.isTestingMode) {
+            return new Date(state.testingDate).toISOString().split('T')[0];
+          }
+        }
+        return new Date().toISOString().split('T')[0];
+      })();
       
       const { data, error } = await supabase
         .from(SUPABASE_TABLES.TASK_LOGS)
@@ -822,6 +835,221 @@ export const gameDB = {
       return expiredIds.length;
     } catch (error) {
       logger.error('Failed to clean expired market states', error);
+      throw error;
+    }
+  },
+
+  // ==================== DAILY RECORDS ====================
+
+  /**
+   * Save daily record snapshot
+   * Called before daily reset to preserve yesterday's progress
+   */
+  async saveDailyRecord(record: Omit<import('@/types/database').DailyRecord, 'id' | 'created_at'>): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      // Mock DB can store in memory or skip
+      logger.info('Mock DB: Daily record saved to memory', { date: record.date });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from(SUPABASE_TABLES.DAILY_RECORDS)
+        .insert({
+          user_id: record.user_id,
+          date: record.date,
+          path_stats: record.path_stats,
+          quests_completed: record.quests_completed,
+          total_coins_earned: record.total_coins_earned,
+        });
+
+      if (error) throw error;
+
+      logger.info('Daily record saved', { userId: record.user_id, date: record.date });
+    } catch (error) {
+      logger.error('Failed to save daily record', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get recent daily records for a user
+   */
+  async getDailyRecords(userId: string, limit: number = 30): Promise<import('@/types/database').DailyRecord[]> {
+    if (!isSupabaseConfigured()) {
+      return [];
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLES.DAILY_RECORDS)
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+
+      return data || [];
+    } catch (error) {
+      logger.error('Failed to get daily records', error);
+      throw error;
+    }
+  },
+
+  // ==================== DAILY PATH PROGRESS ====================
+
+  /**
+   * Upsert daily path progress (Rule 8)
+   * Called when a task is toggled to track real-time completion percentage
+   */
+  async upsertDailyPathProgress(progress: {
+    user_id: string;
+    path_id: string;
+    date: string;
+    tasks_total: number;
+    tasks_completed: number;
+    status: 'PENDING' | 'COMPLETED';
+  }): Promise<import('@/types/database').DailyPathProgress> {
+    if (!isSupabaseConfigured()) {
+      // Return mock data for local dev
+      const percentage = progress.tasks_total > 0 
+        ? Math.round((progress.tasks_completed / progress.tasks_total) * 100) 
+        : 0;
+      
+      return {
+        id: `mock-progress-${Date.now()}`,
+        user_id: progress.user_id,
+        path_id: progress.path_id,
+        date: progress.date,
+        tasks_total: progress.tasks_total,
+        tasks_completed: progress.tasks_completed,
+        percentage,
+        status: progress.status,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLES.DAILY_PATH_PROGRESS)
+        .upsert({
+          user_id: progress.user_id,
+          path_id: progress.path_id,
+          date: progress.date,
+          tasks_total: progress.tasks_total,
+          tasks_completed: progress.tasks_completed,
+          status: progress.status,
+        }, {
+          onConflict: 'user_id,path_id,date',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      logger.debug('Daily path progress upserted', { 
+        pathId: progress.path_id, 
+        date: progress.date,
+        percentage: data.percentage,
+      });
+      return data;
+    } catch (error) {
+      logger.error('Failed to upsert daily path progress', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get daily path progress for a specific date (Rule 8)
+   * Used to check yesterday's completion for streak verification
+   */
+  async getDailyPathProgress(
+    userId: string, 
+    pathId: string, 
+    date: string
+  ): Promise<import('@/types/database').DailyPathProgress | null> {
+    if (!isSupabaseConfigured()) {
+      return null;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLES.DAILY_PATH_PROGRESS)
+        .select('*')
+        .eq('user_id', userId)
+        .eq('path_id', pathId)
+        .eq('date', date)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Not found
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      logger.error('Failed to get daily path progress', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all daily path progress for a user on a date
+   * Used for calendar view and daily summary
+   */
+  async getAllDailyPathProgress(
+    userId: string, 
+    date: string
+  ): Promise<import('@/types/database').DailyPathProgress[]> {
+    if (!isSupabaseConfigured()) {
+      return [];
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLES.DAILY_PATH_PROGRESS)
+        .select('*')
+        .eq('user_id', userId)
+        .eq('date', date);
+
+      if (error) throw error;
+
+      return data || [];
+    } catch (error) {
+      logger.error('Failed to get all daily path progress', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get daily path progress history for calendar view
+   * Returns progress records for a date range
+   */
+  async getDailyPathProgressHistory(
+    userId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<import('@/types/database').DailyPathProgress[]> {
+    if (!isSupabaseConfigured()) {
+      return [];
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLES.DAILY_PATH_PROGRESS)
+        .select('*')
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+
+      return data || [];
+    } catch (error) {
+      logger.error('Failed to get daily path progress history', error);
       throw error;
     }
   },

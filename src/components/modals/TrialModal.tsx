@@ -70,22 +70,17 @@ export const TrialModal = memo(({
       onClose={onClose}
       maxWidth="2xl"
       showCloseButton={true}
-      className="border-2 border-amber-500"
+      title={trialName}
+      className=""
       overlayClassName="bg-black/90"
+      borderColor="rgba(245, 158, 11, 0.7)"
+      glowColor="rgba(217, 119, 6, 0.5)"
     >
-      <div className="p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h2 
-            className="text-3xl font-bold text-white font-section tracking-wide mb-2"
-            style={{ textShadow: '0 0 15px rgba(245, 158, 11, 0.5)' }}
-          >
-            {trialName}
-          </h2>
-          <p className="text-sm text-amber-400/80 font-medium">
-            {pathName} • Level {level} Trial
-          </p>
-        </div>
+      <div className="px-6 pb-6">
+        {/* Subtitle */}
+        <p className="text-sm text-amber-400/80 font-medium mb-6">
+          {pathName} • Level {level} Trial
+        </p>
 
         {/* Description */}
         <div className="mb-6 p-4 bg-slate-800/40 border border-slate-700/50 rounded-lg">
@@ -156,12 +151,12 @@ export const TrialModal = memo(({
         </div>
 
         {/* Rewards Section - Matching PathCard RewardBar format exactly */}
-        <div className="p-4 bg-slate-800/40 border border-slate-700/50 rounded-lg">
+        <div className="p-4 bg-slate-800/40 border border-amber-500/20 rounded-lg">
           <h3 className="text-sm font-bold text-amber-400 mb-3 uppercase tracking-wider">
             Rewards
           </h3>
-          {/* Row 1: Coins, Body Stat, Stars - all same height */}
-          <div className="flex flex-wrap items-center gap-3 mb-3">
+          {/* Row 1: Coins, Body Stat, Stars - flex-nowrap for responsive fit */}
+          <div className="flex flex-row flex-nowrap items-center gap-2 mb-3">
             {/* Coins - Matching RewardBar format */}
             <div 
               className={REWARD_CARD_CLASSES}

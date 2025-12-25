@@ -40,6 +40,7 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedSubPillar, setSelectedSubPillar] = useState<SubPillarContent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Get setActiveSealIds, sealStats, and userProfile from store
   const { setActiveSealIds, sealStats, userProfile } = useGameStore(
@@ -133,6 +134,15 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
     setTimeout(() => setSelectedSubPillar(null), 300);
   }, []);
 
+  // Animation handlers for performance optimization
+  const handleLayoutAnimationStart = useCallback(() => {
+    setIsAnimating(true);
+  }, []);
+
+  const handleLayoutAnimationComplete = useCallback(() => {
+    setIsAnimating(false);
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -143,11 +153,15 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
         {/* Main Card */}
         <motion.div
           layout
+          onLayoutAnimationStart={handleLayoutAnimationStart}
+          onLayoutAnimationComplete={handleLayoutAnimationComplete}
           className="glass-panel-purple cursor-pointer overflow-visible"
           onClick={() => setIsExpanded(!isExpanded)}
           whileHover={{ 
             borderColor: 'rgba(168, 85, 247, 0.7)',
-            boxShadow: '0 0 20px rgba(76, 29, 149, 0.6)',
+          }}
+          style={{
+            boxShadow: isAnimating ? 'none' : '0 0 20px rgba(76, 29, 149, 0.6)',
           }}
         >
           {/* Collapsed State - Header */}

@@ -1,7 +1,7 @@
 import { useState, memo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, Calendar, Clock, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { QUEST_COIN_REWARDS } from '@/store/questStore';
 import { GPU_ACCELERATION_STYLES } from '@/components/common';
 
@@ -42,6 +42,7 @@ interface QuestCardProps {
   onDateChange?: (questId: string, date: string) => void;
   onTimeChange?: (questId: string, time: string) => void;
   onRecurringToggle?: (questId: string, isRecurring: boolean) => void;
+  onDelete?: (questId: string) => void;
 }
 
 export const QuestCard = memo(({
@@ -53,6 +54,7 @@ export const QuestCard = memo(({
   onDateChange,
   onTimeChange,
   onRecurringToggle,
+  onDelete,
 }: QuestCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -62,6 +64,7 @@ export const QuestCard = memo(({
   const [selectedTime, setSelectedTime] = useState<string>(quest.hour || '--:--');
   const [pickerMonth, setPickerMonth] = useState<number>(new Date().getMonth());
   const [pickerYear, setPickerYear] = useState<number>(new Date().getFullYear());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const toggleExpansion = useCallback(() => {
     setIsAnimating(true);
@@ -146,18 +149,36 @@ export const QuestCard = memo(({
     onRecurringToggle?.(quest.id, !quest.isRecurring);
   }, [onRecurringToggle, quest.id, quest.isRecurring]);
 
+  // Handle delete with confirmation
+  const handleDeleteClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDeleteConfirm(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete?.(quest.id);
+    setShowDeleteConfirm(false);
+  }, [onDelete, quest.id]);
+
+  const handleDeleteCancel = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDeleteConfirm(false);
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       onClick={toggleExpansion}
-      className={`glass-panel-purple p-4 cursor-pointer transition-all ${
+      className={`relative bg-slate-900/60 backdrop-blur-sm rounded-xl p-4 cursor-pointer transition-all border ${
         isCompleted 
-          ? 'opacity-60' 
-          : ''
+          ? 'opacity-60 border-slate-700/30' 
+          : 'border-white/10 hover:border-purple-500/30'
       }`}
       style={{
+        boxShadow: isAnimating ? 'none' : '0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 0 rgba(255, 255, 255, 0.05)',
         backdropFilter: isAnimating ? 'none' : undefined,
         WebkitBackdropFilter: isAnimating ? 'none' : undefined,
         ...GPU_ACCELERATION_STYLES,
@@ -179,16 +200,28 @@ export const QuestCard = memo(({
           </p>
         </div>
 
-        {/* Right Side: Icon */}
-        <motion.div
-          animate={{ rotate: isExpanded ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="flex-shrink-0 ml-4"
-        >
-          <ChevronDown className={`w-5 h-5 transition-colors ${
-            isCompleted ? 'text-slate-600' : 'text-slate-400'
-          }`} />
-        </motion.div>
+        {/* Right Side: Delete Button + Chevron */}
+        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+          {/* Delete Button */}
+          {onDelete && (
+            <button
+              onClick={handleDeleteClick}
+              className="p-1.5 rounded-lg hover:bg-red-500/20 transition-colors text-slate-500 hover:text-red-400"
+              aria-label="Delete quest"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+          {/* Expand Icon */}
+          <motion.div
+            animate={{ rotate: isExpanded ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronDown className={`w-5 h-5 transition-colors ${
+              isCompleted ? 'text-slate-600' : 'text-slate-400'
+            }`} />
+          </motion.div>
+        </div>
       </div>
 
       {/* Expanded Content */}
@@ -585,6 +618,52 @@ export const QuestCard = memo(({
               >
                 Done
               </button>
+              </motion.div>
+            </div>
+          </>
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && createPortal(
+        <AnimatePresence>
+          <>
+            {/* Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleDeleteCancel}
+              className="fixed inset-0 bg-black/60 z-[100]"
+            />
+            {/* Confirmation Modal */}
+            <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative p-6 bg-slate-800 border border-red-500/30 rounded-xl shadow-[0_0_30px_rgba(239,68,68,0.2)] max-w-sm w-full pointer-events-auto"
+              >
+                <h3 className="text-lg font-bold text-white mb-2">Abandon Quest?</h3>
+                <p className="text-sm text-slate-400 mb-6">
+                  Are you sure you want to abandon "{quest.title}"? This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleDeleteCancel}
+                    className="flex-1 py-2 px-4 rounded-lg bg-slate-700/50 border border-slate-600 text-slate-300 hover:bg-slate-700 transition-all font-medium text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteConfirm}
+                    className="flex-1 py-2 px-4 rounded-lg bg-red-600/20 border border-red-500/50 text-red-400 hover:bg-red-600/30 hover:border-red-400 transition-all font-medium text-sm"
+                  >
+                    Abandon
+                  </button>
+                </div>
               </motion.div>
             </div>
           </>

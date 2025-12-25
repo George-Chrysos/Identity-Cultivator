@@ -59,6 +59,24 @@ export interface DailyRecord {
 }
 
 /**
+ * Daily path progress tracking for real-time completion percentage
+ * Used for Calendar view and streak verification at midnight
+ * @table public.daily_path_progress
+ */
+export interface DailyPathProgress {
+  id: string;
+  user_id: string;
+  path_id: string; // References player_identities.id
+  date: string; // ISO date string (YYYY-MM-DD)
+  tasks_total: number;
+  tasks_completed: number;
+  percentage: number; // 0-100, auto-calculated
+  status: 'PENDING' | 'COMPLETED';
+  created_at: string;
+  updated_at: string;
+}
+
+/**
  * Static identity definitions (game data)
  * @table public.identity_templates
  */
@@ -313,6 +331,8 @@ export const SUPABASE_TABLES = {
   ITEM_TEMPLATES: 'item_templates',
   PLAYER_INVENTORY: 'player_inventory',
   MARKET_STATES: 'market_states',
+  DAILY_RECORDS: 'daily_records',
+  DAILY_PATH_PROGRESS: 'daily_path_progress',
 } as const;
 
 /**

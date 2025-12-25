@@ -1,4 +1,4 @@
-import { useState, memo, useCallback } from 'react';
+import { useState, memo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToastStore } from '@/store/toastStore';
 import { useGameStore } from '@/store/gameStore';
@@ -178,6 +178,28 @@ export const PathCard = memo(({
   const { updateRewards } = useGameStore();
 
   const progressPercentage = (currentXP / maxXP) * 100;
+
+  // Sync status with task completion state
+  // When tasks are cleared (e.g., daily reset), status should reset to 'pending'
+  // When all tasks are completed, status should update to 'completed'
+  // CRITICAL: Also reset allTasksWereCompleted when tasks are cleared so streak can increment again
+  useEffect(() => {
+    const allCompleted = tasks.length > 0 && completedTasks.size === tasks.length;
+    const tasksCleared = completedTasks.size === 0;
+    const shouldBeCompleted = allCompleted && allTasksWereCompleted;
+    const shouldBePending = !allCompleted || tasksCleared;
+    
+    if (shouldBeCompleted && status !== 'completed') {
+      setStatus('completed');
+    } else if (shouldBePending && status !== 'pending') {
+      setStatus('pending');
+      // Reset the flag when tasks are cleared so streak can increment next time
+      if (tasksCleared && allTasksWereCompleted) {
+        setAllTasksWereCompleted(false);
+      }
+    }
+  }, [completedTasks.size, tasks.length, allTasksWereCompleted, status]);
+  
   // Trial available when progress bar is full (100%) and streak >= 2n+1 where n is currentLevel
   const requiredStreak = 2 * currentLevel + 1;
   const isTrialReady = progressPercentage >= 100 && streak >= requiredStreak;
@@ -340,12 +362,7 @@ export const PathCard = memo(({
             setMilestoneRewardsData({ coins: totalCoins, stars: totalStars, willGain });
             setShowMilestoneCelebration(true);
             
-            showToast(
-              isFinalMilestone 
-                ? `🎉 Milestone Complete! +${totalCoins} coins${totalStars > 0 ? `, +${totalStars} stars` : ''}` 
-                : `⭐ Sub-milestone! +${totalCoins} coins`,
-              'success'
-            );
+            // Don't show toast during milestone celebration - let animation play
           }
         }
       }
@@ -366,8 +383,13 @@ export const PathCard = memo(({
         
         // If all tasks completed, notify parent with new streak value
         if (newCompletedTasks.size === tasks.length && !prevAllTasksCompleted) {
+          logger.info('🎯 All tasks completed - updating streak', { identityId, oldStreak: streak, newStreak });
           await onAllTasksComplete?.(newStreak);
         }
+      } else if (wasCompleted && allTasksWereCompleted && onAllTasksComplete) {
+        // Task uncompleted from "all complete" state - persist streak decrease
+        logger.info('↩️ Task uncompleted - reverting streak', { identityId, oldStreak: streak, newStreak });
+        await onAllTasksComplete(newStreak);
       }
     } catch (error) {
       // Rollback on error
@@ -551,41 +573,43 @@ export const PathCard = memo(({
         />
       )}
       {/* ROW 1: Title, Status, and Streak */}
-      <div className="flex items-start justify-between gap-3 mb-2 relative z-10">
-        {/* Left: Title */}
-        <div className="flex items-center gap-3 min-w-0 flex-shrink">
+      <div className="flex items-start justify-between gap-3 mb-1 relative z-10">
+        {/* Left: Title - fluid scaling, never truncate */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <h3 
-            className="text-2xl font-bold text-white font-section tracking-wide truncate"
-            style={{ textShadow: '0 0 10px rgba(192, 132, 252, 0.4)' }}
-            title={currentTitle}
+            className="font-bold text-white font-section tracking-wide break-words"
+            style={{ 
+              textShadow: '0 0 10px rgba(192, 132, 252, 0.4)',
+              fontSize: 'clamp(1.6rem, 6vw, 2.5rem)'
+            }}
           >
             {currentTitle}
           </h3>
         </div>
         
-        {/* Right: Status Badge (moved to right corner) */}
+        {/* Right: Status Badge */}
         {!isTrialReady && (
           <div 
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex-shrink-0 mr-2 ${
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all flex-shrink-0 mr-1 border-2 ${
               status === 'completed' 
-                ? 'bg-green-500/20 border border-green-400 text-green-400 shadow-[0_0_10px_rgba(74,222,128,0.4)]'
-                : 'bg-transparent border border-slate-600 text-slate-400'
+                ? 'bg-green-500/20 border-green-400 text-green-400 shadow-[0_0_15px_rgba(74,222,128,0.5)]'
+                : 'bg-transparent border-slate-600 text-slate-400'
             }`}
           >
             {status === 'completed' ? 'Complete' : 'Pending'}
           </div>
         )}
         
-        {/* Right: Trial CTA only when ready */}
+        {/* Right: Trial CTA only when ready - scaled down 10% */}
         {isTrialReady && (
           <div className="flex-shrink-0">
             <motion.button
               onClick={handleTrialStart}
-              animate={{ scale: [1, 1.05, 1] }}
+              animate={{ scale: [0.9, 0.945, 0.9] }}
               transition={{ duration: 0.8, repeat: Infinity }}
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-600 to-orange-600 text-white text-xs font-bold tracking-wide shadow-[0_0_15px_rgba(220,38,38,0.6)] hover:shadow-[0_0_25px_rgba(220,38,38,0.8)] transition-shadow"
+              className="px-3 py-1.5 rounded-lg text-sm bg-gradient-to-r mr-1 from-red-600 to-orange-600 text-white font-bold tracking-wide shadow-[0_0_12px_rgba(220,38,38,0.6)] hover:shadow-[0_0_20px_rgba(220,38,38,0.8)] transition-shadow"
             >
-              TRIAL AVAILABLE
+              TRIAL
             </motion.button>
           </div>
         )}

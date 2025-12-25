@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GiSwordSmithing, GiBrain, GiFireShield, GiWaterBolt } from 'react-icons/gi';
 import { useGameStore } from '@/store/gameStore';
@@ -13,11 +13,24 @@ interface SoulInterfaceProps {
 }
 
 const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
+  const [isAnimating, setIsAnimating] = useState(true);
+  
   const userProfile = useGameStore(
     (state) => state.userProfile,
     shallow
   );
   const setUIVisibility = useUIStore((state) => state.setUIVisibility);
+
+  // Reset animation state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setIsAnimating(true);
+    }
+  }, [isOpen]);
+
+  const handleAnimationComplete = useCallback(() => {
+    setIsAnimating(false);
+  }, []);
 
   // Prevent body scroll and hide header/navMenu when modal is open
   useEffect(() => {
@@ -134,14 +147,17 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
           onClick={onClose}
           style={{ transform: 'translateZ(0)' }}
         >
-          {/* Background with glassmorphism and nebula */}
+          {/* Background with glassmorphism and nebula - disable blur during animation */}
           <div 
-            className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl"
+            className="absolute inset-0 bg-slate-950/90"
             style={{
+              backdropFilter: isAnimating ? 'none' : 'blur(16px)',
+              WebkitBackdropFilter: isAnimating ? 'none' : 'blur(16px)',
               background: `
                 radial-gradient(circle at center, rgba(46, 16, 101, 0.3) 0%, transparent 70%),
                 linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(2, 6, 23, 0.95) 100%)
               `,
+              transition: 'backdrop-filter 200ms ease-out',
             }}
           >
             {/* Subtle noise texture overlay */}
@@ -154,19 +170,31 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
             />
           </div>
 
-          {/* Main Window */}
+          {/* Main Window - disable heavy effects during animation */}
           <motion.div
-            initial={{ scale: 0.8, opacity: 0, filter: 'blur(10px)' }}
-            animate={{ scale: 1, opacity: 1, filter: 'blur(0px)' }}
-            exit={{ scale: 0.8, opacity: 0, filter: 'blur(10px)' }}
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
             transition={{ 
               type: 'spring',
               stiffness: 300,
               damping: 25,
             }}
-            className="relative max-w-md w-full max-h-[90vh] overflow-y-auto bg-slate-900/40 backdrop-blur-md border-2 border-purple-500/30 rounded-3xl shadow-[0_0_50px_rgba(139,92,246,0.3)]"
+            onAnimationComplete={handleAnimationComplete}
+            className="relative max-w-md w-full bg-slate-900/40 border-2 border-purple-500/30 rounded-3xl"
             onClick={(e) => e.stopPropagation()}
-            style={{ transform: 'translateZ(0)' }}
+            style={{ 
+              transform: 'translateZ(0)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              backdropFilter: isAnimating ? 'none' : 'blur(12px)',
+              WebkitBackdropFilter: isAnimating ? 'none' : 'blur(12px)',
+              boxShadow: isAnimating ? 'none' : '0 0 50px rgba(139, 92, 246, 0.3)',
+              transition: 'backdrop-filter 200ms ease-out, box-shadow 200ms ease-out',
+            }}
           >
             {/* Header Title */}
             <div className="pt-8 pb-4 text-center mb-16">

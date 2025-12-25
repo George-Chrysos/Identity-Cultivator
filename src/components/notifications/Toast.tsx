@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { useToastStore, Toast as ToastType } from '@/store/toastStore';
@@ -29,7 +29,7 @@ interface ToastItemProps {
   toast: ToastType;
 }
 
-const ToastItem = ({ toast }: ToastItemProps) => {
+const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast }, ref) => {
   const removeToast = useToastStore((state) => state.removeToast);
   
   // Skip rendering acquisition toasts (handled by AcquisitionToast component)
@@ -49,6 +49,7 @@ const ToastItem = ({ toast }: ToastItemProps) => {
 
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0, y: -50, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -20, scale: 0.95 }}
@@ -56,7 +57,7 @@ const ToastItem = ({ toast }: ToastItemProps) => {
         flex items-center gap-3 p-4 rounded-lg border backdrop-blur-sm
         ${ToastColors[toast.type]}
         ${ToastShadows[toast.type]}
-        max-w-sm w-full
+        max-w-[70vw] w-full
         text-white font-medium text-sm
       `}
     >
@@ -70,7 +71,9 @@ const ToastItem = ({ toast }: ToastItemProps) => {
       </button>
     </motion.div>
   );
-};
+});
+
+ToastItem.displayName = 'ToastItem';
 
 export const ToastContainer = () => {
   const toasts = useToastStore((state) => state.toasts);

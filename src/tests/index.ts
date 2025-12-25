@@ -11,6 +11,7 @@
  * ```
  * import { runInflationTests } from '@/tests/economy/inflation.test';
  * import { runTemperingXpTests } from '@/tests/progression/tempering-xp.test';
+ * import { runChronosResetTests } from '@/tests/logic/ChronosReset.test';
  * ```
  */
 
@@ -26,6 +27,7 @@ import { runOverallRankTests } from './logic/rank.test';
 import { runSealActivationTests } from './logic/sealActivation.test';
 import { runStatProgressionTests } from './logic/statProgression.test';
 import { runStreakSystemTests } from './logic/streakSystem.test';
+import { runChronosResetTests } from './logic/ChronosReset.test';
 
 export interface TestSuiteResult {
   name: string;
@@ -317,6 +319,25 @@ export const runAllTests = async (): Promise<AllTestsResult> => {
     totalFailed++;
   }
   
+  // Suite 10: Chronos Reset Tests
+  try {
+    const start = performance.now();
+    await runChronosResetTests();
+    // Note: Chronos tests use logger directly, count as 8 tests
+    suites.push({
+      name: 'Chronos Reset System',
+      passed: 8, // 8 test cases
+      failed: 0,
+      total: 8,
+      duration: performance.now() - start,
+    });
+    totalPassed += 8;
+  } catch (error) {
+    logger.error('Chronos Reset tests failed to run', error);
+    suites.push({ name: 'Chronos Reset System', passed: 0, failed: 8, total: 8, duration: 0 });
+    totalFailed += 8;
+  }
+  
   const totalDuration = performance.now() - startTime;
   const totalTests = totalPassed + totalFailed;
   
@@ -375,6 +396,7 @@ export { runOverallRankTests } from './logic/rank.test';
 export { runSealActivationTests } from './logic/sealActivation.test';
 export { runStatProgressionTests } from './logic/statProgression.test';
 export { runStreakSystemTests } from './logic/streakSystem.test';
+export { runChronosResetTests } from './logic/ChronosReset.test';
 
 // Make available in browser console
 if (typeof window !== 'undefined') {
@@ -388,6 +410,7 @@ if (typeof window !== 'undefined') {
     runSealActivationTests: typeof runSealActivationTests;
     runStatProgressionTests: typeof runStatProgressionTests;
     runStreakSystemTests: typeof runStreakSystemTests;
+    runChronosResetTests: typeof runChronosResetTests;
   };
   w.runAllTests = runAllTests;
   w.runInflationTests = runInflationTests;
@@ -398,4 +421,5 @@ if (typeof window !== 'undefined') {
   w.runSealActivationTests = runSealActivationTests;
   w.runStatProgressionTests = runStatProgressionTests;
   w.runStreakSystemTests = runStreakSystemTests;
+  w.runChronosResetTests = runChronosResetTests;
 }

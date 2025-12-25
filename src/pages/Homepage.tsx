@@ -149,7 +149,15 @@ const Homepage = () => {
       
       // Determine status based on date
       const getTodayFormatted = () => {
-        const today = new Date();
+        // Check if testing mode is active
+        const testingStore = (window as any).__testingStore;
+        let today = new Date();
+        if (testingStore) {
+          const state = testingStore.getState();
+          if (state.isTestingMode) {
+            today = new Date(state.testingDate);
+          }
+        }
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         return `${months[today.getMonth()]} ${today.getDate()}`;
       };
@@ -173,7 +181,18 @@ const Homepage = () => {
     }
   };
 
-  const todayDisplay = new Date().toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+  // Get display date (respects testing mode)
+  const getDisplayDate = () => {
+    const testingStore = (window as any).__testingStore;
+    if (testingStore) {
+      const state = testingStore.getState();
+      if (state.isTestingMode) {
+        return new Date(state.testingDate);
+      }
+    }
+    return new Date();
+  };
+  const todayDisplay = getDisplayDate().toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
 
   // Debug logging
   logger.debug('Render state', { 

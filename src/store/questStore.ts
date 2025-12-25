@@ -91,6 +91,7 @@ interface QuestState {
   addSubQuest: (questId: string, subQuest: Omit<SubQuest, 'id'>) => Promise<void>;
   getQuestById: (questId: string) => Quest | undefined;
   moveIncompleteQuestsToDate: (newDate: Date) => void;
+  resetRecurringQuests: (newDate: Date) => void;
 }
 
 export const useQuestStore = create<QuestState>()(
@@ -337,14 +338,19 @@ export const useQuestStore = create<QuestState>()(
         
         set((state) => ({
           quests: state.quests.map(quest => {
-            // Skip completed quests
+            // Skip completed quests - they stay on their completion date
             if (quest.status === 'completed') {
               return quest;
             }
             
-            // Move all incomplete quests to the new date
+            // Skip recurring quests - they are handled by resetRecurringQuests
+            if (quest.isRecurring) {
+              return quest;
+            }
+            
+            // Move non-recurring incomplete quests to the new date
             if (quest.date !== newDateFormatted) {
-              logger.info('Moving incomplete quest to new date', {
+              logger.info('Moving incomplete non-recurring quest to new date', {
                 questId: quest.id,
                 questTitle: quest.title,
                 oldDate: quest.date,
@@ -354,6 +360,36 @@ export const useQuestStore = create<QuestState>()(
             }
             
             return quest;
+          }),
+        }));
+      },
+
+      resetRecurringQuests: (newDate: Date) => {
+        const newDateFormatted = getDateFormatted(newDate);
+        
+        set((state) => ({
+          quests: state.quests.map(quest => {
+            // Only process recurring quests
+            if (!quest.isRecurring) {
+              return quest;
+            }
+            
+            // Move recurring quest to new date and reset to uncompleted status
+            logger.info('Resetting recurring quest for new day', {
+              questId: quest.id,
+              questTitle: quest.title,
+              oldDate: quest.date,
+              newDate: newDateFormatted,
+              wasCompleted: quest.status === 'completed',
+            });
+            
+            return {
+              ...quest,
+              date: newDateFormatted,
+              status: 'today' as const,
+              // Reset completedAt if it was completed (for daily recurrence)
+              completedAt: undefined,
+            };
           }),
         }));
       },

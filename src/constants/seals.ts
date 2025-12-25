@@ -216,8 +216,17 @@ export const shouldResetSeals = (lastActivatedDate?: string): boolean => {
 
 /**
  * Get today's date as ISO string (YYYY-MM-DD)
+ * Respects testing mode if active
  */
 export const getTodayDate = (): string => {
+  // Check if testing mode is active via global store
+  const testingStore = (window as any).__testingStore;
+  if (testingStore) {
+    const state = testingStore.getState();
+    if (state.isTestingMode) {
+      return new Date(state.testingDate).toISOString().split('T')[0];
+    }
+  }
   return new Date().toISOString().split('T')[0];
 };
 

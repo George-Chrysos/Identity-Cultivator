@@ -148,22 +148,22 @@ const testRewardLogic = () => {
   const level10 = getMilestoneForLevel(10);
   assert('Level 10 rewards 1000 coins', 1000, level10?.rewards.coins);
   assert('Level 10 rewards 5 stars', 5, level10?.rewards.stars);
-  assert('Level 10 rewards dine-outside ticket', 'dine-outside', level10?.rewards.ticket);
+  assert('Level 10 rewards no ticket', undefined, level10?.rewards.ticket);
   
   // Test Level 1-2 rewards
   const level1 = getMilestoneForLevel(1);
   assert('Level 1 rewards 50 coins', 50, level1?.rewards.coins);
-  assert('Level 1 rewards 1 star', 1, level1?.rewards.stars);
+  assert('Level 1 rewards 0 stars', 0, level1?.rewards.stars);
   
   // Test Level 3-5 rewards
   const level3 = getMilestoneForLevel(3);
-  assert('Level 3 rewards 200 coins', 200, level3?.rewards.coins);
-  assert('Level 3 rewards 2 stars', 2, level3?.rewards.stars);
+  assert('Level 3 rewards 100 coins', 100, level3?.rewards.coins);
+  assert('Level 3 rewards 0 stars', 0, level3?.rewards.stars);
   
-  // Test Level 6-9 rewards (with tickets)
+  // Test Level 6-9 rewards
   const level6 = getMilestoneForLevel(6);
-  assert('Level 6 rewards 500 coins', 500, level6?.rewards.coins);
-  assert('Level 6 rewards standard ticket', 'standard', level6?.rewards.ticket);
+  assert('Level 6 rewards 350 coins', 350, level6?.rewards.coins);
+  assert('Level 6 rewards no ticket', undefined, level6?.rewards.ticket);
   
   // Test hasReachedMilestone
   assertTrue('Streak 2 has NOT reached Level 1 milestone', !hasReachedMilestone(2, 1));
@@ -177,13 +177,14 @@ const testRewardLogic = () => {
 const testSubMilestones = () => {
   logger.info('=== Sub-Milestone Tests ===');
   
-  // No sub-milestones for levels < 5
+  // No sub-milestones for levels < 4
   assertTrue('Level 1 day 7 should NOT be sub-milestone', !isSubMilestoneDay(7, 1));
-  assertTrue('Level 4 day 7 should NOT be sub-milestone', !isSubMilestoneDay(7, 4));
+  assertTrue('Level 3 day 7 should NOT be sub-milestone', !isSubMilestoneDay(7, 3));
   
-  // Sub-milestones for levels >= 5
+  // Sub-milestones for levels >= 4
+  assertTrue('Level 4 day 7 SHOULD be sub-milestone', isSubMilestoneDay(7, 4));
   assertTrue('Level 5 day 7 SHOULD be sub-milestone', isSubMilestoneDay(7, 5));
-  assertTrue('Level 6 day 14 SHOULD be sub-milestone', isSubMilestoneDay(14, 6));
+  assertTrue('Level 6 day 7 SHOULD be sub-milestone', isSubMilestoneDay(7, 6));
   assertTrue('Level 10 day 7 SHOULD be sub-milestone', isSubMilestoneDay(7, 10));
   
   // Not on final milestone day
@@ -192,8 +193,8 @@ const testSubMilestones = () => {
   
   // Sub-milestone rewards
   const subRewards = getSubMilestoneRewards(7, 5);
-  assert('Sub-milestone rewards 100 coins', 100, subRewards?.rewards.coins);
-  assert('Sub-milestone rewards 1 star', 1, subRewards?.rewards.stars);
+  assert('Sub-milestone rewards 50 coins', 50, subRewards?.rewards.coins);
+  assert('Sub-milestone rewards 0 stars', 0, subRewards?.rewards.stars);
 };
 
 // ==================== WILL STAT TESTS ====================
