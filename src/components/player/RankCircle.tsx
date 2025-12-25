@@ -5,9 +5,10 @@ interface RankCircleProps {
   glowColor: string;
   rankStyle: React.CSSProperties;
   size?: number;
+  plasmaIntensity?: number; // 0-100, higher ranks = higher value
 }
 
-const RankCircle = ({ rankTier, glowColor, rankStyle, size = 88 }: RankCircleProps) => {
+const RankCircle = ({ rankTier, glowColor, rankStyle, size = 88, plasmaIntensity = 15 }: RankCircleProps) => {
   // Animation variants for the rotating energy layers
   const spinClockwise = {
     animate: { rotate: 360 },
@@ -49,9 +50,9 @@ const RankCircle = ({ rankTier, glowColor, rankStyle, size = 88 }: RankCirclePro
           style={{
             background: `
               radial-gradient(circle at 30% 40%, ${glowColor} 0%, transparent 20%),
-              radial-gradient(circle at 70% 60%, ${glowColor}40 0%, transparent 85%),
-              radial-gradient(circle at 50% 20%, ${glowColor}60 0%, transparent 45%),
-              radial-gradient(circle at 80% 40%, ${glowColor}50 0%, transparent 60%)
+              radial-gradient(circle at 70% 60%, ${glowColor}40 0%, transparent 35%),
+              radial-gradient(circle at 50% 20%, ${glowColor}60 0%, transparent 35%),
+              radial-gradient(circle at 80% 40%, ${glowColor}50 0%, transparent 20%)
             `
           }}
         />
@@ -62,9 +63,9 @@ const RankCircle = ({ rankTier, glowColor, rankStyle, size = 88 }: RankCirclePro
           {...spinCounterClockwise}
           style={{
             background: `
-              radial-gradient(circle at 60% 30%, ${glowColor} 0%, transparent 28%),
-              radial-gradient(circle at 20% 80%, ${glowColor}60 0%, transparent 2%),
-              radial-gradient(circle at 85% 70%, ${glowColor}50 0%, transparent 25%)
+              radial-gradient(circle at 60% 30%, ${glowColor} 0%, transparent 38%),
+              radial-gradient(circle at 20% 80%, ${glowColor}60 0%, transparent ${plasmaIntensity}%),
+              radial-gradient(circle at 85% 70%, ${glowColor}50 0%, transparent ${plasmaIntensity}%)
             `
           }}
         />
@@ -83,7 +84,7 @@ const RankCircle = ({ rankTier, glowColor, rankStyle, size = 88 }: RankCirclePro
             className="text-3xl font-black tracking-tighter"
             style={{ 
               ...rankStyle,
-              marginLeft: '-5%',
+              marginLeft: '-3%',
               textShadow: `
                 -1px -1px 0 rgba(0, 0, 0, 0.8),
                 1px -1px 0 rgba(0, 0, 0, 0.8),

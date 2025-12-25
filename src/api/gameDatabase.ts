@@ -351,6 +351,30 @@ export const gameDB = {
   },
 
   /**
+   * Delete an identity (used for reset operations)
+   */
+  async deleteIdentity(identityId: string): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      const mockDB = await getMockDB();
+      return mockDB.deactivateIdentity(identityId);
+    }
+
+    try {
+      const { error } = await supabase
+        .from(SUPABASE_TABLES.PLAYER_IDENTITIES)
+        .delete()
+        .eq('id', identityId);
+
+      if (error) throw error;
+
+      logger.info('Identity deleted', { identityId });
+    } catch (error) {
+      logger.error('Failed to delete identity', error);
+      throw error;
+    }
+  },
+
+  /**
    * Update an identity's properties (e.g., streak, XP)
    */
   async updateIdentity(identityId: string, updates: Partial<PlayerIdentity>): Promise<PlayerIdentity> {

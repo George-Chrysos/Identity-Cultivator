@@ -112,18 +112,19 @@ const PlayerMenu = () => {
       }
       logger.info('✅ Cleared all quests');
       
-      // 3. Deactivate all paths and reset path tree
+      // 3. Delete all paths (instead of deactivate to avoid UNIQUE constraint conflicts)
       const gameState = useGameStore.getState();
       if (userProfile && gameState.activeIdentities) {
-        // Deactivate all identities using gameStore method
+        // Delete all identities using gameDB
+        const { gameDB } = await import('@/api/gameDatabase');
         for (const identity of gameState.activeIdentities) {
-          await gameState.deactivateIdentity(identity.id);
+          await gameDB.deleteIdentity(identity.id);
           gameState.clearDailyTasks(identity.id);
         }
         
         // Reload active identities (should be empty now)
         await gameState.loadActiveIdentities(userProfile.id);
-        logger.info('✅ Deactivated all paths');
+        logger.info('✅ Deleted all paths');
       }
       
       // 4. Clear daily task states from store

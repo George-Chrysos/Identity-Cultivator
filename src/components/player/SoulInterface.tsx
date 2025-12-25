@@ -4,7 +4,7 @@ import { GiSwordSmithing, GiBrain, GiFireShield, GiWaterBolt } from 'react-icons
 import { useGameStore } from '@/store/gameStore';
 import { useUIStore } from '@/store/uiStore';
 import { getRankStyle, getRankGlowColor } from '@/utils/rankStyles';
-import { calculateOverallRank } from '@/utils/overallRank';
+import { calculateOverallRank, getRankPlasmaIntensity } from '@/utils/overallRank';
 import { shallow } from 'zustand/shallow';
 import RankCircle from './RankCircle';
 
@@ -239,7 +239,8 @@ const SoulInterface = ({ isOpen, onClose }: SoulInterfaceProps) => {
                   rankTier={overallRank.rankTier}
                   glowColor={getRankGlowColor(overallRank.rankTier)}
                   rankStyle={getRankStyle(overallRank.rankTier)}
-                  size={80}
+                  size={95}
+                  plasmaIntensity={getRankPlasmaIntensity(overallRank.rankTier)}
                 />
               </div>
             </div>

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import { getRankStyle, getRankGlowColor } from '@/utils/rankStyles';
-import { calculateOverallRank } from '@/utils/overallRank';
+import { calculateOverallRank, getRankPlasmaIntensity } from '@/utils/overallRank';
 import { shallow } from 'zustand/shallow';
 import RankCircle from './RankCircle';
 
@@ -11,7 +11,7 @@ import RankCircle from './RankCircle';
 const SoulInterface = lazy(() => import('./SoulInterface'));
 
 // Medallion size constants
-const MEDALLION_SIZE = 88;
+const MEDALLION_SIZE = 90;
 const CUTOUT_RADIUS = 46;
 
 
@@ -97,8 +97,8 @@ const PlayerCard = memo(() => {
             style={{
               width: MEDALLION_SIZE,
               height: MEDALLION_SIZE,
-              top: '0%',
-              left: '36%',
+              top: '-2%',
+              left: '35%',
               transform: 'translate(-50%, -50%)',
               zIndex: 10,
               pointerEvents: 'none',
@@ -109,6 +109,7 @@ const PlayerCard = memo(() => {
               glowColor={glowColor} 
               rankStyle={rankStyle}
               size={MEDALLION_SIZE}
+              plasmaIntensity={getRankPlasmaIntensity(overallRank.rankTier)}
             />
           </motion.div>
         </div>

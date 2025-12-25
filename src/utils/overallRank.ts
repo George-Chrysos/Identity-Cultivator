@@ -146,3 +146,26 @@ export const calculateOverallRank = (dimensions: PlayerDimensions): OverallRankR
     rankTier,
   };
 };
+
+/**
+ * Get plasma intensity value based on rank tier
+ * Maps base rank letter to visual intensity percentage
+ * E=15, D=30, C=45, B=60, A=75, S=98
+ */
+export const getRankPlasmaIntensity = (rankTier: string): number => {
+  const baseRank = rankTier.replace('+', '');
+  
+  const intensityMap: Record<string, number> = {
+    'F': 15,
+    'E': 15,
+    'D': 30,
+    'C': 45,
+    'B': 60,
+    'A': 75,
+    'S': 98,
+    'SS': 98,
+    'SSS': 98,
+  };
+  
+  return intensityMap[baseRank] || 15;
+};
