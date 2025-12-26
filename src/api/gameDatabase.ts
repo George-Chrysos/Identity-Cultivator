@@ -947,6 +947,7 @@ export const gameDB = {
           status: progress.status,
           completed_task_ids: progress.completed_task_ids,
           completed_subtask_ids: progress.completed_subtask_ids,
+          updated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id,path_id,date',
         })

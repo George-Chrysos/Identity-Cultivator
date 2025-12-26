@@ -48,7 +48,7 @@
 @layer components {
   /* Base card style - universal background, border-radius, and backdrop */
   .card-base {
-    @apply relative bg-slate-950/80 backdrop-blur-xl rounded-2xl;
+    @apply relative bg-slate-950/60 backdrop-blur-xl rounded-2xl;
     box-shadow: 
       0 4px 20px -5px rgba(0, 0, 0, 0.5),
       inset 0 1px 0 0 rgba(255, 255, 255, 0.1); /* The "Light Lip" */

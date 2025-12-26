@@ -15,7 +15,8 @@ import { QuestList } from '@/components/quest';
 import { logger } from '@/utils/logger';
 import { shallow } from 'zustand/shallow';
 import { StatType } from '@/constants/statRanks';
-import { getTemperingLevel, generateTemperingTaskTemplates } from '@/constants/temperingPath';
+import { getTemperingLevel, generateTemperingTaskTemplates, TEMPERING_TEMPLATE_ID } from '@/constants/temperingPath';
+import { getPresenceLevel, generatePresenceTaskTemplates, PRESENCE_TEMPLATE_ID } from '@/constants/presencePath';
 import { useChronosReset } from '@/hooks';
 
 const Homepage = () => {
@@ -359,12 +360,22 @@ const Homepage = () => {
           ) : (
             <div className="flex flex-col items-center gap-6 w-full max-w-2xl mx-auto">
               {activeIdentities.map((identity) => {
-                // Check if this is a tempering identity
-                const isTemperingPath = identity.template.id.startsWith('tempering-warrior-trainee');
+                // Determine which path this identity belongs to
+                const isTemperingPath = identity.template.id.startsWith(TEMPERING_TEMPLATE_ID);
+                const isPresencePath = identity.template.id.startsWith(PRESENCE_TEMPLATE_ID);
                 const currentLevel = identity.current_level;
                 
-                // Get tempering level config if applicable
+                // Get level config from appropriate path constants (source of truth)
                 const temperingConfig = isTemperingPath ? getTemperingLevel(currentLevel) : null;
+                const presenceConfig = isPresencePath ? getPresenceLevel(currentLevel) : null;
+                const pathConfig = temperingConfig || presenceConfig;
+                
+                // Determine path_id for registry lookup
+                const pathId = isTemperingPath 
+                  ? TEMPERING_TEMPLATE_ID 
+                  : isPresencePath 
+                    ? PRESENCE_TEMPLATE_ID 
+                    : undefined;
                 
                 // Transform tasks to PathCard format - include path_id and path_level for registry lookup
                 const transformedTasks = identity.available_tasks.map((task) => {
@@ -384,8 +395,8 @@ const Homepage = () => {
                       description: subtask.description,
                     })),
                     // Path integration - enables dynamic reward lookup from pathRegistry
-                    path_id: task.path_id || (isTemperingPath ? 'tempering-warrior-trainee' : undefined),
-                    path_level: task.path_level || (isTemperingPath ? currentLevel : undefined),
+                    path_id: task.path_id || pathId,
+                    path_level: task.path_level || currentLevel,
                   };
                   logger.debug('Task transformed', { 
                     taskId: task.id, 
@@ -393,60 +404,98 @@ const Homepage = () => {
                     finalPathId: transformed.path_id,
                     finalPathLevel: transformed.path_level,
                     isTemperingPath,
+                    isPresencePath,
                   });
                   return transformed;
                 });
 
-                // Calculate XP to next level
-                const maxXP = temperingConfig?.xpToLevelUp || 100 * (currentLevel + 1);
+                // Calculate XP to next level from path config
+                const maxXP = pathConfig?.xpToLevelUp || 100 * (currentLevel + 1);
                 
-                // Build trial info from tempering config
-                const trialInfo = temperingConfig ? {
-                  name: temperingConfig.trial.name,
-                  description: temperingConfig.trial.focus,
-                  tasks: temperingConfig.trial.tasks,
-                  rewards: temperingConfig.trial.rewards,
+                // Build trial info from path config
+                const trialInfo = pathConfig ? {
+                  name: pathConfig.trial.name,
+                  description: pathConfig.trial.focus,
+                  tasks: pathConfig.trial.tasks,
+                  rewards: pathConfig.trial.rewards,
                 } : undefined;
 
-                // Helper to get next level data for level up
+                // Helper to get next level data for level up (supports both paths)
                 const getNextLevelData = (newLevel: number) => {
-                  const nextConfig = getTemperingLevel(newLevel);
-                  if (!nextConfig) return null;
-                  
-                  // Generate tasks for next level
-                  const nextTasks = generateTemperingTaskTemplates(newLevel);
-                  const transformedNextTasks = nextTasks.map((task) => ({
-                    id: task.id,
-                    title: task.name,
-                    description: task.description || '',
-                    rewards: {
-                      xp: task.xp_reward,
-                      stat: task.target_stat,
-                      points: task.base_points_reward,
-                      coins: task.coin_reward,
-                    },
-                    subtasks: task.subtasks?.map((st) => ({
-                      id: st.id,
-                      name: st.name,
-                      description: st.description,
-                    })),
-                    // Path integration for next level
-                    path_id: task.path_id || 'tempering-warrior-trainee',
-                    path_level: task.path_level || newLevel,
-                  }));
-                  
-                  return {
-                    title: `Tempering Lv.${newLevel}`,
-                    subtitle: nextConfig.subtitle,
-                    tasks: transformedNextTasks,
-                    trialInfo: {
-                      name: nextConfig.trial.name,
-                      description: nextConfig.trial.focus,
-                      tasks: nextConfig.trial.tasks,
-                      rewards: nextConfig.trial.rewards,
-                    },
-                    maxXP: nextConfig.xpToLevelUp,
-                  };
+                  if (isTemperingPath) {
+                    const nextConfig = getTemperingLevel(newLevel);
+                    if (!nextConfig) return null;
+                    
+                    const nextTasks = generateTemperingTaskTemplates(newLevel);
+                    const transformedNextTasks = nextTasks.map((task) => ({
+                      id: task.id,
+                      title: task.name,
+                      description: task.description || '',
+                      rewards: {
+                        xp: task.xp_reward,
+                        stat: task.target_stat,
+                        points: task.base_points_reward,
+                        coins: task.coin_reward,
+                      },
+                      subtasks: task.subtasks?.map((st) => ({
+                        id: st.id,
+                        name: st.name,
+                        description: st.description,
+                      })),
+                      path_id: task.path_id || TEMPERING_TEMPLATE_ID,
+                      path_level: task.path_level || newLevel,
+                    }));
+                    
+                    return {
+                      title: `Tempering Lv.${newLevel}`,
+                      subtitle: nextConfig.subtitle,
+                      tasks: transformedNextTasks,
+                      trialInfo: {
+                        name: nextConfig.trial.name,
+                        description: nextConfig.trial.focus,
+                        tasks: nextConfig.trial.tasks,
+                        rewards: nextConfig.trial.rewards,
+                      },
+                      maxXP: nextConfig.xpToLevelUp,
+                    };
+                  } else if (isPresencePath) {
+                    const nextConfig = getPresenceLevel(newLevel);
+                    if (!nextConfig) return null;
+                    
+                    const nextTasks = generatePresenceTaskTemplates(newLevel);
+                    const transformedNextTasks = nextTasks.map((task) => ({
+                      id: task.id,
+                      title: task.name,
+                      description: task.description || '',
+                      rewards: {
+                        xp: task.xp_reward,
+                        stat: task.target_stat,
+                        points: task.base_points_reward,
+                        coins: task.coin_reward,
+                      },
+                      subtasks: task.subtasks?.map((st) => ({
+                        id: st.id,
+                        name: st.name,
+                        description: st.description,
+                      })),
+                      path_id: task.path_id || PRESENCE_TEMPLATE_ID,
+                      path_level: task.path_level || newLevel,
+                    }));
+                    
+                    return {
+                      title: `Presence Lv.${newLevel}`,
+                      subtitle: nextConfig.subtitle,
+                      tasks: transformedNextTasks,
+                      trialInfo: {
+                        name: nextConfig.trial.name,
+                        description: nextConfig.trial.focus,
+                        tasks: nextConfig.trial.tasks,
+                        rewards: nextConfig.trial.rewards,
+                      },
+                      maxXP: nextConfig.xpToLevelUp,
+                    };
+                  }
+                  return null;
                 };
 
                 return (
@@ -454,7 +503,7 @@ const Homepage = () => {
                     <PathCard
                       identityId={identity.id}
                       title={identity.template.name.split(' - ')[0]}
-                      subtitle={temperingConfig?.subtitle}
+                      subtitle={pathConfig?.subtitle}
                       status={identity.completed_today ? 'completed' : 'pending'}
                       currentXP={identity.current_xp}
                       maxXP={maxXP}
@@ -462,7 +511,7 @@ const Homepage = () => {
                       level={currentLevel}
                       tasks={transformedTasks}
                       trialInfo={trialInfo}
-                      onLevelUp={isTemperingPath ? getNextLevelData : undefined}
+                      onLevelUp={(isTemperingPath || isPresencePath) ? getNextLevelData : undefined}
                       onTaskComplete={async (taskId) => {
                         logger.info('Task completed', { taskId, identityId: identity.id });
                         const result = await useGameStore.getState().completeTask(identity.id, taskId);

@@ -181,21 +181,21 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
                   <motion.div
                     key={seal.id}
                     animate={
-                      isActive
+                      isActive && !isAnimating
                         ? {
                             filter: [
-                              'drop-shadow(0 0 6px rgba(147, 51, 234, 1)) drop-shadow(0 0 12px rgba(147, 51, 234, 0.6))',
-                              'drop-shadow(0 0 10px rgba(147, 51, 234, 0.8)) drop-shadow(0 0 20px rgba(147, 51, 234, 0.4))',
-                              'drop-shadow(0 0 6px rgba(147, 51, 234, 1)) drop-shadow(0 0 12px rgba(147, 51, 234, 0.6))',
+                              'drop-shadow(0 0 6px rgba(147, 51, 234, 1))',
+                              'drop-shadow(0 0 10px rgba(147, 51, 234, 0.8))',
+                              'drop-shadow(0 0 6px rgba(147, 51, 234, 1))',
                             ],
                           }
-                        : {}
+                        : { filter: 'none' }
                     }
                     transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
                     className="relative"
                   >
                     <Icon
-                      className={`h-7 w-7 transition-colors ${
+                      className={`h-6 w-6 transition-colors ${
                         isActive ? 'text-purple-500' : 'text-slate-500'
                       }`}
                     />
@@ -208,9 +208,9 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
             <motion.div
               animate={{ rotate: isExpanded ? 180 : 0 }}
               transition={{ duration: 0.3 }}
-              className="flex-shrink-0"
+              className="flex-shrink-0 "
             >
-              <ChevronDown className="h-5 w-5 text-slate-400" />
+              <ChevronDown className="h-5 w-5 text-slate-400 " />
             </motion.div>
           </div>
 
@@ -243,9 +243,9 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: 0.1 * index }}
-                          className={`p-4 rounded-xl border transition-all ${
+                          className={`p-4 rounded-xl border transition-colors ${
                             isActive
-                              ? 'bg-violet-950/20 border-violet-700/50 shadow-[0_0_10px_rgba(76,29,149,0.2)]'
+                              ? 'bg-violet-950/20 border-violet-700/50'
                               : 'bg-slate-800/30 border-slate-700/30'
                           }`}
                         >
@@ -301,9 +301,9 @@ const SealsCard = ({ todayLog }: SealsCardProps) => {
                                       <button
                                         onClick={(e) => handleSubPillarToggle(subPillar.id, e)}
                                         disabled={isDisabled}
-                                        className={`relative w-10 h-5 rounded-full transition-all flex-shrink-0 ${
+                                        className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
                                           isSubActive 
-                                            ? 'bg-purple-600 shadow-[0_0_8px_rgba(147,51,234,0.5)]' 
+                                            ? 'bg-purple-600' 
                                             : isDisabled
                                               ? 'bg-slate-800 cursor-not-allowed'
                                               : 'bg-slate-700 hover:bg-slate-600'

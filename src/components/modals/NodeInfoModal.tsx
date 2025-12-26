@@ -144,6 +144,10 @@ const NODE_CONTENT: Record<string, { description: string; abilities: string[] }>
     abilities: ['Absolute Dominion', 'Conqueror\'s Aura', 'Undefeated'],
   },
   // Mage Path
+  'Focus': {
+    description: 'The foundational protocol for the Way of Mind. Focusing is the process of channeling mental entropy into a singular, high-intensity beam, transitioning from a scattered consciousness into an organized, high-fidelity system architect.',
+    abilities: [], // Uses coreMasteries from node data instead
+  },
   'Apprentice': {
     description: 'Begin your magical studies. Every great mage started by learning the fundamental principles of arcane energy.',
     abilities: ['Basic Spellcasting', 'Mana Sense', 'Arcane Studies'],
@@ -197,6 +201,10 @@ const NODE_CONTENT: Record<string, { description: string; abilities: string[] }>
     abilities: ['Divine Summoning', 'Planar Mastery', 'Army of Legends'],
   },
   // Mystic Path
+  'Presence': {
+    description: 'The foundational practice for the Seer\'s Path. Presence is the art of quieting internal noise to reveal the underlying frequency of reality, transitioning from a dormant spirit into an awakened, resonant vessel.',
+    abilities: [], // Uses coreMasteries from node data instead
+  },
   'Seeker': {
     description: 'Begin your journey of enlightenment. Seekers look beyond the physical world for truth.',
     abilities: ['Inner Sight', 'Meditation', 'Spiritual Awareness'],
@@ -272,6 +280,7 @@ export const NodeInfoModal = memo(({
   onClose,
   onUnlock,
 }: NodeInfoModalProps) => {
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const colors = THEME_COLORS[pathTheme];
   
   const content = node ? NODE_CONTENT[node.title] : null;
@@ -320,7 +329,7 @@ export const NodeInfoModal = memo(({
       borderColor={colors.primary}
       glowColor={colors.glow}
     >
-      <div className="px-6 pb-6">
+      <div className="px-6 pb-6 overflow-y-auto" style={{ minHeight: '96vh', maxHeight: '96vh' }}>
         {/* Icon and Title Section */}
         <div className="flex items-center mt-4 gap-3 mb-4">
           <div 
@@ -347,7 +356,7 @@ export const NodeInfoModal = memo(({
               {node.title}
             </h2>
             <p className="text-xs text-slate-400">
-              {node.title === 'Tempering' ? 'The Awakening of the Vessel' : `${pathTitle} Path • Stage ${node.stage}`}
+              {node.title === 'Tempering' ? 'The Awakening of the Vessel' : node.title === 'Presence' ? 'The Attunement of the Soul' : node.title === 'Focus' ? 'The Sharpening of the Intellect' : `${pathTitle} Path • Stage ${node.stage}`}
             </p>
           </div>
         </div>
@@ -371,18 +380,46 @@ export const NodeInfoModal = memo(({
           style={{ background: `linear-gradient(to right, ${colors.primary}50, ${colors.primary}20, transparent)` }}
         />
 
-              {/* Description */}
-              <div className="mb-4">
-                <h3 
-                  className="text-xs font-bold mb-1.5 uppercase tracking-wider"
-                  style={{ color: colors.primary }}
-                >
-                  Description
-                </h3>
-                <p className="text-slate-300 text-sm leading-relaxed">
+        {/* Description - Collapsible */}
+        <motion.div
+          className="mb-4 rounded-lg bg-slate-800/30 border border-slate-700/30 overflow-hidden"
+        >
+          <button
+            type="button"
+            onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-slate-700/20 transition-colors"
+          >
+            <h3 
+              className="text-xs font-bold uppercase tracking-wider"
+              style={{ color: colors.primary }}
+            >
+              Description
+            </h3>
+            <motion.div
+              animate={{ rotate: isDescriptionExpanded ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            </motion.div>
+          </button>
+          
+          <AnimatePresence>
+            {isDescriptionExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="border-t border-slate-700/30" />
+                <p className="p-3 pt-2 text-slate-300 text-sm leading-relaxed">
                   {content?.description || 'A mysterious node on your cultivation path. Unlock it to discover its secrets.'}
                 </p>
-              </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
               {/* Special Abilities / Core Masteries */}
               <div className="mb-4">
@@ -457,12 +494,24 @@ export const NodeInfoModal = memo(({
                   disabled={!canUnlock}
                   whileHover={canUnlock ? { scale: 1.02 } : {}}
                   whileTap={canUnlock ? { scale: 0.98 } : {}}
-                  animate={canUnlock && node.title === 'Tempering' ? {
-                    boxShadow: [
-                      '0 0 20px rgba(225, 29, 72, 0.6)',
-                      '0 0 40px rgba(225, 29, 72, 0.8)',
-                      '0 0 20px rgba(225, 29, 72, 0.6)',
-                    ],
+                  animate={canUnlock && (node.title === 'Tempering' || node.title === 'Presence' || node.title === 'Focus') ? {
+                    boxShadow: node.title === 'Tempering' 
+                      ? [
+                          '0 0 20px rgba(225, 29, 72, 0.6)',
+                          '0 0 40px rgba(225, 29, 72, 0.8)',
+                          '0 0 20px rgba(225, 29, 72, 0.6)',
+                        ]
+                      : node.title === 'Presence'
+                      ? [
+                          '0 0 20px rgba(16, 185, 129, 0.6)',
+                          '0 0 40px rgba(16, 185, 129, 0.8)',
+                          '0 0 20px rgba(16, 185, 129, 0.6)',
+                        ]
+                      : [
+                          '0 0 20px rgba(139, 92, 246, 0.6)',
+                          '0 0 40px rgba(139, 92, 246, 0.8)',
+                          '0 0 20px rgba(139, 92, 246, 0.6)',
+                        ],
                   } : {}}
                   transition={{
                     boxShadow: {
@@ -475,6 +524,10 @@ export const NodeInfoModal = memo(({
                     canUnlock
                       ? node.title === 'Tempering'
                         ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white hover:from-rose-500 hover:to-red-500 shadow-lg'
+                        : node.title === 'Presence'
+                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 shadow-lg'
+                        : node.title === 'Focus'
+                        ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-500 hover:to-purple-500 shadow-lg'
                         : 'bg-gradient-to-r from-cyan-600 to-purple-600 text-white hover:from-cyan-500 hover:to-purple-500 shadow-lg'
                       : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                   }`}
@@ -490,6 +543,10 @@ export const NodeInfoModal = memo(({
                       <Star className="w-4 h-4" strokeWidth={1.25} />
                       {node.title === 'Tempering' 
                         ? `Begin Tempering (${node.starsRequired} Stars)` 
+                        : node.title === 'Presence'
+                        ? `Begin Attunement (${node.starsRequired} Stars)`
+                        : node.title === 'Focus'
+                        ? `Begin Focusing (${node.starsRequired} Stars)`
                         : `Unlock for ${node.starsRequired} Stars`}
                     </>
                   ) : (
@@ -512,7 +569,11 @@ export const NodeInfoModal = memo(({
                   }}
                 >
                   {isActive && node.title === 'Tempering' 
-                    ? `Current Progress: ${node.starsCurrent}/10 Levels` 
+                    ? `Current Progress: ${node.starsCurrent}/10 Levels`
+                    : isActive && node.title === 'Presence'
+                    ? `Current Progress: ${node.starsCurrent}/10 Levels`
+                    : isActive && node.title === 'Focus'
+                    ? `Current Progress: ${node.starsCurrent}/10 Levels`
                     : isActive 
                     ? '✨ Currently Active' 
                     : '✓ Completed'}

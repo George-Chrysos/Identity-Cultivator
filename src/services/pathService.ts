@@ -9,8 +9,9 @@
 
 import { supabase } from '@/lib/supabase';
 import { TEMPERING_LEVELS } from '@/constants/temperingPath';
+import { PRESENCE_LEVELS } from '@/constants/presencePath';
 import { handleError } from './errorHandler';
-import { syncPathsToDatabase } from './pathSyncService';
+import { logger } from '@/utils/logger';
 
 const CACHE_KEY = 'path-cache';
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours (daily refresh)
@@ -69,6 +70,17 @@ const getFallbackPath = (pathId: string) => {
       tier: 'D',
       max_level: 10,
       levels: TEMPERING_LEVELS,
+    };
+  }
+  if (pathId === 'presence-mystic-training') {
+    return {
+      id: pathId,
+      name: 'Presence',
+      description: 'Mystic Training path (Offline Mode)',
+      primary_stat: 'SOUL',
+      tier: 'D',
+      max_level: 10,
+      levels: PRESENCE_LEVELS,
     };
   }
   return null;
@@ -136,64 +148,14 @@ export const getPath = async (pathId: string) => {
 
     if (error) throw error;
     
-    // If data not found, might need to sync from constants
+    // If data not found, use constants fallback (user should click 'Align Paths' to sync)
     if (!data) {
-      // Try auto-sync once
-      await syncPathsToDatabase();
-      // Retry the query
-      const { data: retryData, error: retryError } = await supabase
-        .from('paths')
-        .select(`
-          id,
-          name,
-          description,
-          primary_stat,
-          tier,
-          max_level,
-          path_levels (
-            id,
-            level,
-            subtitle,
-            xp_to_level_up,
-            days_required,
-            main_stat_limit,
-            gate_stat_cap,
-            base_coins,
-            base_stat_points,
-            gates (
-              id,
-              gate_name,
-              task_name,
-              focus_description,
-              task_order,
-              subtasks (
-                id,
-                name,
-                focus_description,
-                subtask_order
-              )
-            ),
-            trials (
-              id,
-              name,
-              description,
-              tasks_description,
-              focus_description,
-              reward_coins,
-              reward_stars,
-              reward_stat_points,
-              reward_item
-            )
-          )
-        `)
-        .eq('id', pathId)
-        .single();
-      
-      if (!retryError && retryData) {
-        cachePath(pathId, retryData);
-        return retryData;
+      logger.warn('Path not found in DB, using constants fallback', { pathId });
+      const fallback = getFallbackPath(pathId);
+      if (fallback) {
+        cachePath(pathId, fallback);
+        return fallback;
       }
-      
       throw new Error(`Path not found: ${pathId}`);
     }
 

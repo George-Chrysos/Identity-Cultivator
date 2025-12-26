@@ -20,7 +20,7 @@ const Header = () => {
     <>
       {/* Unified HUD Header - Glassmorphic Design */}
       <header 
-        className="fixed top-0 left-0 right-0 w-full h-16 md:h-20 flex items-center justify-between px-4 md:px-6 bg-slate-950/80 backdrop-blur-md border-b border-purple-500/20 z-50"
+        className="fixed top-0 left-0 right-0 w-full h-12 md:h-20 flex items-center justify-between px-4 md:px-6 bg-slate-950/80 backdrop-blur-md border-b border-purple-500/20 z-50"
         style={{ transform: 'translateZ(0)' }}
       >
         {/* Left Section: Player Profile */}
@@ -28,13 +28,13 @@ const Header = () => {
           {isAuthenticated ? (
             <PlayerMenu />
           ) : (
-            <div className="w-12 h-12" />
+            <div className="w-8 h-8" />
           )}
         </div>
 
         {/* Center Section: Overflowing Logo */}
         <div 
-          className="absolute left-1/2 -translate-x-1/2 top-1 w-14 h-14 md:-top-6 md:w-32 md:h-32 z-20"
+          className="absolute left-1/2 -translate-x-1/2 -top-2 w-14 h-14 md:-top-6 md:w-32 md:h-32 z-20"
           style={{ willChange: 'transform' }}
         >
           <motion.img 
@@ -49,7 +49,7 @@ const Header = () => {
           />
         </div>
 
-        {/* Right Section: Currency Display or Login Button */}
+        {/* Right Section: Currency Display */}
         <div className="flex items-center gap-4 z-10">
           {isAuthenticated ? (
             <CurrencyDisplay />

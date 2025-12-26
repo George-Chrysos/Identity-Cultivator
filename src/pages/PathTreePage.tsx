@@ -144,27 +144,55 @@ const PathTreePage = memo(() => {
       identity => identity.template_id.startsWith('tempering-warrior-trainee')
     );
     
+    const presenceActive = activeIdentities.some(
+      identity => identity.template_id.startsWith('presence-mystic-training')
+    );
+    
+    setPaths(prevPaths => prevPaths.map(path => {
+      // Handle Warrior path
+      if (path.id === 'warrior' && temperingActive) {
+        return {
+          ...path,
+          nodes: path.nodes.map(node => {
+            // Mark warrior hero node as active if Tempering exists
+            if (node.stage === 1 && node.position === 'center' && node.status !== 'active') {
+              return { ...node, status: 'active' as const };
+            }
+            // Make stage 2 nodes unlockable
+            if (node.stage === 2 && node.status === 'locked') {
+              return { ...node, status: 'unlockable' as const };
+            }
+            return node;
+          }),
+        };
+      }
+      
+      // Handle Mystic path
+      if (path.id === 'mystic' && presenceActive) {
+        return {
+          ...path,
+          nodes: path.nodes.map(node => {
+            // Mark mystic hero node as active if Presence exists
+            if (node.stage === 1 && node.position === 'center' && node.status !== 'active') {
+              return { ...node, status: 'active' as const };
+            }
+            // Make stage 2 nodes unlockable
+            if (node.stage === 2 && node.status === 'locked') {
+              return { ...node, status: 'unlockable' as const };
+            }
+            return node;
+          }),
+        };
+      }
+      
+      return path;
+    }));
+    
     if (temperingActive) {
-      setPaths(prevPaths => prevPaths.map(path => {
-        if (path.id === 'warrior') {
-          return {
-            ...path,
-            nodes: path.nodes.map(node => {
-              // Mark warrior hero node as active if Tempering exists
-              if (node.stage === 1 && node.position === 'center' && node.status !== 'active') {
-                return { ...node, status: 'active' as const };
-              }
-              // Make stage 2 nodes unlockable
-              if (node.stage === 2 && node.status === 'locked') {
-                return { ...node, status: 'unlockable' as const };
-              }
-              return node;
-            }),
-          };
-        }
-        return path;
-      }));
       logger.info('PathTree updated for Tempering identity');
+    }
+    if (presenceActive) {
+      logger.info('PathTree updated for Presence identity');
     }
   }, [activeIdentities]);
 
@@ -320,6 +348,12 @@ const PathTreePage = memo(() => {
           if (activePath.id === 'warrior' && node.stage === 1 && node.position === 'center') {
             await activateIdentity('tempering-warrior-trainee-lvl1');
             logger.info('Tempering Lv.1 identity activated');
+          }
+          
+          // If unlocking mystic hero node (stage 1), also activate Presence Lv.1 identity
+          if (activePath.id === 'mystic' && node.stage === 1 && node.position === 'center') {
+            await activateIdentity('presence-mystic-training-lvl1');
+            logger.info('Presence Lv.1 identity activated');
           }
         } catch (error) {
           logger.error('Failed to unlock node', error);

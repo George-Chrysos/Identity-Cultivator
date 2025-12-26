@@ -33,6 +33,17 @@ const loadTemperingModule = async (): Promise<TemperingModule> => {
   return _temperingModule;
 };
 
+// Lazy import for presence path functions - loaded on demand to avoid circular dependency
+type PresenceModule = typeof import('@/constants/presencePath');
+let _presenceModule: PresenceModule | null = null;
+
+const loadPresenceModule = async (): Promise<PresenceModule> => {
+  if (!_presenceModule) {
+    _presenceModule = await import('@/constants/presencePath');
+  }
+  return _presenceModule;
+};
+
 // Helper to get tempering level config (returns null if module not loaded yet)
 const getTemperingLevelSync = (level: number) => {
   if (!_temperingModule) return null;
@@ -232,6 +243,13 @@ const initializeDemoData = async (): Promise<void> => {
     mockIdentityTemplates.set(template.id, template);
   });
 
+  // Add Presence Path templates (Levels 1-10) - loaded lazily
+  const presenceModule = await loadPresenceModule();
+  const presenceData = presenceModule.getAllPresenceData();
+  presenceData.templates.forEach((template) => {
+    mockIdentityTemplates.set(template.id, template);
+  });
+
   // Create task templates
   const tasks: TaskTemplate[] = [
     // MORNING WARRIOR tasks (550e8400-e29b-41d4-a716-446655440007)
@@ -427,6 +445,11 @@ const initializeDemoData = async (): Promise<void> => {
 
   // Add Tempering Path tasks (Levels 1-10)
   temperingData.tasks.forEach((task) => {
+    mockTaskTemplates.set(task.id, task);
+  });
+
+  // Add Presence Path tasks (Levels 1-10)
+  presenceData.tasks.forEach((task) => {
     mockTaskTemplates.set(task.id, task);
   });
 

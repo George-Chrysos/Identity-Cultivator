@@ -215,11 +215,25 @@ export const PATH_DATA: CultivationPath[] = [
         starsRequired: 5,
         starsCurrent: 0,
         position: 'center',
+        coreMasteries: [
+          { 
+            title: 'Sustained Attention', 
+            benefit: 'Training the ability to hold complex logical frameworks without mental collapse. This mastery creates the structural integrity required to maintain high-intensity concentration during systemic stress.' 
+          },
+          { 
+            title: 'Pattern Recognition', 
+            benefit: 'Developing the "Internal Eye" to detect the underlying code within noise. By synchronizing diverse data points, the mind learns to see connections and predict systemic outcomes with surgical precision.' 
+          },
+          { 
+            title: 'Cognitive Efficiency', 
+            benefit: 'Refining the mental engine to execute complex strategies with minimum resource drain. This focuses the mind on finding the "least effort" path to maximum output, optimizing every thought for the Forge.' 
+          }
+        ],
       },
       // Stage 2 - Essence
       {
         id: 'mage-2-left',
-        title: 'Synthesis',
+        title: 'Analysis',
         stage: 2,
         status: 'locked',
         starsRequired: 10,
@@ -228,7 +242,7 @@ export const PATH_DATA: CultivationPath[] = [
       },
       {
         id: 'mage-2-right',
-        title: 'Logic',
+        title: 'Vision',
         stage: 2,
         status: 'locked',
         starsRequired: 10,
@@ -350,11 +364,25 @@ export const PATH_DATA: CultivationPath[] = [
         starsRequired: 5,
         starsCurrent: 0,
         position: 'center',
+        coreMasteries: [
+          { 
+            title: 'Internal Stillness', 
+            benefit: 'Training the capacity to exist in the absolute "Zero-State." By silencing mental chatter and emotional static, you become a stable anchor that remains unmoved by the chaos of your environment.' 
+          },
+          { 
+            title: 'Brave Honesty', 
+            benefit: 'The practice of "Self-Recognition" through the Mirror. By speaking unvarnished truths and discarding social masks, you purify your internal waters to see reality without distortion.' 
+          },
+          { 
+            title: 'Sensory Resonance', 
+            benefit: 'Extending the "Antenna" of the soul beyond the physical skin. Learn to interpret the subtle weight, temperature, and "vibe" of spaces and intentions through intuitive calibration.' 
+          }
+        ],
       },
       // Stage 2 - Essence
       {
         id: 'mystic-2-left',
-        title: 'Reflection',
+        title: 'Dissolution',
         stage: 2,
         status: 'locked',
         starsRequired: 10,
@@ -363,7 +391,7 @@ export const PATH_DATA: CultivationPath[] = [
       },
       {
         id: 'mystic-2-right',
-        title: 'Stillness',
+        title: 'Projection',
         stage: 2,
         status: 'locked',
         starsRequired: 10,
@@ -489,7 +517,7 @@ export const PATH_DATA: CultivationPath[] = [
       // Stage 2 - Essence
       {
         id: 'guardian-2-left',
-        title: 'Resistance',
+        title: 'Constraint',
         stage: 2,
         status: 'locked',
         starsRequired: 10,
@@ -498,7 +526,7 @@ export const PATH_DATA: CultivationPath[] = [
       },
       {
         id: 'guardian-2-right',
-        title: 'Command',
+        title: 'Assertion',
         stage: 2,
         status: 'locked',
         starsRequired: 10,

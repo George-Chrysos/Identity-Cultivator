@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FlaskConical, CalendarPlus, Coins, Star, RotateCcw } from 'lucide-react';
+import { FlaskConical, CalendarPlus, Coins, Star, RotateCcw, GitBranch } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import { useAuthStore } from '@/store/authStore';
 import { useTestingStore } from '@/store/testingStore';
+import { useToastStore } from '@/store/toastStore';
 import { runAllTests } from '@/tests';
 import { logger } from '@/utils/logger';
 
@@ -60,6 +61,37 @@ const PlayerMenu = () => {
     e.stopPropagation();
     console.log('🧪 Running all tests...');
     runAllTests();
+    setOpenMenu(false);
+  }, []);
+
+  // Align Paths - Sync path constants to database
+  const handleAlignPaths = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const { showToast } = useToastStore.getState();
+    showToast('🔄 Aligning paths...', 'info');
+    
+    try {
+      const { alignPaths } = await import('@/services/pathAlignmentService');
+      const result = await alignPaths();
+      
+      if (result.aligned) {
+        if (result.changes.length === 0) {
+          showToast('✅ Paths Aligned - no changes needed', 'success');
+          logger.info('Paths Aligned');
+        } else {
+          showToast(`✅ Paths Aligned - ${result.changes.length} updates applied`, 'success');
+          logger.info('Paths Aligned', { changes: result.changes.length });
+        }
+      } else {
+        showToast(`❌ Alignment failed: ${result.error}`, 'error');
+        logger.error('Path alignment failed', { error: result.error });
+      }
+    } catch (error) {
+      showToast('❌ Path alignment error', 'error');
+      logger.error('Path alignment error', { error });
+    }
+    
     setOpenMenu(false);
   }, []);
 
@@ -227,6 +259,17 @@ const PlayerMenu = () => {
                 </button>
               </>
             )}
+
+            {/* Align Paths Button - Always visible */}
+            <button
+              onClick={handleAlignPaths}
+              className="w-full text-left px-4 py-3 text-sm flex items-center gap-3 text-blue-300 hover:bg-blue-500/10 transition-colors border-t border-slate-700/50"
+              role="menuitem"
+            >
+              <GitBranch className="w-4 h-4 text-blue-400" />
+              <span className="flex-1">Align Paths</span>
+              <span className="text-xs text-slate-500">Sync DB</span>
+            </button>
 
             {/* Reset User Button - Always visible */}
             <button

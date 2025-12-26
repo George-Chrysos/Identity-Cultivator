@@ -1,7 +1,7 @@
 import { memo, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Flame, Eye, Lock } from 'lucide-react';
-import { GiSwordSmithing } from 'react-icons/gi';
+import { Lock } from 'lucide-react';
+import { GiSwordSmithing, GiBrain, GiFireShield, GiWaterBolt } from 'react-icons/gi';
 import type { PathNode, PathTheme } from '@/constants/pathTreeData';
 import { THEME_COLORS } from '@/constants/pathTreeData';
 import { GPU_ACCELERATION_STYLES } from '@/components/common';
@@ -14,14 +14,17 @@ interface HeroNodeProps {
   onClick?: (nodeId: string) => void;
 }
 
+// Icons match PathTabs navigation buttons exactly
 const getIconComponent = (pathId: string) => {
   switch (pathId) {
     case 'warrior':
       return GiSwordSmithing;
     case 'mage':
-      return Flame;
+      return GiBrain;
     case 'mystic':
-      return Eye;
+      return GiWaterBolt;
+    case 'guardian':
+      return GiFireShield;
     default:
       return GiSwordSmithing;
   }

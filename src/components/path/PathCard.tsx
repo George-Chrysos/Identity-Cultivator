@@ -50,7 +50,9 @@ interface TrialInfo {
   rewards: {
     coins: number;
     stars: number;
-    bodyPoints: number;
+    bodyPoints?: number;
+    soulPoints?: number;
+    mindPoints?: number;
     item: string;
   };
 }
@@ -905,8 +907,8 @@ export const PathCard = memo(({
         rewards={{
           coins: trialInfo?.rewards.coins || 100,
           stars: trialInfo?.rewards.stars || 0,
-          stat: 'BODY',
-          statPoints: trialInfo?.rewards.bodyPoints || 5,
+          stat: trialInfo?.rewards.soulPoints ? 'SOUL' : trialInfo?.rewards.mindPoints ? 'MIND' : 'BODY',
+          statPoints: trialInfo?.rewards.bodyPoints || trialInfo?.rewards.soulPoints || trialInfo?.rewards.mindPoints || 5,
           item: trialInfo?.rewards.item,
         }}
         onClose={() => {

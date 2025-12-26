@@ -87,6 +87,12 @@ export const ShopPage = memo(() => {
       const isInflated = isInflationActive(item.id);
       const remainingCooldown = getRemainingCooldown(item.id);
 
+      // Determine rarity based on base price
+      const rarity: 'common' | 'luxury' | 'exclusive' = 
+        basePrice >= 100 ? 'exclusive' : 
+        basePrice >= 50 ? 'luxury' : 
+        'common';
+
       return {
         ...item,
         iconComponent: IconComponent,
@@ -94,6 +100,7 @@ export const ShopPage = memo(() => {
         currentPrice,
         isInflated,
         inflationResetTime: remainingCooldown > 0 ? new Date(Date.now() + remainingCooldown).toISOString() : undefined,
+        rarity,
       };
     });
   }, [availableItems, activeTab, marketStates, getCurrentPrice, isInflationActive, getRemainingCooldown]);
@@ -105,6 +112,7 @@ export const ShopPage = memo(() => {
     currentPrice: number;
     isInflated: boolean;
     inflationResetTime?: string;
+    rarity: 'common' | 'luxury' | 'exclusive';
   };
 
   const handlePurchase = useCallback(async (item: ShopItemWithMeta) => {
@@ -270,6 +278,7 @@ export const ShopPage = memo(() => {
                     currentCoins={coins}
                     onPurchase={() => handlePurchase(item)}
                     disabled={isPurchasing}
+                    rarity={item.rarity}
                   />
                 ) : (
                   <ShopItemCard
