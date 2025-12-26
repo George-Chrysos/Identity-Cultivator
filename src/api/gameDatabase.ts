@@ -13,7 +13,6 @@ import {
   CompleteTaskResponse,
   ActivateIdentityRequest,
   SUPABASE_TABLES,
-  STAT_COLUMN_MAPPING,
   DEFAULT_PROFILE_VALUES,
   ItemTemplate,
   PlayerInventoryItem,
@@ -447,33 +446,10 @@ export const gameDB = {
 
       if (logError) throw logError;
 
-      // Update profile stats
-      const statColumn = STAT_COLUMN_MAPPING[taskTemplate.target_stat as keyof typeof STAT_COLUMN_MAPPING];
-      const { error: profileError } = await supabase.rpc('update_profile_stats', {
-        p_user_id: request.user_id,
-        p_stat_column: statColumn,
-        p_stat_points: taskTemplate.base_points_reward,
-        p_coins: taskTemplate.coin_reward,
-      });
-
-      if (profileError) {
-        // Fallback to manual update if RPC doesn't exist
-        const { data: currentProfile } = await supabase
-          .from(SUPABASE_TABLES.PROFILES)
-          .select('*')
-          .eq('id', request.user_id)
-          .single();
-
-        if (currentProfile) {
-          await supabase
-            .from(SUPABASE_TABLES.PROFILES)
-            .update({
-              [statColumn]: currentProfile[statColumn] + taskTemplate.base_points_reward,
-              coins: currentProfile.coins + taskTemplate.coin_reward,
-            })
-            .eq('id', request.user_id);
-        }
-      }
+      // NOTE: Profile stats (coins, stat points) are NOT updated here.
+      // They are updated via updateRewards() in PathCard for immediate optimistic UI updates.
+      // This prevents double-awarding of coins/stats.
+      // The task_log still records what was earned for historical tracking.
 
       // Update identity XP and streak
       // Use PathRegistry for XP calculation if path_id is available, otherwise use legacy formula
@@ -1035,10 +1011,13 @@ export const gameDB = {
     date: string
   ): Promise<import('@/types/database').DailyPathProgress[]> {
     if (!isSupabaseConfigured()) {
+      logger.info('📭 Supabase not configured, returning empty array for daily path progress');
       return [];
     }
 
     try {
+      logger.info('🔍 Querying daily_path_progress', { userId, date });
+      
       const { data, error } = await supabase
         .from(SUPABASE_TABLES.DAILY_PATH_PROGRESS)
         .select('*')
@@ -1047,14 +1026,19 @@ export const gameDB = {
 
       if (error) throw error;
 
-      logger.debug('Loaded daily path progress for date', { 
+      logger.info('📊 Loaded daily path progress from DB', { 
         userId, 
         date, 
-        count: data?.length || 0 
+        count: data?.length || 0,
+        records: data?.map(r => ({
+          pathId: r.path_id,
+          tasksCompleted: r.tasks_completed,
+          completedTaskIds: r.completed_task_ids,
+        })) || [],
       });
       return data || [];
     } catch (error) {
-      logger.error('Failed to get all daily path progress', error);
+      logger.error('❌ Failed to get all daily path progress', error);
       throw error;
     }
   },

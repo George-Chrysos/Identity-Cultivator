@@ -15,7 +15,6 @@ import {
   PurchaseItemRequest,
   LevelProgress,
   DEFAULT_PROFILE_VALUES,
-  STAT_COLUMN_MAPPING,
 } from '@/types/database';
 import { TICKET_DATA } from '@/constants/tickets';
 
@@ -733,15 +732,10 @@ export const mockDB = {
     };
     mockTaskLogs.push(taskLog);
 
-    // Update profile stats (use progressive points for tempering)
-    const statColumn = STAT_COLUMN_MAPPING[taskTemplate.target_stat];
-    const updatedProfile: UserProfile = {
-      ...profile,
-      [statColumn]: profile[statColumn] + statPointsToAward,
-      coins: profile.coins + taskTemplate.coin_reward,
-      updated_at: new Date().toISOString(),
-    };
-    mockProfiles.set(request.user_id, updatedProfile);
+    // NOTE: Profile stats (coins, stat points) are NOT updated here.
+    // They are updated via updateRewards() in PathCard for immediate optimistic UI updates.
+    // This prevents double-awarding of coins/stats.
+    // The task_log still records what was earned for historical tracking.
 
     // Update identity XP and level
     const newXp = identity.current_xp + taskTemplate.xp_reward;

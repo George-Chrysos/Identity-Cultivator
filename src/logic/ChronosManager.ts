@@ -126,6 +126,15 @@ export const upsertDailyPathProgress = async (
   const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const status = percentage === 100 ? 'COMPLETED' : 'PENDING';
 
+  logger.info('💾 Saving daily path progress to DB', {
+    userId,
+    pathId,
+    date: today,
+    completedTasks,
+    totalTasks,
+    taskIds: completedTaskIds,
+  });
+
   try {
     const result = await gameDB.upsertDailyPathProgress({
       user_id: userId,
@@ -138,20 +147,20 @@ export const upsertDailyPathProgress = async (
       completed_subtask_ids: completedSubtaskIds,
     });
 
-    logger.debug('Daily path progress upserted', {
+    logger.info('✅ Daily path progress saved to DB', {
       pathId,
       date: today,
       completedTasks,
       totalTasks,
       percentage,
       status,
-      taskIds: completedTaskIds.length,
-      subtaskIds: completedSubtaskIds.length,
+      taskIds: completedTaskIds,
+      resultId: result?.id,
     });
 
     return result;
   } catch (error) {
-    logger.error('Failed to upsert daily path progress', { error, pathId, userId });
+    logger.error('❌ Failed to upsert daily path progress', { error, pathId, userId });
     return null;
   }
 };

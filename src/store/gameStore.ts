@@ -296,12 +296,20 @@ export const useGameStore = create<GameState>()(
           // Get current persisted state (from localStorage)
           const { dailyTaskStates: persistedStates, activeIdentities } = get();
           
-          logger.debug('Loading daily task states', { 
+          logger.info('📥 Loading daily task states', { 
             userId, 
             today, 
-            recordCount: progressRecords.length,
+            dbRecordCount: progressRecords.length,
             persistedStateCount: Object.keys(persistedStates).length,
+            activeIdentityCount: activeIdentities.length,
+            activeIdentityIds: activeIdentities.map(i => ({ id: i.id, templateId: i.template_id })),
           });
+          
+          // If no active identities, we can't map DB records
+          if (activeIdentities.length === 0) {
+            logger.warn('⚠️ No active identities available - cannot map task states from DB');
+            return;
+          }
           
           // If DB returned no records but we have persisted states from today, keep them
           // This handles the case where Supabase is not configured or DB is empty
@@ -315,7 +323,7 @@ export const useGameStore = create<GameState>()(
             });
             
             if (Object.keys(todayStates).length > 0) {
-              logger.info('DB returned no records, keeping persisted localStorage states', {
+              logger.info('📝 DB returned no records, keeping persisted localStorage states', {
                 count: Object.keys(todayStates).length,
               });
               // Keep the persisted states, don't overwrite
@@ -323,19 +331,22 @@ export const useGameStore = create<GameState>()(
               return;
             }
             
-            logger.info('No task states found in DB or localStorage');
+            logger.info('📭 No task states found in DB or localStorage for today');
             return;
           }
           
-          // Start with persisted states that are from today (filter out old dates)
-          const newDailyTaskStates: Record<string, DailyTaskState> = {};
-          
-          // Keep persisted states from today as fallback
-          Object.entries(persistedStates).forEach(([identityId, state]) => {
-            if (state.date === today) {
-              newDailyTaskStates[identityId] = state;
-            }
+          // Log DB records for debugging
+          logger.info('📊 DB records received', {
+            records: progressRecords.map(r => ({
+              pathId: r.path_id,
+              date: r.date,
+              tasksCompleted: r.tasks_completed,
+              completedTaskIds: r.completed_task_ids?.length || 0,
+            }))
           });
+          
+          // Start with empty state (don't use persisted states after logout/login)
+          const newDailyTaskStates: Record<string, DailyTaskState> = {};
           
           // Map progress records from DB to identity IDs (DB is source of truth)
           progressRecords.forEach(record => {
@@ -343,21 +354,21 @@ export const useGameStore = create<GameState>()(
             const identity = activeIdentities.find(id => id.template_id === record.path_id);
             
             if (identity) {
-              // DB data takes precedence over persisted localStorage data
+              // DB data takes precedence
               newDailyTaskStates[identity.id] = {
                 completedTasks: Array.isArray(record.completed_task_ids) ? record.completed_task_ids : [],
                 completedSubtasks: Array.isArray(record.completed_subtask_ids) ? record.completed_subtask_ids : [],
                 date: today,
               };
-              logger.debug('Mapped task state from DB', { 
+              logger.info('✅ Mapped task state from DB', { 
                 identityId: identity.id, 
                 templateId: identity.template_id, 
                 pathId: record.path_id,
                 taskCount: newDailyTaskStates[identity.id].completedTasks.length,
-                subtaskCount: newDailyTaskStates[identity.id].completedSubtasks.length,
+                taskIds: newDailyTaskStates[identity.id].completedTasks,
               });
             } else {
-              logger.warn('No identity found for path_id', { 
+              logger.warn('❌ No identity found for path_id', { 
                 pathId: record.path_id,
                 availableIdentities: activeIdentities.map(i => ({ id: i.id, templateId: i.template_id }))
               });
@@ -365,16 +376,16 @@ export const useGameStore = create<GameState>()(
           });
           
           set({ dailyTaskStates: newDailyTaskStates });
-          logger.info('Loaded daily task states from DB', { 
+          logger.info('✨ Daily task states loaded from DB', { 
             count: Object.keys(newDailyTaskStates).length,
             states: Object.entries(newDailyTaskStates).map(([id, state]) => ({
               identityId: id,
               taskCount: state.completedTasks.length,
-              subtaskCount: state.completedSubtasks.length,
+              taskIds: state.completedTasks,
             }))
           });
         } catch (error) {
-          logger.error('Failed to load daily task states', error);
+          logger.error('❌ Failed to load daily task states', error);
           // Don't throw - this is non-critical, tasks will use persisted localStorage state
           // DON'T clear dailyTaskStates on error - keep persisted data
         }

@@ -492,7 +492,7 @@ export const PathCard = memo(({
         return newSet;
       });
       
-      // Start 2-second cooldown to prevent spam clicks/farming
+      // Start cooldown to prevent spam clicks/farming
       setCooldownTasks(prev => new Set([...prev, taskId]));
       setTimeout(() => {
         setCooldownTasks(prev => {
@@ -500,7 +500,7 @@ export const PathCard = memo(({
           newSet.delete(taskId);
           return newSet;
         });
-      }, 1000);
+      }, 500);
     }
   }, [tasks, maxXP, currentXP, status, streak, completedTasks, completedSubtasks, allTasksWereCompleted, initialStreak, onTaskComplete, onAllTasksComplete, updateRewards, showToast, processingTasks, cooldownTasks]);
 
