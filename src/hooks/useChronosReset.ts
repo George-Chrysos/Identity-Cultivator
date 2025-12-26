@@ -214,8 +214,22 @@ export const useChronosReset = (): UseChronosResetReturn => {
     const today = getTodayISO();
     const lastReset = userProfile.last_reset_date;
 
-    // If no last reset date or dates differ, trigger reset
-    if (!lastReset || lastReset !== today) {
+    // If no last reset date exists (column missing in DB or new user),
+    // just set it to today WITHOUT triggering a reset.
+    // This prevents clearing dailyTaskStates on page refresh when the
+    // last_reset_date column doesn't exist in production DB.
+    if (!lastReset) {
+      logger.info('No last_reset_date found, initializing to today (no reset)', { today });
+      hasRunRef.current = true;
+      // Just update the date without doing a full reset
+      updateLastResetDate(today).catch(error => {
+        logger.error('Failed to initialize last_reset_date', { error });
+      });
+      return;
+    }
+
+    // If dates differ (actual day change), trigger reset
+    if (lastReset !== today) {
       logger.info('Day change detected, triggering Chronos Reset', { 
         lastReset, 
         today 
@@ -223,7 +237,7 @@ export const useChronosReset = (): UseChronosResetReturn => {
       hasRunRef.current = true;
       executeReset();
     }
-  }, [userProfile, executeReset]);
+  }, [userProfile, executeReset, updateLastResetDate]);
 
   return {
     showDawnSummary,

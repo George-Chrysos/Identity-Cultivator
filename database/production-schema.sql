@@ -64,6 +64,7 @@ CREATE TABLE public.profiles (
     final_score NUMERIC(10, 2) NOT NULL DEFAULT 0,
     rank_tier VARCHAR(10) NOT NULL DEFAULT 'F',
     timezone VARCHAR(100) DEFAULT 'UTC',
+    last_reset_date DATE, -- Date of last Chronos daily reset (YYYY-MM-DD)
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
