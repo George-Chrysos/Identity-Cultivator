@@ -4,13 +4,15 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
 import { syncPathsToDatabase } from './services/pathSyncService'
+import { logger } from './utils/logger'
 
 // Add dark class to html element for dark mode
 document.documentElement.classList.add('dark');
 
-// Sync paths to database on app load (runs in background)
+// Sync path data from temperingPath.ts constants to database
+// This ensures DB has latest path configurations
 syncPathsToDatabase().catch(err => {
-  console.warn('Path sync failed on startup, using fallback:', err);
+  logger.warn('Path sync failed on startup, using client-side constants as fallback', { error: err });
 });
 
 // Global error handler for uncaught errors

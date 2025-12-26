@@ -453,7 +453,7 @@ const Homepage = () => {
                   <div key={identity.id} className="w-full">
                     <PathCard
                       identityId={identity.id}
-                      title={identity.template.name}
+                      title={identity.template.name.split(' - ')[0]}
                       subtitle={temperingConfig?.subtitle}
                       status={identity.completed_today ? 'completed' : 'pending'}
                       currentXP={identity.current_xp}

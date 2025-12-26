@@ -8,7 +8,7 @@
  * await syncPathsToDatabase();
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { TEMPERING_LEVELS, TEMPERING_TEMPLATE_ID } from '@/constants/temperingPath';
 import { handleError } from './errorHandler';
 import { logger } from '@/utils/logger';
@@ -111,7 +111,7 @@ const syncLevel = async (level: number) => {
 
     if (gateError) throw gateError;
 
-    // Insert subtasks
+    // Insert subtasks into gate_subtasks table
     const subtasks = task.subtasks.map((st, stIndex) => ({
       gate_id: gateData.id,
       name: st.name,
@@ -120,7 +120,7 @@ const syncLevel = async (level: number) => {
     }));
 
     const { error: subtaskError } = await supabase
-      .from('subtasks')
+      .from('gate_subtasks')
       .insert(subtasks);
 
     if (subtaskError) throw subtaskError;
@@ -156,6 +156,12 @@ const syncLevel = async (level: number) => {
  */
 export const syncPathsToDatabase = async (): Promise<boolean> => {
   try {
+    // Skip if Supabase not configured (local development)
+    if (!isSupabaseConfigured()) {
+      logger.info('Supabase not configured, skipping path sync');
+      return true;
+    }
+
     // Skip if already synced this version
     if (!needsSync()) {
       logger.info('Paths already synced, skipping');

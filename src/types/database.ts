@@ -1,7 +1,14 @@
 /**
  * Supabase Database Types - New Schema
  * Generated from the new database architecture
- * @updated December 13, 2025
+ * @updated December 26, 2025
+ * 
+ * ARCHITECTURE:
+ * - identity_templates / player_identities = Player's activated paths (progress tracking)
+ * - paths / path_levels / gates / trials = Game configuration data (synced from temperingPath.ts)
+ * 
+ * The "identity" represents what a player has become (their journey/progress).
+ * The "path" represents the game's configuration data (static content).
  */
 
 // ==================== ENUMS ====================
@@ -76,6 +83,89 @@ export interface DailyPathProgress {
   completed_subtask_ids: string[]; // Array of completed subtask IDs
   created_at: string;
   updated_at: string;
+}
+
+// ==================== PATH SYNC TABLES ====================
+// These tables store normalized path data from temperingPath.ts constants
+// Synced via pathSyncService.ts on app initialization
+
+/**
+ * Main path metadata (e.g., Tempering Warrior path)
+ * @table public.paths
+ */
+export interface Path {
+  id: string;
+  name: string;
+  description?: string;
+  primary_stat: PrimaryStat;
+  tier: string;
+  max_level: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Level configuration per path
+ * @table public.path_levels
+ */
+export interface PathLevel {
+  id: string;
+  path_id: string;
+  level: number;
+  subtitle?: string;
+  xp_to_level_up: number;
+  days_required: number;
+  main_stat_limit: number;
+  gate_stat_cap: number;
+  base_coins: number;
+  base_stat_points: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Gate/task within a level
+ * @table public.gates
+ */
+export interface Gate {
+  id: string;
+  path_level_id: string;
+  gate_name: string; // rooting, foundation, core, flow, breath, sealing
+  task_name: string;
+  focus_description?: string;
+  task_order: number;
+  created_at: string;
+}
+
+/**
+ * Subtask within a gate
+ * @table public.gate_subtasks
+ */
+export interface GateSubtask {
+  id: string;
+  gate_id: string;
+  name: string;
+  focus_description?: string;
+  subtask_order: number;
+  created_at: string;
+}
+
+/**
+ * Trial info per level
+ * @table public.trials
+ */
+export interface Trial {
+  id: string;
+  path_level_id: string;
+  name: string;
+  description?: string;
+  tasks_description?: string;
+  focus_description?: string;
+  reward_coins: number;
+  reward_stars: number;
+  reward_stat_points: number;
+  reward_item?: string;
+  created_at: string;
 }
 
 /**
@@ -335,6 +425,12 @@ export const SUPABASE_TABLES = {
   MARKET_STATES: 'market_states',
   DAILY_RECORDS: 'daily_records',
   DAILY_PATH_PROGRESS: 'daily_path_progress',
+  // Path sync tables (from temperingPath.ts constants)
+  PATHS: 'paths',
+  PATH_LEVELS: 'path_levels',
+  GATES: 'gates',
+  GATE_SUBTASKS: 'gate_subtasks',
+  TRIALS: 'trials',
 } as const;
 
 /**
