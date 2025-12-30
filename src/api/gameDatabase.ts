@@ -1074,4 +1074,296 @@ export const gameDB = {
       throw error;
     }
   },
+
+  // ==================== QUESTS ====================
+
+  /**
+   * Get all quests for a user with subtasks and custom rewards
+   */
+  async getQuests(userId: string): Promise<import('@/types/database').DBQuest[]> {
+    if (!isSupabaseConfigured()) {
+      logger.warn('Supabase not configured - quests not persisted');
+      return [];
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLES.QUESTS)
+        .select(`
+          *,
+          subtasks:quest_subtasks(*),
+          custom_rewards:quest_custom_rewards(*)
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      logger.info('Quests loaded from database', { userId, count: data?.length || 0 });
+      return data || [];
+    } catch (error) {
+      logger.error('Failed to get quests', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Create a new quest with subtasks and custom rewards
+   */
+  async createQuest(
+    userId: string,
+    questData: {
+      title: string;
+      project: string;
+      date: string;
+      hour?: string;
+      difficulty?: import('@/types/database').QuestDifficulty;
+      is_recurring?: boolean;
+      subtasks?: { title: string }[];
+      custom_rewards?: { description: string }[];
+    }
+  ): Promise<import('@/types/database').DBQuest> {
+    if (!isSupabaseConfigured()) {
+      logger.warn('Supabase not configured - quest not persisted');
+      throw new Error('Database not configured');
+    }
+
+    try {
+      // Create the quest first
+      const { data: quest, error: questError } = await supabase
+        .from(SUPABASE_TABLES.QUESTS)
+        .insert({
+          user_id: userId,
+          title: questData.title,
+          project: questData.project,
+          date: questData.date,
+          hour: questData.hour || null,
+          difficulty: questData.difficulty || 'Easy',
+          status: 'today',
+          is_recurring: questData.is_recurring || false,
+          days_not_completed: 0,
+        })
+        .select()
+        .single();
+
+      if (questError) throw questError;
+
+      // Create subtasks if provided
+      if (questData.subtasks && questData.subtasks.length > 0) {
+        const { error: subtaskError } = await supabase
+          .from(SUPABASE_TABLES.QUEST_SUBTASKS)
+          .insert(
+            questData.subtasks.map(st => ({
+              quest_id: quest.id,
+              title: st.title,
+              is_completed: false,
+            }))
+          );
+
+        if (subtaskError) {
+          logger.error('Failed to create subtasks', subtaskError);
+        }
+      }
+
+      // Create custom rewards if provided
+      if (questData.custom_rewards && questData.custom_rewards.length > 0) {
+        const { error: rewardError } = await supabase
+          .from(SUPABASE_TABLES.QUEST_CUSTOM_REWARDS)
+          .insert(
+            questData.custom_rewards.map(r => ({
+              quest_id: quest.id,
+              description: r.description,
+            }))
+          );
+
+        if (rewardError) {
+          logger.error('Failed to create custom rewards', rewardError);
+        }
+      }
+
+      // Fetch the complete quest with relations
+      const { data: completeQuest, error: fetchError } = await supabase
+        .from(SUPABASE_TABLES.QUESTS)
+        .select(`
+          *,
+          subtasks:quest_subtasks(*),
+          custom_rewards:quest_custom_rewards(*)
+        `)
+        .eq('id', quest.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      logger.info('Quest created', { questId: quest.id, title: quest.title });
+      return completeQuest;
+    } catch (error) {
+      logger.error('Failed to create quest', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update a quest
+   */
+  async updateQuest(
+    questId: string,
+    updates: Partial<{
+      title: string;
+      project: string;
+      date: string;
+      hour: string;
+      status: import('@/types/database').QuestStatus;
+      difficulty: import('@/types/database').QuestDifficulty;
+      completed_at: string | null;
+      is_recurring: boolean;
+      days_not_completed: number;
+    }>
+  ): Promise<import('@/types/database').DBQuest> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Database not configured');
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLES.QUESTS)
+        .update(updates)
+        .eq('id', questId)
+        .select(`
+          *,
+          subtasks:quest_subtasks(*),
+          custom_rewards:quest_custom_rewards(*)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      logger.info('Quest updated', { questId, updates });
+      return data;
+    } catch (error) {
+      logger.error('Failed to update quest', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a quest (cascades to subtasks and rewards)
+   */
+  async deleteQuest(questId: string): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Database not configured');
+    }
+
+    try {
+      const { error } = await supabase
+        .from(SUPABASE_TABLES.QUESTS)
+        .delete()
+        .eq('id', questId);
+
+      if (error) throw error;
+
+      logger.info('Quest deleted', { questId });
+    } catch (error) {
+      logger.error('Failed to delete quest', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update subtask completion status
+   */
+  async updateSubtaskCompletion(
+    subtaskId: string,
+    isCompleted: boolean
+  ): Promise<import('@/types/database').DBQuestSubtask> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Database not configured');
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLES.QUEST_SUBTASKS)
+        .update({
+          is_completed: isCompleted,
+          completed_at: isCompleted ? new Date().toISOString() : null,
+        })
+        .eq('id', subtaskId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      logger.debug('Subtask completion updated', { subtaskId, isCompleted });
+      return data;
+    } catch (error) {
+      logger.error('Failed to update subtask completion', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Batch update quests for date automation (ChronosManager)
+   * Moves incomplete quests to new date and resets recurring quests
+   */
+  async batchUpdateQuestsForNewDay(
+    userId: string,
+    newDate: string
+  ): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      logger.warn('Supabase not configured - batch update skipped');
+      return;
+    }
+
+    try {
+      // Move incomplete non-recurring quests to new date
+      // Note: days_not_completed increment is handled via database trigger or separate RPC call
+      const { error: moveError } = await supabase
+        .from(SUPABASE_TABLES.QUESTS)
+        .update({
+          date: newDate,
+          status: 'today',
+        })
+        .eq('user_id', userId)
+        .neq('status', 'completed')
+        .eq('is_recurring', false);
+
+      if (moveError) {
+        logger.error('Failed to move incomplete quests', moveError);
+      }
+
+      // Reset recurring quests - move to new date and uncomplete
+      const { error: recurringError } = await supabase
+        .from(SUPABASE_TABLES.QUESTS)
+        .update({
+          date: newDate,
+          status: 'today',
+          completed_at: null,
+        })
+        .eq('user_id', userId)
+        .eq('is_recurring', true);
+
+      if (recurringError) {
+        logger.error('Failed to reset recurring quests', recurringError);
+      }
+
+      // Reset subtask completion for recurring quests
+      const { data: recurringQuests } = await supabase
+        .from(SUPABASE_TABLES.QUESTS)
+        .select('id')
+        .eq('user_id', userId)
+        .eq('is_recurring', true);
+
+      if (recurringQuests && recurringQuests.length > 0) {
+        const questIds = recurringQuests.map(q => q.id);
+        await supabase
+          .from(SUPABASE_TABLES.QUEST_SUBTASKS)
+          .update({ is_completed: false, completed_at: null })
+          .in('quest_id', questIds);
+      }
+
+      logger.info('Batch quest update completed for new day', { userId, newDate });
+    } catch (error) {
+      logger.error('Failed to batch update quests', error);
+      throw error;
+    }
+  },
 };

@@ -333,6 +333,17 @@
   100% { background-position: 30px 0; }
 }
 
+/* Trial button pulse - GPU optimized using transform instead of scale in JS */
+@keyframes trial-pulse {
+  0%, 100% { transform: scale(0.9); }
+  50% { transform: scale(0.945); }
+}
+
+.animate-trial-pulse {
+  animation: trial-pulse 0.8s ease-in-out infinite;
+  will-change: transform;
+}
+
 /* Hide header and nav when Soul Interface is open */
 body.soul-interface-open header {
   opacity: 0;

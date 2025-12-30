@@ -44,6 +44,20 @@ hydrationPromise = new Promise((resolve) => {
 // Export function to wait for hydration
 export const waitForHydration = () => hydrationPromise;
 
+// ========== REWARD UPDATE QUEUE ==========
+// Mutex to prevent race conditions when updating coins/stats
+// This ensures atomic reward operations even during rapid clicks
+let rewardUpdateQueue: Promise<void> = Promise.resolve();
+
+const queueRewardUpdate = <T>(operation: () => Promise<T>): Promise<T> => {
+  return new Promise((resolve, reject) => {
+    rewardUpdateQueue = rewardUpdateQueue
+      .then(() => operation())
+      .then(resolve)
+      .catch(reject);
+  });
+};
+
 // Helper to get yesterday's date as ISO string
 const getYesterday = (): string => {
   const yesterday = new Date();
@@ -626,38 +640,66 @@ export const useGameStore = create<GameState>()(
       },
 
       updateRewards: async (coins: number, statType: string, statPoints: number, stars: number = 0) => {
-        const { userProfile } = get();
-        if (!userProfile) return;
+        // Queue the update to prevent race conditions during rapid clicks
+        return queueRewardUpdate(async () => {
+          // ALWAYS get fresh state at the start of the queued operation
+          const { userProfile } = get();
+          if (!userProfile) {
+            logger.warn('updateRewards called without userProfile');
+            return;
+          }
 
-        const statField = statType.toLowerCase() + '_points';
-        const updates: Partial<UserProfile> = { 
-          coins: userProfile.coins + coins 
-        };
+          // Build updates based on CURRENT state (not stale closure)
+          const statField = statType.toLowerCase() + '_points';
+          const currentCoins = userProfile.coins;
+          const newCoins = Math.max(0, currentCoins + coins); // Prevent negative coins
+          
+          const updates: Partial<UserProfile> = { 
+            coins: newCoins
+          };
 
-        // Update stars if provided
-        if (stars !== 0) {
-          updates.stars = (userProfile.stars || 0) + stars;
-        }
+          // Update stars if provided
+          if (stars !== 0) {
+            updates.stars = Math.max(0, (userProfile.stars || 0) + stars);
+          }
 
-        if (statField === 'body_points') {
-          updates.body_points = userProfile.body_points + statPoints;
-        } else if (statField === 'mind_points') {
-          updates.mind_points = userProfile.mind_points + statPoints;
-        } else if (statField === 'soul_points') {
-          updates.soul_points = userProfile.soul_points + statPoints;
-        } else if (statField === 'will_points') {
-          updates.will_points = (userProfile.will_points || 0) + statPoints;
-        }
+          // Update stat points based on type
+          if (statField === 'body_points' && statPoints !== 0) {
+            updates.body_points = Math.max(0, userProfile.body_points + statPoints);
+          } else if (statField === 'mind_points' && statPoints !== 0) {
+            updates.mind_points = Math.max(0, userProfile.mind_points + statPoints);
+          } else if (statField === 'soul_points' && statPoints !== 0) {
+            updates.soul_points = Math.max(0, userProfile.soul_points + statPoints);
+          } else if (statField === 'will_points' && statPoints !== 0) {
+            updates.will_points = Math.max(0, (userProfile.will_points || 0) + statPoints);
+          }
 
-        // Update in database
-        try {
-          const updatedProfile = await gameDB.updateProfile(userProfile.id, updates);
-          set({ userProfile: updatedProfile });
-          logger.info('Rewards updated', { coins, statType, statPoints, stars, newCoins: updatedProfile.coins, newStars: updatedProfile.stars });
-        } catch (error) {
-          logger.error('Failed to update rewards', error);
-          throw error;
-        }
+          // Optimistic update with fresh values
+          set((state) => ({
+            userProfile: state.userProfile ? { ...state.userProfile, ...updates } : null
+          }));
+
+          // Persist to database
+          try {
+            const updatedProfile = await gameDB.updateProfile(userProfile.id, updates);
+            // Update state with DB response (source of truth)
+            set({ userProfile: updatedProfile });
+            logger.info('Rewards updated', { 
+              coins, 
+              statType, 
+              statPoints, 
+              stars, 
+              previousCoins: currentCoins,
+              newCoins: updatedProfile.coins, 
+              newStars: updatedProfile.stars 
+            });
+          } catch (error) {
+            // Rollback to previous state on error
+            logger.error('Failed to update rewards - rolling back', error);
+            set({ userProfile });
+            throw error;
+          }
+        });
       },
 
       setCurrentPage: (page: 'home' | 'tavern') => {

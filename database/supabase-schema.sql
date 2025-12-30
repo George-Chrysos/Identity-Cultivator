@@ -290,6 +290,130 @@ CREATE POLICY "Users can update own daily records" ON public.daily_records
 CREATE INDEX idx_daily_records_user_date ON public.daily_records(user_id, date DESC);
 CREATE INDEX idx_daily_records_date ON public.daily_records(date DESC);
 
+-- ==================== QUESTS TABLE ====================
+-- User-created quests with subtasks, custom rewards, and difficulty tracking
+
+-- Quest difficulty enum
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'quest_difficulty') THEN
+        CREATE TYPE quest_difficulty AS ENUM ('Easy', 'Moderate', 'Difficult', 'Hard', 'Hell');
+    END IF;
+END$$;
+
+-- Quest status enum
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'quest_status') THEN
+        CREATE TYPE quest_status AS ENUM ('today', 'backlog', 'completed');
+    END IF;
+END$$;
+
+-- Main quests table
+CREATE TABLE IF NOT EXISTS public.quests (
+    id UUID PRIMARY KEY DEFAULT COALESCE(uuid_generate_v4(), gen_random_uuid()),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    title VARCHAR(500) NOT NULL,
+    project VARCHAR(200) NOT NULL,
+    date VARCHAR(20) NOT NULL, -- Format: "Jan 15" 
+    hour VARCHAR(10), -- Format: "14:30" or "--:--"
+    status quest_status DEFAULT 'today',
+    difficulty quest_difficulty DEFAULT 'Easy',
+    completed_at TIMESTAMPTZ,
+    is_recurring BOOLEAN DEFAULT FALSE,
+    days_not_completed INT DEFAULT 0, -- Counter for difficulty escalation
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Quest subtasks table
+CREATE TABLE IF NOT EXISTS public.quest_subtasks (
+    id UUID PRIMARY KEY DEFAULT COALESCE(uuid_generate_v4(), gen_random_uuid()),
+    quest_id UUID NOT NULL REFERENCES public.quests(id) ON DELETE CASCADE,
+    title VARCHAR(500) NOT NULL,
+    is_completed BOOLEAN DEFAULT FALSE,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Quest custom rewards table
+CREATE TABLE IF NOT EXISTS public.quest_custom_rewards (
+    id UUID PRIMARY KEY DEFAULT COALESCE(uuid_generate_v4(), gen_random_uuid()),
+    quest_id UUID NOT NULL REFERENCES public.quests(id) ON DELETE CASCADE,
+    description VARCHAR(500) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for quests
+ALTER TABLE public.quests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quest_subtasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quest_custom_rewards ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for quests
+CREATE POLICY "Users can view own quests" ON public.quests
+    FOR SELECT USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can insert own quests" ON public.quests
+    FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can update own quests" ON public.quests
+    FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can delete own quests" ON public.quests
+    FOR DELETE USING ((SELECT auth.uid()) = user_id);
+
+-- RLS Policies for quest_subtasks (via quest ownership)
+CREATE POLICY "Users can view own quest subtasks" ON public.quest_subtasks
+    FOR SELECT USING (
+        EXISTS (SELECT 1 FROM public.quests WHERE quests.id = quest_subtasks.quest_id AND quests.user_id = (SELECT auth.uid()))
+    );
+
+CREATE POLICY "Users can insert own quest subtasks" ON public.quest_subtasks
+    FOR INSERT WITH CHECK (
+        EXISTS (SELECT 1 FROM public.quests WHERE quests.id = quest_subtasks.quest_id AND quests.user_id = (SELECT auth.uid()))
+    );
+
+CREATE POLICY "Users can update own quest subtasks" ON public.quest_subtasks
+    FOR UPDATE USING (
+        EXISTS (SELECT 1 FROM public.quests WHERE quests.id = quest_subtasks.quest_id AND quests.user_id = (SELECT auth.uid()))
+    );
+
+CREATE POLICY "Users can delete own quest subtasks" ON public.quest_subtasks
+    FOR DELETE USING (
+        EXISTS (SELECT 1 FROM public.quests WHERE quests.id = quest_subtasks.quest_id AND quests.user_id = (SELECT auth.uid()))
+    );
+
+-- RLS Policies for quest_custom_rewards (via quest ownership)
+CREATE POLICY "Users can view own quest rewards" ON public.quest_custom_rewards
+    FOR SELECT USING (
+        EXISTS (SELECT 1 FROM public.quests WHERE quests.id = quest_custom_rewards.quest_id AND quests.user_id = (SELECT auth.uid()))
+    );
+
+CREATE POLICY "Users can insert own quest rewards" ON public.quest_custom_rewards
+    FOR INSERT WITH CHECK (
+        EXISTS (SELECT 1 FROM public.quests WHERE quests.id = quest_custom_rewards.quest_id AND quests.user_id = (SELECT auth.uid()))
+    );
+
+CREATE POLICY "Users can delete own quest rewards" ON public.quest_custom_rewards
+    FOR DELETE USING (
+        EXISTS (SELECT 1 FROM public.quests WHERE quests.id = quest_custom_rewards.quest_id AND quests.user_id = (SELECT auth.uid()))
+    );
+
+-- Indexes for quests
+CREATE INDEX idx_quests_user_id ON public.quests(user_id);
+CREATE INDEX idx_quests_user_status ON public.quests(user_id, status);
+CREATE INDEX idx_quests_user_date ON public.quests(user_id, date);
+CREATE INDEX idx_quest_subtasks_quest_id ON public.quest_subtasks(quest_id);
+CREATE INDEX idx_quest_rewards_quest_id ON public.quest_custom_rewards(quest_id);
+
+-- Trigger for updated_at on quests
+CREATE TRIGGER update_quests_updated_at BEFORE UPDATE ON public.quests
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+COMMENT ON TABLE public.quests IS 'User-created quests with progress tracking';
+COMMENT ON TABLE public.quest_subtasks IS 'Subtasks for quests';
+COMMENT ON TABLE public.quest_custom_rewards IS 'Custom rewards defined by users for quest completion';
+
 COMMENT ON TABLE public.profiles IS 'Extended user profiles linked to Supabase auth';
 COMMENT ON TABLE public.identities IS 'User cultivator identities with tier and level tracking';
 COMMENT ON TABLE public.user_progress IS 'Daily progress tracking for each identity';

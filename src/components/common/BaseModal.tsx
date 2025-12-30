@@ -147,8 +147,8 @@ export const BaseModal = memo(({
               </div>
             )}
 
-            {/* Modal content */}
-            <div className="relative">
+            {/* Modal content - scrollable with max height */}
+            <div className="relative max-h-[calc(100vh-8rem)] overflow-y-auto">
               {children}
             </div>
           </motion.div>

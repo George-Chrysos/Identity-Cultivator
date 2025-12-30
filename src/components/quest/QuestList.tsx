@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { QuestCard, QuestStatus, type Quest } from './QuestCard';
 import { useQuestStore } from '../../store/questStore';
 import { useTestingStore } from '@/store/testingStore';
+import { useAuthStore } from '@/store/authStore';
 import { logger } from '@/utils/logger';
 
 interface QuestListProps {
@@ -16,6 +17,10 @@ export const QuestList = memo(({ onQuestAdd }: QuestListProps) => {
   const [completedSubtasks, setCompletedSubtasks] = useState<Set<string>>(new Set());
   const [isTransitioning, setIsTransitioning] = useState(false);
 
+  // Get current user ID from auth store
+  const currentUser = useAuthStore((state) => state.currentUser);
+  const userId = currentUser?.id;
+
   // Load quests from store
   const { quests, isLoading, loadQuests, updateQuest, completeQuest } = useQuestStore(
     (state: any) => ({
@@ -27,10 +32,12 @@ export const QuestList = memo(({ onQuestAdd }: QuestListProps) => {
     })
   );
 
-  // Initialize quests on mount
+  // Initialize quests on mount when user is available
   useEffect(() => {
-    loadQuests();
-  }, [loadQuests]);
+    if (userId) {
+      loadQuests(userId);
+    }
+  }, [loadQuests, userId]);
 
   // Get current date (respects testing mode)
   const { getTestingDateFormatted } = useTestingStore();

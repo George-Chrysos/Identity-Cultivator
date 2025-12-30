@@ -127,9 +127,9 @@ export const NewQuestModal = memo(({
       maxWidth="2xl"
       showCloseButton={true}
     >
-      <div className="p-6">
-        {/* Header */}
-        <div className="mb-6">
+      <div className="flex flex-col max-h-[calc(100vh-6rem)]">
+        {/* Header - Fixed at top */}
+        <div className="p-6 pb-4 flex-shrink-0">
           <h2 
             className="text-3xl font-bold text-white font-section tracking-wide mb-2"
             style={{ textShadow: '0 0 15px rgba(168, 85, 247, 0.5)' }}
@@ -140,9 +140,11 @@ export const NewQuestModal = memo(({
             Define your next challenge
           </p>
         </div>
-
-              {/* Form */}
-              <div className="space-y-4">
+        
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto px-6 min-h-0">
+          {/* Form */}
+          <div className="space-y-4 pb-4">
                 {/* Title */}
                 <div>
                   <label className="text-xs text-slate-500 uppercase tracking-widest block mb-2">
@@ -299,29 +301,32 @@ export const NewQuestModal = memo(({
                     </button>
                   </div>
                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="mt-6 flex gap-3">
-                <button
-                  onClick={onClose}
-                  className="flex-1 py-2 px-4 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600 transition-all font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={!title.trim() || !project.trim()}
-                  className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
-                    !title.trim() || !project.trim()
-                      ? 'bg-slate-800/50 border border-slate-700 text-slate-600 cursor-not-allowed'
-                      : 'bg-purple-600/20 border border-purple-500/50 text-purple-300 hover:bg-purple-600/30 hover:border-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.4)] hover:shadow-[0_0_15px_rgba(168,85,247,0.6)]'
-                  }`}
-                >
-                  Create Quest
-                </button>
-              </div>
-            </div>
+          </div>
+        </div>
+        
+        {/* Action Buttons - Fixed at bottom */}
+        <div className="p-6 pt-4 border-t border-slate-700/50 flex-shrink-0 bg-slate-900/95">
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2 px-4 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600 transition-all font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!title.trim() || !project.trim()}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+                !title.trim() || !project.trim()
+                  ? 'bg-slate-800/50 border border-slate-700 text-slate-600 cursor-not-allowed'
+                  : 'bg-purple-600/20 border border-purple-500/50 text-purple-300 hover:bg-purple-600/30 hover:border-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.4)] hover:shadow-[0_0_15px_rgba(168,85,247,0.6)]'
+              }`}
+            >
+              Create Quest
+            </button>
+          </div>
+        </div>
+      </div>
     </BaseModal>
   );
 });

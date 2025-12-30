@@ -23,8 +23,8 @@ DELETE FROM public.player_identities;
 -- Reset all profiles to initial state
 UPDATE public.profiles 
 SET 
-  rank_tier = 'D',
-  coins = 100,
+  rank_tier = 'E',
+  coins = 0,
   stars = 5,
   body_points = 0,
   mind_points = 0,

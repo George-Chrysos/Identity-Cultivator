@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { logger } from '@/utils/logger';
 import { Quest, SubQuest, QuestDifficulty } from '@/components/quest/QuestCard';
+import { useGameStore } from '@/store/gameStore';
+import { gameDB } from '@/api/gameDatabase';
 
 // Coin rewards based on quest difficulty - exported for UI display
 export const QUEST_COIN_REWARDS: Record<QuestDifficulty, number> = {
@@ -81,19 +83,43 @@ interface QuestState {
   quests: Quest[];
   isLoading: boolean;
   error: string | null;
+  userId: string | null; // Track current user for DB operations
 
   // Actions
-  loadQuests: () => Promise<void>;
+  loadQuests: (userId: string) => Promise<void>;
   addQuest: (quest: Omit<Quest, 'id'>) => Promise<Quest>;
   updateQuest: (questId: string, updates: Partial<Quest>) => Promise<void>;
   deleteQuest: (questId: string) => Promise<void>;
   completeQuest: (questId: string) => Promise<void>;
+  updateSubtaskCompletion: (questId: string, subtaskId: string, isCompleted: boolean) => Promise<void>;
   addSubQuest: (questId: string, subQuest: Omit<SubQuest, 'id'>) => Promise<void>;
   getQuestById: (questId: string) => Quest | undefined;
-  moveIncompleteQuestsToDate: (newDate: Date) => void;
-  resetRecurringQuests: (newDate: Date) => void;
+  moveIncompleteQuestsToDate: (newDate: Date) => Promise<void>;
+  resetRecurringQuests: (newDate: Date) => Promise<void>;
   clearQuests: () => void;
 }
+
+// Helper to convert DB quest to frontend Quest format
+const dbQuestToQuest = (dbQuest: import('@/types/database').DBQuest): Quest => ({
+  id: dbQuest.id,
+  title: dbQuest.title,
+  project: dbQuest.project,
+  date: dbQuest.date,
+  hour: dbQuest.hour,
+  status: dbQuest.status,
+  difficulty: dbQuest.difficulty,
+  completedAt: dbQuest.completed_at,
+  isRecurring: dbQuest.is_recurring,
+  daysNotCompleted: dbQuest.days_not_completed,
+  subtasks: dbQuest.subtasks?.map(st => ({
+    id: st.id,
+    title: st.title,
+  })),
+  customRewards: dbQuest.custom_rewards?.map(r => ({
+    id: r.id,
+    description: r.description,
+  })),
+});
 
 export const useQuestStore = create<QuestState>()(
   persist(
@@ -101,33 +127,25 @@ export const useQuestStore = create<QuestState>()(
       quests: [],
       isLoading: false,
       error: null,
+      userId: null,
 
-      loadQuests: async () => {
-        set({ isLoading: true, error: null });
+      loadQuests: async (userId: string) => {
+        set({ isLoading: true, error: null, userId });
         
         try {
-          // Simulate API delay
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Try to load from database first
+          const dbQuests = await gameDB.getQuests(userId);
           
-          // Check if we already have quests in state (from persistence)
-          const currentQuests = get().quests;
-          
-          if (currentQuests.length === 0) {
-            // No mock data - start with empty quests
-            set({ quests: [], isLoading: false });
-            logger.info('Initialized with empty quests');
-          } else {
+          if (dbQuests.length > 0) {
+            // Convert DB quests to frontend format
+            const quests = dbQuests.map(dbQuestToQuest);
+            
             // Auto-move incomplete quests from past dates to today
             const todayDate = getTodayFormatted();
-            const updatedQuests = currentQuests.map(quest => {
-              // Skip completed quests - they stay on their completion date
-              if (quest.status === 'completed') {
-                return quest;
-              }
+            const updatedQuests = quests.map(quest => {
+              if (quest.status === 'completed') return quest;
               
-              // Check if quest date is in the past
               if (isDateInPast(quest.date)) {
-                // Move incomplete quest to today
                 logger.info('Auto-moved incomplete quest to today', { 
                   questId: quest.id, 
                   questTitle: quest.title,
@@ -137,26 +155,63 @@ export const useQuestStore = create<QuestState>()(
                 return { ...quest, date: todayDate, status: 'today' as const };
               }
               
-              // Update status to 'today' if date matches today
               if (quest.date === todayDate && quest.status !== 'today') {
                 return { ...quest, status: 'today' as const };
               }
               
               return quest;
             });
+            
             set({ quests: updatedQuests, isLoading: false });
-            logger.debug('Quests loaded from persistence', { count: updatedQuests.length });
+            logger.info('Quests loaded from database', { count: updatedQuests.length });
+          } else {
+            // Check localStorage persistence as fallback
+            const currentQuests = get().quests;
+            
+            if (currentQuests.length > 0) {
+              // Migrate localStorage quests to database
+              logger.info('Migrating localStorage quests to database', { count: currentQuests.length });
+              
+              for (const quest of currentQuests) {
+                try {
+                  await gameDB.createQuest(userId, {
+                    title: quest.title,
+                    project: quest.project,
+                    date: quest.date,
+                    hour: quest.hour,
+                    difficulty: quest.difficulty,
+                    is_recurring: quest.isRecurring,
+                    subtasks: quest.subtasks?.map(st => ({ title: st.title })),
+                    custom_rewards: quest.customRewards?.map(r => ({ description: r.description })),
+                  });
+                } catch (err) {
+                  logger.warn('Failed to migrate quest to DB', { questId: quest.id, err });
+                }
+              }
+              
+              // Reload from database after migration
+              const migratedQuests = await gameDB.getQuests(userId);
+              set({ quests: migratedQuests.map(dbQuestToQuest), isLoading: false });
+            } else {
+              set({ quests: [], isLoading: false });
+              logger.info('Initialized with empty quests');
+            }
           }
         } catch (error) {
           logger.error('Failed to load quests', { error });
-          set({ error: 'Failed to load quests', isLoading: false });
+          // Fallback to localStorage quests if DB fails
+          set({ error: 'Failed to load quests from database', isLoading: false });
         }
       },
 
       addQuest: async (questData) => {
+        const { userId } = get();
+        
+        // Create temporary ID for optimistic update
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const newQuest: Quest = {
           ...questData,
-          id: `quest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: tempId,
         };
 
         // Optimistic update
@@ -165,14 +220,35 @@ export const useQuestStore = create<QuestState>()(
         }));
 
         try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 200));
-          logger.info('Quest added', { questId: newQuest.id });
+          if (userId) {
+            // Persist to database
+            const dbQuest = await gameDB.createQuest(userId, {
+              title: questData.title,
+              project: questData.project,
+              date: questData.date,
+              hour: questData.hour,
+              difficulty: questData.difficulty,
+              is_recurring: questData.isRecurring,
+              subtasks: questData.subtasks?.map(st => ({ title: st.title })),
+              custom_rewards: questData.customRewards?.map(r => ({ description: r.description })),
+            });
+            
+            // Update with real ID from database
+            const realQuest = dbQuestToQuest(dbQuest);
+            set((state) => ({
+              quests: state.quests.map(q => q.id === tempId ? realQuest : q),
+            }));
+            
+            logger.info('Quest added to database', { questId: realQuest.id });
+            return realQuest;
+          }
+          
+          logger.info('Quest added (local only - no user)', { questId: newQuest.id });
           return newQuest;
         } catch (error) {
           // Rollback on error
           set((state) => ({
-            quests: state.quests.filter(q => q.id !== newQuest.id),
+            quests: state.quests.filter(q => q.id !== tempId),
           }));
           logger.error('Failed to add quest', { error });
           throw error;
@@ -196,9 +272,20 @@ export const useQuestStore = create<QuestState>()(
         }));
 
         try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 200));
-          logger.debug('Quest updated', { questId, updates });
+          // Persist to database
+          await gameDB.updateQuest(questId, {
+            title: updates.title,
+            project: updates.project,
+            date: updates.date,
+            hour: updates.hour,
+            status: updates.status,
+            difficulty: updates.difficulty,
+            completed_at: updates.completedAt || null,
+            is_recurring: updates.isRecurring,
+            days_not_completed: updates.daysNotCompleted,
+          });
+          
+          logger.debug('Quest updated in database', { questId, updates });
         } catch (error) {
           // Rollback on error
           set({ quests: prevQuests });
@@ -216,9 +303,9 @@ export const useQuestStore = create<QuestState>()(
         }));
 
         try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 200));
-          logger.info('Quest deleted', { questId });
+          // Delete from database
+          await gameDB.deleteQuest(questId);
+          logger.info('Quest deleted from database', { questId });
         } catch (error) {
           // Rollback on error
           set({ quests: prevQuests });
@@ -254,11 +341,8 @@ export const useQuestStore = create<QuestState>()(
         }));
 
         try {
-          // Import stores synchronously to avoid timing issues
-          const gameStoreModule = await import('@/store/gameStore');
-          
-          const gameStore = gameStoreModule.useGameStore.getState();
-          const { userProfile } = gameStore;
+          // Use static imports (already imported at top) to avoid memory issues
+          const { userProfile } = useGameStore.getState();
           
           logger.debug('Quest completion - checking userProfile', { 
             hasUserProfile: !!userProfile,
@@ -273,12 +357,11 @@ export const useQuestStore = create<QuestState>()(
             const coinDelta = isCompleted ? -coinReward : coinReward;
             const newCoins = Math.max(0, userProfile.coins + coinDelta);
             
-            // Update coins in database
-            const gameDBModule = await import('@/api/gameDatabase');
-            const updatedProfile = await gameDBModule.gameDB.updateProfile(userProfile.id, { coins: newCoins });
+            // Update coins in database using static import
+            const updatedProfile = await gameDB.updateProfile(userProfile.id, { coins: newCoins });
             
             // Update game store state
-            gameStoreModule.useGameStore.setState({ userProfile: updatedProfile });
+            useGameStore.setState({ userProfile: updatedProfile });
             
             logger.info('Quest completion toggled', { 
               questId, 
@@ -292,12 +375,45 @@ export const useQuestStore = create<QuestState>()(
             logger.warn('No user profile found, coins not updated', { questId });
           }
           
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 200));
+          // Persist quest status to database
+          await gameDB.updateQuest(questId, {
+            status: newStatus,
+            completed_at: completedAt || null,
+          });
+          
+          logger.info('Quest completion persisted to database', { questId, newStatus });
         } catch (error) {
           // Rollback on error
           set({ quests: prevQuests });
           logger.error('Failed to complete quest', { error });
+          throw error;
+        }
+      },
+
+      updateSubtaskCompletion: async (questId, subtaskId, isCompleted) => {
+        const prevQuests = get().quests;
+        
+        // Optimistic update
+        set((state) => ({
+          quests: state.quests.map(q => {
+            if (q.id !== questId) return q;
+            return {
+              ...q,
+              subtasks: q.subtasks?.map(st =>
+                st.id === subtaskId ? { ...st, isCompleted } : st
+              ),
+            };
+          }),
+        }));
+
+        try {
+          // Persist to database
+          await gameDB.updateSubtaskCompletion(subtaskId, isCompleted);
+          logger.debug('Subtask completion updated in database', { questId, subtaskId, isCompleted });
+        } catch (error) {
+          // Rollback on error
+          set({ quests: prevQuests });
+          logger.error('Failed to update subtask completion', { error });
           throw error;
         }
       },
@@ -319,8 +435,7 @@ export const useQuestStore = create<QuestState>()(
         }));
 
         try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 200));
+          // Note: Subtasks are created via quest creation or separate API
           logger.debug('SubQuest added', { questId, subQuestId: newSubQuest.id });
         } catch (error) {
           // Rollback on error
@@ -334,22 +449,16 @@ export const useQuestStore = create<QuestState>()(
         return get().quests.find(q => q.id === questId);
       },
 
-      moveIncompleteQuestsToDate: (newDate: Date) => {
+      moveIncompleteQuestsToDate: async (newDate: Date) => {
+        const { userId } = get();
         const newDateFormatted = getDateFormatted(newDate);
         
+        // Optimistic update
         set((state) => ({
           quests: state.quests.map(quest => {
-            // Skip completed quests - they stay on their completion date
-            if (quest.status === 'completed') {
-              return quest;
-            }
+            if (quest.status === 'completed') return quest;
+            if (quest.isRecurring) return quest;
             
-            // Skip recurring quests - they are handled by resetRecurringQuests
-            if (quest.isRecurring) {
-              return quest;
-            }
-            
-            // Move non-recurring incomplete quests to the new date
             if (quest.date !== newDateFormatted) {
               logger.info('Moving incomplete non-recurring quest to new date', {
                 questId: quest.id,
@@ -357,25 +466,38 @@ export const useQuestStore = create<QuestState>()(
                 oldDate: quest.date,
                 newDate: newDateFormatted,
               });
-              return { ...quest, date: newDateFormatted, status: 'today' as const };
+              return { 
+                ...quest, 
+                date: newDateFormatted, 
+                status: 'today' as const,
+                daysNotCompleted: (quest.daysNotCompleted || 0) + 1,
+              };
             }
             
             return quest;
           }),
         }));
+
+        // Persist to database
+        if (userId) {
+          try {
+            await gameDB.batchUpdateQuestsForNewDay(userId, newDateFormatted);
+            logger.info('Quests moved to new date in database', { newDate: newDateFormatted });
+          } catch (error) {
+            logger.error('Failed to persist quest date move to database', { error });
+          }
+        }
       },
 
-      resetRecurringQuests: (newDate: Date) => {
+      resetRecurringQuests: async (newDate: Date) => {
+        const { userId } = get();
         const newDateFormatted = getDateFormatted(newDate);
         
+        // Optimistic update
         set((state) => ({
           quests: state.quests.map(quest => {
-            // Only process recurring quests
-            if (!quest.isRecurring) {
-              return quest;
-            }
+            if (!quest.isRecurring) return quest;
             
-            // Move recurring quest to new date and reset to uncompleted status
             logger.info('Resetting recurring quest for new day', {
               questId: quest.id,
               questTitle: quest.title,
@@ -388,15 +510,19 @@ export const useQuestStore = create<QuestState>()(
               ...quest,
               date: newDateFormatted,
               status: 'today' as const,
-              // Reset completedAt if it was completed (for daily recurrence)
               completedAt: undefined,
             };
           }),
         }));
+
+        // Note: DB update handled by batchUpdateQuestsForNewDay
+        if (userId) {
+          logger.info('Recurring quests reset persisted via batch update');
+        }
       },
       
       clearQuests: () => {
-        set({ quests: [], isLoading: false, error: null });
+        set({ quests: [], isLoading: false, error: null, userId: null });
         logger.info('Quests cleared');
       },
     }),
@@ -404,6 +530,7 @@ export const useQuestStore = create<QuestState>()(
       name: 'quest-store',
       partialize: (state) => ({
         quests: state.quests,
+        userId: state.userId,
       }),
     }
   )

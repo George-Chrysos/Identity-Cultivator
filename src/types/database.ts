@@ -431,7 +431,61 @@ export const SUPABASE_TABLES = {
   GATES: 'gates',
   GATE_SUBTASKS: 'gate_subtasks',
   TRIALS: 'trials',
+  // Quest tables
+  QUESTS: 'quests',
+  QUEST_SUBTASKS: 'quest_subtasks',
+  QUEST_CUSTOM_REWARDS: 'quest_custom_rewards',
 } as const;
+
+// ==================== QUEST TYPES ====================
+
+export type QuestDifficulty = 'Easy' | 'Moderate' | 'Difficult' | 'Hard' | 'Hell';
+export type QuestStatus = 'today' | 'backlog' | 'completed';
+
+/**
+ * Quest subtask stored in database
+ */
+export interface DBQuestSubtask {
+  id: string;
+  quest_id: string;
+  title: string;
+  is_completed: boolean;
+  completed_at?: string;
+  created_at: string;
+}
+
+/**
+ * Quest custom reward stored in database
+ */
+export interface DBQuestCustomReward {
+  id: string;
+  quest_id: string;
+  description: string;
+  created_at: string;
+}
+
+/**
+ * Quest stored in database
+ * @table public.quests
+ */
+export interface DBQuest {
+  id: string;
+  user_id: string;
+  title: string;
+  project: string;
+  date: string;
+  hour?: string;
+  status: QuestStatus;
+  difficulty: QuestDifficulty;
+  completed_at?: string;
+  is_recurring: boolean;
+  days_not_completed: number;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  subtasks?: DBQuestSubtask[];
+  custom_rewards?: DBQuestCustomReward[];
+}
 
 /**
  * Map stat types to profile columns

@@ -704,14 +704,12 @@ export const PathCard = memo(({
         {/* Right: Trial CTA only when ready - scaled down 10% */}
         {isTrialReady && (
           <div className="flex-shrink-0">
-            <motion.button
+            <button
               onClick={handleTrialStart}
-              animate={{ scale: [0.9, 0.945, 0.9] }}
-              transition={{ duration: 0.8, repeat: Infinity }}
-              className="px-3 py-1.5 rounded-lg text-sm bg-gradient-to-r mr-1 from-red-600 to-orange-600 text-white font-bold tracking-wide shadow-[0_0_12px_rgba(220,38,38,0.6)] hover:shadow-[0_0_20px_rgba(220,38,38,0.8)] transition-shadow"
+              className="px-3 py-1.5 rounded-lg text-sm bg-gradient-to-r mr-1 from-red-600 to-orange-600 text-white font-bold tracking-wide shadow-[0_0_12px_rgba(220,38,38,0.6)] hover:shadow-[0_0_20px_rgba(220,38,38,0.8)] transition-shadow animate-trial-pulse"
             >
               TRIAL
-            </motion.button>
+            </button>
           </div>
         )}
       </div>
@@ -782,16 +780,12 @@ export const PathCard = memo(({
           )}
           
           {/* XP Counter - Right aligned with right margin */}
-          <motion.div 
-            key={currentXP}
-            initial={{ scale: 1 }}
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ duration: 0.3 }}
+          <div 
             className="text-xs text-purple-300 mr-3"
           >
             <span>{currentXP} /</span>
             <span> {maxXP}</span>
-          </motion.div>
+          </div>
         </div>
       </div>
 

@@ -188,14 +188,19 @@ export const QuestCard = memo(({
       <div className="flex justify-between items-center">
         {/* Left Side: Title + Project */}
         <div className="flex flex-col gap-1 flex-1 min-w-0">
-          <h4 className={`font-semibold text-lg transition-all ${
-            isCompleted 
-              ? 'text-slate-500 line-through' 
-              : 'text-white'
-          }`}>
+          <h4 
+            className={`font-bold text-lg font-section tracking-wide transition-all ${
+              isCompleted 
+                ? 'text-slate-500 line-through' 
+                : 'text-white'
+            }`}
+            style={{
+              textShadow: isCompleted ? 'none' : '0 0 10px rgba(168, 85, 247, 0.3)',
+            }}
+          >
             {quest.title}
           </h4>
-          <p className="text-xs text-slate-500 uppercase tracking-widest">
+          <p className="text-xs text-slate-500 uppercase tracking-widest font-medium">
             {quest.project}
           </p>
         </div>
@@ -213,14 +218,14 @@ export const QuestCard = memo(({
             </button>
           )}
           {/* Expand Icon */}
-          <motion.div
-            animate={{ rotate: isExpanded ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
+          <div
+            className="transition-transform duration-200"
+            style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
           >
             <ChevronDown className={`w-5 h-5 transition-colors ${
               isCompleted ? 'text-slate-600' : 'text-slate-400'
             }`} />
-          </motion.div>
+          </div>
         </div>
       </div>
 
@@ -239,7 +244,7 @@ export const QuestCard = memo(({
               {/* Subtasks */}
               {quest.subtasks && quest.subtasks.length > 0 && (
                 <div className="mb-3">
-                  <span className="text-xs text-slate-500 uppercase tracking-widest block mb-2">Subtasks</span>
+                  <span className="text-xs text-slate-500 uppercase tracking-widest block mb-2 font-medium">Subtasks</span>
                   {quest.subtasks.map((subtask, index) => {
                     const isSubtaskCompleted = completedSubtasks.has(subtask.id);
                     const isLastSubtask = index === quest.subtasks!.length - 1;
