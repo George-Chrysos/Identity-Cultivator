@@ -147,6 +147,8 @@ interface GameState {
   deactivateIdentity: (identityId: string) => Promise<void>;
   getIdentityById: (identityId: string) => PlayerIdentityWithDetails | null;
   updateIdentityStreak: (identityId: string, streak: number) => Promise<void>;
+  updateIdentityLevel: (identityId: string, level: number, xp?: number) => Promise<void>;
+  updateIdentityXP: (identityId: string, xpDelta: number) => Promise<void>;
   updateRewards: (coins: number, statType: string, statPoints: number, stars?: number) => Promise<void>;
   setCurrentPage: (page: 'home' | 'tavern') => void;
   clearGameData: () => void;
@@ -363,23 +365,33 @@ export const useGameStore = create<GameState>()(
           const newDailyTaskStates: Record<string, DailyTaskState> = {};
           
           // Map progress records from DB to identity IDs (DB is source of truth)
+          // XP is stored in player_identities and managed by completeTask/updateIdentityXP
           progressRecords.forEach(record => {
             // Find the identity that matches this path_id (template_id)
             const identity = activeIdentities.find(id => id.template_id === record.path_id);
             
             if (identity) {
-              // DB data takes precedence
+              const completedTaskIds = Array.isArray(record.completed_task_ids) ? record.completed_task_ids : [];
+              
+              // DB data takes precedence for task completion state
               newDailyTaskStates[identity.id] = {
-                completedTasks: Array.isArray(record.completed_task_ids) ? record.completed_task_ids : [],
+                completedTasks: completedTaskIds,
                 completedSubtasks: Array.isArray(record.completed_subtask_ids) ? record.completed_subtask_ids : [],
                 date: today,
               };
+              
+              // XP is trusted from DB (identity.current_xp) - no recalculation needed
+              // XP accumulates across days and is managed by:
+              // - completeTask() adds XP when checking
+              // - updateIdentityXP() subtracts XP when unchecking
+              
               logger.info('✅ Mapped task state from DB', { 
                 identityId: identity.id, 
                 templateId: identity.template_id, 
                 pathId: record.path_id,
-                taskCount: newDailyTaskStates[identity.id].completedTasks.length,
-                taskIds: newDailyTaskStates[identity.id].completedTasks,
+                taskCount: completedTaskIds.length,
+                taskIds: completedTaskIds,
+                dbXp: identity.current_xp,
               });
             } else {
               logger.warn('❌ No identity found for path_id', { 
@@ -388,6 +400,9 @@ export const useGameStore = create<GameState>()(
               });
             }
           });
+          
+          // Identities with no progress record today keep their DB XP
+          // (XP accumulates across days until level up)
           
           set({ dailyTaskStates: newDailyTaskStates });
           logger.info('✨ Daily task states loaded from DB', { 
@@ -635,6 +650,66 @@ export const useGameStore = create<GameState>()(
         } catch (error) {
           // In test mode without database, log but don't rollback
           logger.warn('Database unavailable - streak persisted in memory only', { identityId, streak });
+          // Keep the optimistic update even if DB fails (for test mode)
+        }
+      },
+
+      updateIdentityLevel: async (identityId: string, level: number, xp: number = 0) => {
+        const { activeIdentities } = get();
+        const identity = activeIdentities.find((i) => i.id === identityId);
+        if (!identity) {
+          logger.error('Identity not found for level update', { identityId });
+          return;
+        }
+
+        // Optimistic update - apply immediately
+        set({
+          activeIdentities: activeIdentities.map((i) =>
+            i.id === identityId ? { ...i, current_level: level, current_xp: xp, current_streak: 0 } : i
+          ),
+        });
+
+        try {
+          // Persist to database
+          await gameDB.updateIdentity(identityId, { 
+            current_level: level,
+            current_xp: xp,
+            current_streak: 0, // Reset streak on level up
+          });
+          logger.info('✅ Level updated successfully', { identityId, level, xp });
+        } catch (error) {
+          // In test mode without database, log but don't rollback
+          logger.warn('Database unavailable - level persisted in memory only', { identityId, level });
+          // Keep the optimistic update even if DB fails (for test mode)
+        }
+      },
+
+      updateIdentityXP: async (identityId: string, xpDelta: number) => {
+        const { activeIdentities } = get();
+        const identity = activeIdentities.find((i) => i.id === identityId);
+        if (!identity) {
+          logger.error('Identity not found for XP update', { identityId });
+          return;
+        }
+
+        const newXp = Math.max(0, identity.current_xp + xpDelta);
+
+        // Optimistic update - apply immediately
+        set({
+          activeIdentities: activeIdentities.map((i) =>
+            i.id === identityId ? { ...i, current_xp: newXp } : i
+          ),
+        });
+
+        try {
+          // Persist to database
+          await gameDB.updateIdentity(identityId, { 
+            current_xp: newXp,
+          });
+          logger.info('✅ XP updated successfully', { identityId, xpDelta, newXp });
+        } catch (error) {
+          // In test mode without database, log but don't rollback
+          logger.warn('Database unavailable - XP persisted in memory only', { identityId, xpDelta });
           // Keep the optimistic update even if DB fails (for test mode)
         }
       },

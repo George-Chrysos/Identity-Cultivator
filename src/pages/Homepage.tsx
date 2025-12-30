@@ -526,6 +526,11 @@ const Homepage = () => {
                       onTrialStart={() => {
                         logger.info('Trial started for identity', { identityId: identity.id });
                       }}
+                      onTrialComplete={async (newLevel) => {
+                        logger.info('Trial completed - level up', { identityId: identity.id, newLevel });
+                        // Persist level change to database (XP resets to 0, streak resets to 0)
+                        await useGameStore.getState().updateIdentityLevel(identity.id, newLevel, 0);
+                      }}
                     />
                   </div>
                 );

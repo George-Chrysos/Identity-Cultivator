@@ -421,7 +421,7 @@ export const gameDB = {
 
       if (taskError) throw taskError;
 
-      // Get the player identity
+      // Get the player identity for XP calculation
       const { data: identity, error: identityError } = await supabase
         .from(SUPABASE_TABLES.PLAYER_IDENTITIES)
         .select('*')
@@ -451,8 +451,8 @@ export const gameDB = {
       // This prevents double-awarding of coins/stats.
       // The task_log still records what was earned for historical tracking.
 
-      // Update identity XP and streak
-      // Use PathRegistry for XP calculation if path_id is available, otherwise use legacy formula
+      // Update identity XP (accumulates across days until level up)
+      // XP is also subtracted when unchecking via updateIdentityXP()
       const { getPathLevelConfig } = await import('@/constants/pathRegistry');
       const pathLevelConfig = taskTemplate.path_id 
         ? getPathLevelConfig(taskTemplate.path_id, identity.current_level)
@@ -463,15 +463,12 @@ export const gameDB = {
       const leveledUp = newXp >= xpForNextLevel;
       const newLevel = leveledUp ? identity.current_level + 1 : identity.current_level;
 
-      // ❌ BUG FIX: DO NOT increment streak here! 
-      // Streak should only increment once per day when ALL tasks are completed.
-      // This is managed by PathCard.tsx and gameStore.updateIdentityStreak()
       const { data: updatedIdentity, error: updateError } = await supabase
         .from(SUPABASE_TABLES.PLAYER_IDENTITIES)
         .update({
           current_xp: leveledUp ? newXp - xpForNextLevel : newXp,
           current_level: newLevel,
-          // REMOVED: current_streak increment - handled by PathCard only
+          // Streak is managed by PathCard only
         })
         .eq('id', request.identity_instance_id)
         .select()
@@ -489,7 +486,7 @@ export const gameDB = {
         .eq('id', request.user_id)
         .single();
 
-      logger.info('Task completed', { taskLog });
+      logger.info('Task completed', { taskLog, newXp: updatedIdentity.current_xp, leveledUp });
 
       return {
         task_log: taskLog,

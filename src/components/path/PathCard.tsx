@@ -73,6 +73,7 @@ interface PathCardProps {
   onAllTasksComplete?: (newStreak: number) => Promise<void>;
   onTrialStart?: () => void;
   onLevelUp?: (newLevel: number) => { title: string; subtitle: string; tasks: Task[]; trialInfo?: TrialInfo; maxXP: number } | null;
+  onTrialComplete?: (newLevel: number) => Promise<void>; // Persist level change to database
 }
 
 
@@ -93,6 +94,7 @@ export const PathCard = memo(({
   onAllTasksComplete,
   onTrialStart,
   onLevelUp,
+  onTrialComplete,
 }: PathCardProps) => {
   // Use store for persisted task state if identityId provided, otherwise fallback to local state
   const storeCompletedTasks = useGameStore((s) => identityId ? s.getCompletedTasks(identityId) : new Set<string>());
@@ -292,6 +294,15 @@ export const PathCard = memo(({
       // Uncheck all subtasks when parent is unchecked
       if (task.subtasks) {
         task.subtasks.forEach(st => newCompletedSubtasks.delete(st.id));
+      }
+      
+      // Persist XP decrease to database (reverse of completeTask XP gain)
+      if (identityId && task.rewards.xp > 0) {
+        const { updateIdentityXP } = useGameStore.getState();
+        logger.info('Persisting XP decrease to DB', { identityId, xpDelta: -task.rewards.xp });
+        updateIdentityXP(identityId, -task.rewards.xp).catch(error => {
+          logger.error('Failed to persist XP decrease', { error, identityId });
+        });
       }
       
       // Reverse coin and stat rewards using path registry values
@@ -608,7 +619,7 @@ export const PathCard = memo(({
     onTrialStart?.();
   }, [onTrialStart]);
 
-  const handleTrialComplete = useCallback(() => {
+  const handleTrialComplete = useCallback(async () => {
     // Close modal
     setIsTrialModalOpen(false);
     
@@ -648,7 +659,10 @@ export const PathCard = memo(({
       // Pass stars as 4th parameter to updateRewards
       updateRewards(rewards.coins, 'BODY', 0, rewards.stars || 0);
     }
-  }, [currentLevel, updateRewards, onLevelUp, trialInfo]);
+    
+    // Persist level change to database
+    await onTrialComplete?.(newLevel);
+  }, [currentLevel, updateRewards, onLevelUp, trialInfo, onTrialComplete]);
 
   return (
     <motion.div

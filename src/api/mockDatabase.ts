@@ -760,7 +760,8 @@ export const mockDB = {
     // This prevents double-awarding of coins/stats.
     // The task_log still records what was earned for historical tracking.
 
-    // Update identity XP and level
+    // Update identity XP and level (accumulates across days until level up)
+    // XP is also subtracted when unchecking via updateIdentityXP()
     const newXp = identity.current_xp + taskTemplate.xp_reward;
     const xpForNextLevel = identity.current_level * 100;
     const leveledUp = newXp >= xpForNextLevel;
@@ -770,8 +771,6 @@ export const mockDB = {
       ...identity,
       current_xp: leveledUp ? newXp - xpForNextLevel : newXp,
       current_level: newLevel,
-      // DO NOT increment streak here - streak is managed by PathCard component
-      // and only increments when ALL tasks are completed for the day
       current_streak: identity.current_streak,
       updated_at: new Date().toISOString(),
     };
@@ -780,7 +779,7 @@ export const mockDB = {
     // Update overall rank after stat changes
     const profileWithRank = await this.updateOverallRank(request.user_id);
 
-    logger.info('Mock task completed', { taskLog, statIncreased });
+    logger.info('Mock task completed', { taskLog, statIncreased, newXp: updatedIdentity.current_xp, leveledUp });
 
     return {
       task_log: taskLog,
