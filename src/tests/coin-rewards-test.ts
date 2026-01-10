@@ -7,6 +7,12 @@
  * 3. Coins are correctly deducted when unchecking a task
  * 4. The gameStore updateRewards function works as expected
  * 
+ * NOTE: This test uses raw registry values for stat points.
+ * In the actual app, stat points use progressive calculation with caps
+ * (see mockDatabase.calculateProgressiveStatPoints). The raw registry
+ * baseBodyPoints (e.g., 2 per task at level 1) is the MAXIMUM that could
+ * be awarded, but actual awards are much smaller (~0.067 per task at L1).
+ * 
  * Run this test by importing and calling runCoinRewardsTest() in the browser console
  * or by adding a button to trigger it in development mode.
  */

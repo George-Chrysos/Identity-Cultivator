@@ -760,17 +760,15 @@ export const mockDB = {
     // This prevents double-awarding of coins/stats.
     // The task_log still records what was earned for historical tracking.
 
-    // Update identity XP and level (accumulates across days until level up)
+    // Update identity XP only (level up ONLY happens via trial completion, not XP threshold)
     // XP is also subtracted when unchecking via updateIdentityXP()
+    // XP can exceed the "max" for the level - this just means trial is available
     const newXp = identity.current_xp + taskTemplate.xp_reward;
-    const xpForNextLevel = identity.current_level * 100;
-    const leveledUp = newXp >= xpForNextLevel;
-    const newLevel = leveledUp ? identity.current_level + 1 : identity.current_level;
 
     const updatedIdentity: PlayerIdentity = {
       ...identity,
-      current_xp: leveledUp ? newXp - xpForNextLevel : newXp,
-      current_level: newLevel,
+      current_xp: newXp, // XP accumulates, no auto-reset or level change
+      current_level: identity.current_level, // Level ONLY changes via trial completion
       current_streak: identity.current_streak,
       updated_at: new Date().toISOString(),
     };
@@ -779,13 +777,13 @@ export const mockDB = {
     // Update overall rank after stat changes
     const profileWithRank = await this.updateOverallRank(request.user_id);
 
-    logger.info('Mock task completed', { taskLog, statIncreased, newXp: updatedIdentity.current_xp, leveledUp });
+    logger.info('Mock task completed', { taskLog, statIncreased, newXp: updatedIdentity.current_xp });
 
     return {
       task_log: taskLog,
       updated_profile: profileWithRank,
       updated_identity: updatedIdentity,
-      leveled_up: leveledUp,
+      leveled_up: false, // Level up only via trial, never auto
       stat_increased: statIncreased,
       rewards: {
         [taskTemplate.target_stat.toLowerCase() + '_points']: statPointsToAward,

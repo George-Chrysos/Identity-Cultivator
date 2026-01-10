@@ -57,6 +57,14 @@ interface TrialInfo {
   };
 }
 
+interface TaskCompleteResult {
+  didGainBody?: boolean;
+  /** Actual stat points awarded (may be 0 if capped). Uses progressive calculation. */
+  statPointsAwarded?: number;
+  /** Coins awarded */
+  coinsAwarded?: number;
+}
+
 interface PathCardProps {
   title: string;
   subtitle?: string;
@@ -69,7 +77,7 @@ interface PathCardProps {
   trialInfo?: TrialInfo;
   isStatCapped?: boolean;
   identityId?: string; // For persisting task state across navigation
-  onTaskComplete?: (taskId: string) => Promise<{ didGainBody?: boolean } | void>;
+  onTaskComplete?: (taskId: string) => Promise<TaskCompleteResult | void>;
   onAllTasksComplete?: (newStreak: number) => Promise<void>;
   onTrialStart?: () => void;
   onLevelUp?: (newLevel: number) => { title: string; subtitle: string; tasks: Task[]; trialInfo?: TrialInfo; maxXP: number } | null;
@@ -189,6 +197,77 @@ export const PathCard = memo(({
   const { updateRewards } = useGameStore();
 
   const progressPercentage = (currentXP / maxXP) * 100;
+
+  // ==================== PROP SYNC EFFECTS ====================
+  // Sync internal state with prop changes when database data reloads (e.g., after day reset)
+  // This ensures PathCard reflects the true database state, not stale local state
+  
+  // Sync XP with database value
+  useEffect(() => {
+    if (initialXP !== currentXP) {
+      logger.debug('Syncing XP from props', { initialXP, currentXP });
+      setCurrentXP(initialXP);
+    }
+  }, [initialXP]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Sync maxXP with database/config value
+  useEffect(() => {
+    if (initialMaxXP !== maxXP) {
+      logger.debug('Syncing maxXP from props', { initialMaxXP, maxXP });
+      setMaxXP(initialMaxXP);
+    }
+  }, [initialMaxXP]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Sync streak with database value
+  useEffect(() => {
+    if (initialStreak !== streak) {
+      logger.debug('Syncing streak from props', { initialStreak, streak });
+      setStreak(initialStreak);
+    }
+  }, [initialStreak]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Sync level with database value
+  useEffect(() => {
+    if (level !== currentLevel) {
+      logger.debug('Syncing level from props', { level, currentLevel });
+      setCurrentLevel(level);
+    }
+  }, [level]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Sync title with prop value (derived from level config)
+  useEffect(() => {
+    if (initialTitle !== currentTitle) {
+      logger.debug('Syncing title from props', { initialTitle, currentTitle });
+      setCurrentTitle(initialTitle);
+    }
+  }, [initialTitle]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Sync subtitle with prop value
+  useEffect(() => {
+    if (initialSubtitle !== currentSubtitle) {
+      logger.debug('Syncing subtitle from props', { initialSubtitle, currentSubtitle });
+      setCurrentSubtitle(initialSubtitle);
+    }
+  }, [initialSubtitle]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Sync tasks with prop value (for level changes)
+  useEffect(() => {
+    // Only sync if task IDs have changed (not just reference)
+    const currentTaskIds = tasks.map(t => t.id).join(',');
+    const newTaskIds = initialTasks.map(t => t.id).join(',');
+    if (currentTaskIds !== newTaskIds) {
+      logger.debug('Syncing tasks from props', { currentTaskIds, newTaskIds });
+      setTasks(initialTasks);
+    }
+  }, [initialTasks]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Sync trialInfo with prop value
+  useEffect(() => {
+    if (initialTrialInfo?.name !== trialInfo?.name) {
+      logger.debug('Syncing trialInfo from props');
+      setTrialInfo(initialTrialInfo);
+    }
+  }, [initialTrialInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync status with task completion state
   // When tasks are cleared (e.g., daily reset), status should reset to 'pending'
@@ -334,16 +413,14 @@ export const PathCard = memo(({
         task.subtasks.forEach(st => newCompletedSubtasks.add(st.id));
       }
       
-      // Award coin and stat rewards using path registry values
-      logger.info('Checking task - awarding rewards', { 
+      // NOTE: Coin and stat rewards are NOW awarded AFTER onTaskComplete callback
+      // This allows us to use the progressive stat points calculated by the backend
+      // which properly caps stats based on gate/level limits
+      logger.info('Task checked - rewards will be awarded after backend calculation', { 
         taskId, 
         taskRewardsCoins: taskRewards.coins,
-        willAward: taskRewards.coins > 0 || (taskRewards.points > 0 && taskRewards.stat)
+        taskRewardsPoints: taskRewards.points,
       });
-      if (taskRewards.coins > 0 || (taskRewards.points > 0 && taskRewards.stat)) {
-        logger.info('Adding coins', { amount: taskRewards.coins });
-        updateRewards(taskRewards.coins, taskRewards.stat || '', taskRewards.points);
-      }
       
       // Check if this completes all tasks for the FIRST time
       if (newCompletedTasks.size === tasks.length && !allTasksWereCompleted) {
@@ -472,9 +549,26 @@ export const PathCard = memo(({
         }
       }
       
-      // Call parent callback to update database
+      // Call parent callback to update database and get progressive stat points
       if (!wasCompleted) {
-        await onTaskComplete?.(taskId);
+        const taskResult = await onTaskComplete?.(taskId);
+        
+        // Award rewards using backend-calculated progressive values (respects caps)
+        // Fall back to registry values if backend doesn't return them
+        const actualStatPoints = taskResult?.statPointsAwarded ?? 0;
+        const actualCoins = taskResult?.coinsAwarded ?? taskRewards.coins;
+        
+        logger.info('Awarding rewards from backend calculation', {
+          taskId,
+          actualStatPoints,
+          actualCoins,
+          registryStatPoints: taskRewards.points,
+          registryCoins: taskRewards.coins,
+        });
+        
+        if (actualCoins > 0 || (actualStatPoints > 0 && taskRewards.stat)) {
+          updateRewards(actualCoins, taskRewards.stat || '', actualStatPoints);
+        }
         
         // If all tasks completed, notify parent with new streak value
         if (newCompletedTasks.size === tasks.length && !prevAllTasksCompleted) {

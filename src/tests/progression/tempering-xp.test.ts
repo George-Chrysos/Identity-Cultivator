@@ -1,7 +1,11 @@
 /**
  * Progression Tests: Tempering XP System
  * 
- * Tests the XP accumulation, level-up triggers, and level configuration.
+ * Tests the XP accumulation, trial availability thresholds, and level configuration.
+ * 
+ * IMPORTANT: Level-up ONLY happens via trial completion.
+ * XP threshold (xpToLevelUp) determines when the trial becomes available,
+ * NOT when automatic level-up occurs.
  * 
  * @module tests/progression/tempering-xp.test
  */
@@ -109,12 +113,14 @@ const testDailyXpAccumulation = () => {
   }
 };
 
-// ==================== LEVEL UP TRIGGERS ====================
+// ==================== XP THRESHOLD CONFIGURATION ====================
+// NOTE: Level up ONLY happens via trial completion, not automatically when XP >= threshold
+// XP threshold determines when the trial becomes available, not auto-level-up
 
 const testLevelUpTriggers = () => {
-  logger.info('=== Level Up Triggers ===');
+  logger.info('=== XP Threshold Configuration (Trial Availability) ===');
   
-  // Test 1: Level up when current_xp >= xpToLevelUp
+  // Test 1: Verify xpToLevelUp exists for each level (determines when trial is available)
   for (let level = 1; level <= 9; level++) {
     const config = getTemperingLevel(level);
     const nextConfig = getTemperingLevel(level + 1);

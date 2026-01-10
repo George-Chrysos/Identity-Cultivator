@@ -498,11 +498,20 @@ const Homepage = () => {
                   return null;
                 };
 
+                // Derive title from current level (not from template name which is static)
+                // For tempering/presence paths, use "Tempering Lv.X" or "Presence Lv.X"
+                // For other paths, fall back to template name
+                const pathTitle = isTemperingPath 
+                  ? `Tempering Lv.${currentLevel}`
+                  : isPresencePath 
+                    ? `Presence Lv.${currentLevel}`
+                    : identity.template.name.split(' - ')[0];
+
                 return (
                   <div key={identity.id} className="w-full">
                     <PathCard
                       identityId={identity.id}
-                      title={identity.template.name.split(' - ')[0]}
+                      title={pathTitle}
                       subtitle={pathConfig?.subtitle}
                       status={identity.completed_today ? 'completed' : 'pending'}
                       currentXP={identity.current_xp}
@@ -515,8 +524,18 @@ const Homepage = () => {
                       onTaskComplete={async (taskId) => {
                         logger.info('Task completed', { taskId, identityId: identity.id });
                         const result = await useGameStore.getState().completeTask(identity.id, taskId);
-                        const didGainBody = (result.rewards.body_points ?? 0) > 0;
-                        return { didGainBody };
+                        
+                        // Return progressive stat points from backend (properly capped)
+                        const bodyPoints = result.rewards.body_points ?? 0;
+                        const mindPoints = result.rewards.mind_points ?? 0;
+                        const soulPoints = result.rewards.soul_points ?? 0;
+                        const statPointsAwarded = bodyPoints + mindPoints + soulPoints;
+                        
+                        return { 
+                          didGainBody: bodyPoints > 0,
+                          statPointsAwarded,
+                          coinsAwarded: result.rewards.coins ?? 0,
+                        };
                       }}
                       onAllTasksComplete={async (newStreak) => {
                         logger.info('All tasks completed for identity', { identityId: identity.id, newStreak });

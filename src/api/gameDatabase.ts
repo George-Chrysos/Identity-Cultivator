@@ -451,23 +451,15 @@ export const gameDB = {
       // This prevents double-awarding of coins/stats.
       // The task_log still records what was earned for historical tracking.
 
-      // Update identity XP (accumulates across days until level up)
-      // XP is also subtracted when unchecking via updateIdentityXP()
-      const { getPathLevelConfig } = await import('@/constants/pathRegistry');
-      const pathLevelConfig = taskTemplate.path_id 
-        ? getPathLevelConfig(taskTemplate.path_id, identity.current_level)
-        : null;
-      
+      // Update identity XP only (level up ONLY happens via trial completion, not XP threshold)
+      // XP can exceed the "max" for the level - this just means trial is available
       const newXp = identity.current_xp + taskTemplate.xp_reward;
-      const xpForNextLevel = pathLevelConfig?.xpToLevelUp ?? (identity.current_level * 100);
-      const leveledUp = newXp >= xpForNextLevel;
-      const newLevel = leveledUp ? identity.current_level + 1 : identity.current_level;
 
       const { data: updatedIdentity, error: updateError } = await supabase
         .from(SUPABASE_TABLES.PLAYER_IDENTITIES)
         .update({
-          current_xp: leveledUp ? newXp - xpForNextLevel : newXp,
-          current_level: newLevel,
+          current_xp: newXp, // XP accumulates, no auto-reset
+          // current_level is NOT updated here - only via trial completion
           // Streak is managed by PathCard only
         })
         .eq('id', request.identity_instance_id)
@@ -486,13 +478,13 @@ export const gameDB = {
         .eq('id', request.user_id)
         .single();
 
-      logger.info('Task completed', { taskLog, newXp: updatedIdentity.current_xp, leveledUp });
+      logger.info('Task completed', { taskLog, newXp: updatedIdentity.current_xp });
 
       return {
         task_log: taskLog,
         updated_profile: finalProfile!,
         updated_identity: updatedIdentity,
-        leveled_up: leveledUp,
+        leveled_up: false, // Level up only via trial, never auto
         stat_increased: taskTemplate.base_points_reward > 0,
         rewards: {
           [taskTemplate.target_stat.toLowerCase() + '_points']: taskTemplate.base_points_reward,
