@@ -86,7 +86,7 @@ const createMockUserProfile = (overrides: Partial<UserProfile> = {}): UserProfil
   id: 'test-user-001',
   display_name: 'Test Cultivator',
   coins: 100,
-  stars: 5,
+  stars: 15,
   body_points: 10,
   mind_points: 5,
   soul_points: 3,

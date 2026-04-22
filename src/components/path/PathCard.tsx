@@ -6,7 +6,7 @@ import { getPathTaskRewards, isPathRegistered } from '@/constants/pathRegistry';
 // Import temperingPath to ensure it registers with the path registry before we use it
 import '@/constants/temperingPath';
 import { logger } from '@/utils/logger';
-import { ChronosManager } from '@/logic/ChronosManager';
+import { upsertDailyPathProgress } from '@/logic/ChronosManager';
 import TrialModal from '../modals/TrialModal';
 import LevelUpNotification from '../notifications/LevelUpNotification';
 import SubtaskInfoModal from '../modals/SubtaskInfoModal';
@@ -80,6 +80,12 @@ interface PathCardProps {
   onTaskComplete?: (taskId: string) => Promise<TaskCompleteResult | void>;
   onAllTasksComplete?: (newStreak: number) => Promise<void>;
   onTrialStart?: () => void;
+  /**
+   * @deprecated PathCard no longer uses this — level-up data now flows back
+   * via the store (onTrialComplete → updateIdentityLevel → prop refresh).
+   * Left in the prop surface for backwards compatibility with callers that
+   * still pass it; it will be removed in a follow-up.
+   */
   onLevelUp?: (newLevel: number) => { title: string; subtitle: string; tasks: Task[]; trialInfo?: TrialInfo; maxXP: number } | null;
   onTrialComplete?: (newLevel: number) => Promise<void>; // Persist level change to database
 }
@@ -87,23 +93,33 @@ interface PathCardProps {
 
 
 export const PathCard = memo(({ 
-  title: initialTitle, 
-  subtitle: initialSubtitle,
-  status: initialStatus, 
-  currentXP: initialXP, 
-  maxXP: initialMaxXP, 
-  streak: initialStreak,
-  level,
-  tasks: initialTasks,
-  trialInfo: initialTrialInfo,
+  title,
+  subtitle,
+  currentXP,
+  maxXP,
+  streak,
+  level: currentLevel,
+  tasks,
+  trialInfo,
   isStatCapped = false,
   identityId,
   onTaskComplete,
   onAllTasksComplete,
   onTrialStart,
-  onLevelUp,
   onTrialComplete,
 }: PathCardProps) => {
+  // ──────────────────────────────────────────────────────────────────────────
+  //  Single source of truth = props (derived from gameStore in the parent).
+  //  PathCard used to shadow `currentXP` / `maxXP` / `status` / `streak` /
+  //  `currentLevel` / `title` / `subtitle` / `tasks` / `trialInfo` in local
+  //  `useState`, re-syncing each via a prop-sync `useEffect`. That pattern
+  //  caused the XP progress bar to visibly fill → empty → fill again whenever
+  //  the optimistic local update and the DB round-trip landed out of order.
+  //  We now render directly from props; optimistic updates live in the store
+  //  (`gameStore.completeTask` mutates `activeIdentities` before the DB call),
+  //  so a single monotonic `currentXP` value flows down and framer-motion
+  //  animates it smoothly in one pass.
+  // ──────────────────────────────────────────────────────────────────────────
   // Use store for persisted task state if identityId provided, otherwise fallback to local state
   const storeCompletedTasks = useGameStore((s) => identityId ? s.getCompletedTasks(identityId) : new Set<string>());
   const storeCompletedSubtasks = useGameStore((s) => identityId ? s.getCompletedSubtasks(identityId) : new Set<string>());
@@ -172,19 +188,13 @@ export const PathCard = memo(({
   }, [identityId, storeCompletedSubtasks, setStoreCompletedSubtask]);
   
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
-  const [currentXP, setCurrentXP] = useState(initialXP);
-  const [maxXP, setMaxXP] = useState(initialMaxXP);
-  const [status, setStatus] = useState(initialStatus);
-  const [streak, setStreak] = useState(initialStreak);
+  // `allTasksWereCompleted` is a pure UI gate — it guards streak increment so
+  // the day's first "all done" awards a streak, but un-check/re-check cycles
+  // don't keep incrementing. It is inherently local (not in the store).
   const [allTasksWereCompleted, setAllTasksWereCompleted] = useState(false);
   const [isTrialModalOpen, setIsTrialModalOpen] = useState(false);
   const [trialDismissed, setTrialDismissed] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
-  const [currentLevel, setCurrentLevel] = useState(level);
-  const [currentTitle, setCurrentTitle] = useState(initialTitle);
-  const [currentSubtitle, setCurrentSubtitle] = useState(initialSubtitle);
-  const [tasks, setTasks] = useState(initialTasks);
-  const [trialInfo, setTrialInfo] = useState(initialTrialInfo);
   const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; description?: string }>({
     isOpen: false,
     title: '',
@@ -192,104 +202,29 @@ export const PathCard = memo(({
   });
   const [showMilestoneCelebration, setShowMilestoneCelebration] = useState(false);
   const [milestoneRewardsData, setMilestoneRewardsData] = useState<{ coins: number; stars: number; willGain: number } | null>(null);
-  
+
   const { showToast } = useToastStore();
   const { updateRewards } = useGameStore();
 
-  const progressPercentage = (currentXP / maxXP) * 100;
+  const progressPercentage = maxXP > 0 ? (currentXP / maxXP) * 100 : 0;
 
-  // ==================== PROP SYNC EFFECTS ====================
-  // Sync internal state with prop changes when database data reloads (e.g., after day reset)
-  // This ensures PathCard reflects the true database state, not stale local state
-  
-  // Sync XP with database value
-  useEffect(() => {
-    if (initialXP !== currentXP) {
-      logger.debug('Syncing XP from props', { initialXP, currentXP });
-      setCurrentXP(initialXP);
-    }
-  }, [initialXP]); // eslint-disable-line react-hooks/exhaustive-deps
-  
-  // Sync maxXP with database/config value
-  useEffect(() => {
-    if (initialMaxXP !== maxXP) {
-      logger.debug('Syncing maxXP from props', { initialMaxXP, maxXP });
-      setMaxXP(initialMaxXP);
-    }
-  }, [initialMaxXP]); // eslint-disable-line react-hooks/exhaustive-deps
-  
-  // Sync streak with database value
-  useEffect(() => {
-    if (initialStreak !== streak) {
-      logger.debug('Syncing streak from props', { initialStreak, streak });
-      setStreak(initialStreak);
-    }
-  }, [initialStreak]); // eslint-disable-line react-hooks/exhaustive-deps
-  
-  // Sync level with database value
-  useEffect(() => {
-    if (level !== currentLevel) {
-      logger.debug('Syncing level from props', { level, currentLevel });
-      setCurrentLevel(level);
-    }
-  }, [level]); // eslint-disable-line react-hooks/exhaustive-deps
-  
-  // Sync title with prop value (derived from level config)
-  useEffect(() => {
-    if (initialTitle !== currentTitle) {
-      logger.debug('Syncing title from props', { initialTitle, currentTitle });
-      setCurrentTitle(initialTitle);
-    }
-  }, [initialTitle]); // eslint-disable-line react-hooks/exhaustive-deps
-  
-  // Sync subtitle with prop value
-  useEffect(() => {
-    if (initialSubtitle !== currentSubtitle) {
-      logger.debug('Syncing subtitle from props', { initialSubtitle, currentSubtitle });
-      setCurrentSubtitle(initialSubtitle);
-    }
-  }, [initialSubtitle]); // eslint-disable-line react-hooks/exhaustive-deps
-  
-  // Sync tasks with prop value (for level changes)
-  useEffect(() => {
-    // Only sync if task IDs have changed (not just reference)
-    const currentTaskIds = tasks.map(t => t.id).join(',');
-    const newTaskIds = initialTasks.map(t => t.id).join(',');
-    if (currentTaskIds !== newTaskIds) {
-      logger.debug('Syncing tasks from props', { currentTaskIds, newTaskIds });
-      setTasks(initialTasks);
-    }
-  }, [initialTasks]); // eslint-disable-line react-hooks/exhaustive-deps
-  
-  // Sync trialInfo with prop value
-  useEffect(() => {
-    if (initialTrialInfo?.name !== trialInfo?.name) {
-      logger.debug('Syncing trialInfo from props');
-      setTrialInfo(initialTrialInfo);
-    }
-  }, [initialTrialInfo]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Status is derived: "completed" only once all tasks for today are checked
+  // AND the streak has been awarded (so un-checking a task flips back to
+  // "pending" without needing a prop-sync effect).
+  const status: 'pending' | 'completed' =
+    tasks.length > 0 && completedTasks.size === tasks.length && allTasksWereCompleted
+      ? 'completed'
+      : 'pending';
 
-  // Sync status with task completion state
-  // When tasks are cleared (e.g., daily reset), status should reset to 'pending'
-  // When all tasks are completed, status should update to 'completed'
-  // CRITICAL: Also reset allTasksWereCompleted when tasks are cleared so streak can increment again
+  // Reset the streak-award gate whenever the day's tasks get cleared (daily
+  // reset, level-up, manual wipe). Using a tiny effect here instead of a big
+  // prop-sync block keeps the gate honest without shadowing XP/streak/etc.
   useEffect(() => {
-    const allCompleted = tasks.length > 0 && completedTasks.size === tasks.length;
-    const tasksCleared = completedTasks.size === 0;
-    const shouldBeCompleted = allCompleted && allTasksWereCompleted;
-    const shouldBePending = !allCompleted || tasksCleared;
-    
-    if (shouldBeCompleted && status !== 'completed') {
-      setStatus('completed');
-    } else if (shouldBePending && status !== 'pending') {
-      setStatus('pending');
-      // Reset the flag when tasks are cleared so streak can increment next time
-      if (tasksCleared && allTasksWereCompleted) {
-        setAllTasksWereCompleted(false);
-      }
+    if (completedTasks.size === 0 && allTasksWereCompleted) {
+      setAllTasksWereCompleted(false);
     }
-  }, [completedTasks.size, tasks.length, allTasksWereCompleted, status]);
-  
+  }, [completedTasks.size, allTasksWereCompleted]);
+
   // Trial available when progress bar is full (100%) and streak >= 2n+1 where n is currentLevel
   const requiredStreak = 2 * currentLevel + 1;
   const isTrialReady = progressPercentage >= 100 && streak >= requiredStreak;
@@ -330,266 +265,159 @@ export const PathCard = memo(({
 
   const handleTaskComplete = useCallback(async (taskId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    
+
     // Prevent spam clicks - ignore if already processing this task or in cooldown
     if (processingTasks.has(taskId) || cooldownTasks.has(taskId)) {
       logger.debug('Task blocked - processing or in cooldown', { taskId, isProcessing: processingTasks.has(taskId), inCooldown: cooldownTasks.has(taskId) });
       return;
     }
-    
-    // Mark task as processing
+
     setProcessingTasks(prev => new Set([...prev, taskId]));
 
-    // Store previous state for rollback
+    // Snapshot pre-change state for rollback (only the things this callback owns).
     const prevCompletedTasks = new Set(completedTasks);
     const prevCompletedSubtasks = new Set(completedSubtasks);
-    const prevXP = currentXP;
-    const prevStatus = status;
-    const prevStreak = streak;
     const prevAllTasksCompleted = allTasksWereCompleted;
 
     const wasCompleted = completedTasks.has(taskId);
-    
-    // Get rewards from path registry (source of truth) or fallback to task.rewards
     const taskRewards = getTaskRewardsFromPath(task);
-    
-    // Optimistic update
+
+    // Compute new task-set & all-complete flag. XP / streak / status all flow
+    // through the store (completeTask / updateIdentityXP / updateIdentityStreak)
+    // and return to us as props on the next render — no local shadow.
     const newCompletedTasks = new Set(completedTasks);
     const newCompletedSubtasks = new Set(completedSubtasks);
-    let newXP = currentXP;
-    let newStatus = status;
-    let newStreak = streak;
     let newAllTasksCompleted = allTasksWereCompleted;
-    
+    let newStreak = streak;
+
     if (wasCompleted) {
-      // Uncomplete task
       newCompletedTasks.delete(taskId);
-      newXP = Math.max(0, currentXP - task.rewards.xp);
-      newStatus = 'pending';
-      
-      // Uncheck all subtasks when parent is unchecked
       if (task.subtasks) {
         task.subtasks.forEach(st => newCompletedSubtasks.delete(st.id));
       }
-      
-      // Persist XP decrease to database (reverse of completeTask XP gain)
+
+      // Reverse XP in the store (optimistic in updateIdentityXP).
       if (identityId && task.rewards.xp > 0) {
         const { updateIdentityXP } = useGameStore.getState();
-        logger.info('Persisting XP decrease to DB', { identityId, xpDelta: -task.rewards.xp });
         updateIdentityXP(identityId, -task.rewards.xp).catch(error => {
           logger.error('Failed to persist XP decrease', { error, identityId });
         });
       }
-      
-      // Reverse coin and stat rewards using path registry values
-      // IMPORTANT: Combine into single updateRewards call to avoid race condition
-      logger.info('Unchecking task - reversing rewards', { 
-        taskId, 
-        taskRewardsCoins: taskRewards.coins,
-        taskRewardsPoints: taskRewards.points,
-        taskRewardsStat: taskRewards.stat,
-      });
+
+      // Reverse coin + stat rewards (single queued call to avoid races).
       if (taskRewards.coins > 0 || (taskRewards.points > 0 && taskRewards.stat)) {
-        logger.info('Deducting rewards', { coins: -taskRewards.coins, stat: taskRewards.stat, points: -taskRewards.points });
         updateRewards(-taskRewards.coins, taskRewards.stat || '', taskRewards.points > 0 ? -taskRewards.points : 0);
       }
-      
-      // If all tasks were previously completed, revert streak by 1 (not to initialStreak)
-      // This fixes a bug where unchecking would jump to stale initialStreak value
+
+      // Persist the uncheck to daily_path_progress. (Check flow is upserted
+      // inside gameStore.completeTask; uncheck has no equivalent store action.)
+      if (identityId) {
+        const gs = useGameStore.getState();
+        const identity = gs.getIdentityById(identityId);
+        const userProfile = gs.userProfile;
+        const pathId = identity?.template_id || identity?.template?.id;
+        if (userProfile && pathId) {
+          upsertDailyPathProgress(
+            userProfile.id,
+            pathId,
+            tasks.length,
+            newCompletedTasks.size,
+            Array.from(newCompletedTasks),
+            Array.from(newCompletedSubtasks),
+          ).catch(error => {
+            logger.warn('daily_path_progress upsert failed on uncheck', { error, pathId });
+          });
+        }
+      }
+
       if (allTasksWereCompleted) {
         newStreak = Math.max(0, streak - 1);
         newAllTasksCompleted = false;
       }
     } else {
-      // Complete task
       newCompletedTasks.add(taskId);
-      newXP = Math.min(maxXP, currentXP + task.rewards.xp);
-      
-      // Check all subtasks when parent is checked
       if (task.subtasks) {
         task.subtasks.forEach(st => newCompletedSubtasks.add(st.id));
       }
-      
-      // NOTE: Coin and stat rewards are NOW awarded AFTER onTaskComplete callback
-      // This allows us to use the progressive stat points calculated by the backend
-      // which properly caps stats based on gate/level limits
-      logger.info('Task checked - rewards will be awarded after backend calculation', { 
-        taskId, 
-        taskRewardsCoins: taskRewards.coins,
-        taskRewardsPoints: taskRewards.points,
-      });
-      
-      // Check if this completes all tasks for the FIRST time
+
+      // Coin & stat rewards are awarded AFTER the backend response (so we can
+      // honor progressive/gate caps). XP is handled inside gameStore.completeTask.
       if (newCompletedTasks.size === tasks.length && !allTasksWereCompleted) {
-        newStatus = 'completed';
         newStreak = streak + 1;
         newAllTasksCompleted = true;
-        
+
         // ========== MILESTONE REWARD CHECK ==========
-        // Check for milestone or sub-milestone rewards based on new streak
         const milestone = getMilestoneForLevel(currentLevel);
         const isSubMilestone = isSubMilestoneDay(newStreak, currentLevel);
         const isFinalMilestone = milestone && newStreak === milestone.milestoneDays;
-        
+
         if (isSubMilestone || isFinalMilestone) {
           let totalCoins = 0;
           let totalStars = 0;
           let willGain = 0;
-          
-          // Sub-milestone rewards
+
           if (isSubMilestone) {
             totalCoins += SUB_MILESTONE_REWARDS.rewards.coins;
             totalStars += SUB_MILESTONE_REWARDS.rewards.stars;
             willGain += SUB_MILESTONE_REWARDS.willGain;
-            logger.info('Sub-milestone reached!', { streak: newStreak, level: currentLevel });
           }
-          
-          // Final milestone rewards
+
           if (isFinalMilestone && milestone) {
             totalCoins += milestone.rewards.coins;
             totalStars += milestone.rewards.stars;
             willGain += milestone.willGain;
-            logger.info('Milestone reached!', { streak: newStreak, level: currentLevel, rewards: milestone.rewards });
           }
-          
-          // Award milestone rewards
+
           if (totalCoins > 0 || totalStars > 0 || willGain > 0) {
             awardMilestoneRewards(
               updateRewards,
               isFinalMilestone && milestone ? milestone.rewards : null,
               isSubMilestone ? SUB_MILESTONE_REWARDS.rewards : null,
-              willGain
+              willGain,
             );
-            
-            // Show celebration
             setMilestoneRewardsData({ coins: totalCoins, stars: totalStars, willGain });
             setShowMilestoneCelebration(true);
-            
-            // Don't show toast during milestone celebration - let animation play
           }
         }
       }
     }
 
-    // Apply optimistic updates
+    // Apply the two pieces of state we actually still own:
+    // 1. the per-day completed-task set (store-backed via `setCompletedTasks`);
+    // 2. the local UI gate that prevents double-awarding streak.
     setCompletedTasks(newCompletedTasks);
     setCompletedSubtasks(newCompletedSubtasks);
-    setCurrentXP(newXP);
-    setStatus(newStatus);
-    setStreak(newStreak);
     setAllTasksWereCompleted(newAllTasksCompleted);
 
     try {
-      // Save task state to database with template_id (not identity UUID)
-      if (identityId) {
-        const userProfile = useGameStore.getState().userProfile;
-        const identity = useGameStore.getState().getIdentityById(identityId);
-        
-        logger.debug('Attempting to save task state', { 
-          identityId, 
-          hasUserProfile: !!userProfile,
-          hasIdentity: !!identity,
-          identity: identity ? {
-            id: identity.id,
-            template_id: identity.template_id,
-            templateId: identity.template?.id,
-            name: identity.template?.name
-          } : null
-        });
-        
-        if (userProfile && identity) {
-          // Use template_id as path_id for DB storage
-          const pathId = identity.template_id || identity.template?.id;
-          
-          if (pathId) {
-            logger.info('Saving task progress to database', { 
-              userId: userProfile.id,
-              identityId, 
-              pathId,
-              templateId: identity.template_id,
-              completedTasks: Array.from(newCompletedTasks),
-              completedSubtasks: Array.from(newCompletedSubtasks),
-              totalTasks: tasks.length,
-              completedCount: newCompletedTasks.size
-            });
-            
-            await ChronosManager.upsertDailyPathProgress(
-              userProfile.id,
-              pathId, // Use template_id, not identity UUID
-              tasks.length,
-              newCompletedTasks.size,
-              Array.from(newCompletedTasks),
-              Array.from(newCompletedSubtasks)
-            );
-            
-            logger.info('✅ Task progress saved to DB successfully', { 
-              identityId, 
-              pathId, 
-              completedCount: newCompletedTasks.size,
-              totalTasks: tasks.length 
-            });
-          } else {
-            logger.error('❌ No template_id found for identity, cannot save to DB', { 
-              identityId,
-              identity: {
-                template_id: identity.template_id,
-                templateId: identity.template?.id
-              }
-            });
-          }
-        } else {
-          logger.error('❌ Missing userProfile or identity, cannot save to DB', {
-            identityId,
-            hasUserProfile: !!userProfile,
-            hasIdentity: !!identity
-          });
-        }
-      }
-      
-      // Call parent callback to update database and get progressive stat points
       if (!wasCompleted) {
+        // gameStore.completeTask owns the optimistic XP bump, the DB call, and
+        // the daily_path_progress upsert — no direct ChronosManager call here.
         const taskResult = await onTaskComplete?.(taskId);
-        
-        // Award rewards using backend-calculated progressive values (respects caps)
-        // Fall back to registry values if backend doesn't return them
+
         const actualStatPoints = taskResult?.statPointsAwarded ?? 0;
         const actualCoins = taskResult?.coinsAwarded ?? taskRewards.coins;
-        
-        logger.info('Awarding rewards from backend calculation', {
-          taskId,
-          actualStatPoints,
-          actualCoins,
-          registryStatPoints: taskRewards.points,
-          registryCoins: taskRewards.coins,
-        });
-        
+
         if (actualCoins > 0 || (actualStatPoints > 0 && taskRewards.stat)) {
           updateRewards(actualCoins, taskRewards.stat || '', actualStatPoints);
         }
-        
-        // If all tasks completed, notify parent with new streak value
+
         if (newCompletedTasks.size === tasks.length && !prevAllTasksCompleted) {
-          logger.info('🎯 All tasks completed - updating streak', { identityId, oldStreak: streak, newStreak });
+          logger.info('All tasks completed - updating streak', { identityId, oldStreak: streak, newStreak });
           await onAllTasksComplete?.(newStreak);
         }
       } else if (wasCompleted && allTasksWereCompleted && onAllTasksComplete) {
-        // Task uncompleted from "all complete" state - persist streak decrease
-        logger.info('↩️ Task uncompleted - reverting streak', { identityId, oldStreak: streak, newStreak });
+        logger.info('Task uncompleted - reverting streak', { identityId, oldStreak: streak, newStreak });
         await onAllTasksComplete(newStreak);
       }
     } catch (error) {
-      // Rollback on error
+      // Rollback only what we own; store-side rollback happens in gameStore.completeTask.
       setCompletedTasks(prevCompletedTasks);
       setCompletedSubtasks(prevCompletedSubtasks);
-      setCurrentXP(prevXP);
-      setStatus(prevStatus);
-      setStreak(prevStreak);
       setAllTasksWereCompleted(prevAllTasksCompleted);
-      
-      // Show error toast
       showToast('Failed to update task completion. Please try again.', 'error');
     } finally {
       // Clear processing flag
@@ -609,7 +437,7 @@ export const PathCard = memo(({
         });
       }, 400);
     }
-  }, [tasks, maxXP, currentXP, status, streak, completedTasks, completedSubtasks, allTasksWereCompleted, initialStreak, onTaskComplete, onAllTasksComplete, updateRewards, showToast, processingTasks, cooldownTasks]);
+  }, [tasks, streak, completedTasks, completedSubtasks, allTasksWereCompleted, identityId, currentLevel, getTaskRewardsFromPath, setCompletedTasks, setCompletedSubtasks, onTaskComplete, onAllTasksComplete, updateRewards, showToast, processingTasks, cooldownTasks]);
 
   const toggleTaskExpansion = useCallback((taskId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -627,46 +455,53 @@ export const PathCard = memo(({
 
   const handleSubtaskComplete = useCallback((taskId: string, subtaskId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     const task = tasks.find(t => t.id === taskId);
     if (!task?.subtasks) return;
-    
+
     const wasSubtaskCompleted = completedSubtasks.has(subtaskId);
     const wasParentCompleted = completedTasks.has(taskId);
-    
-    // Get rewards from path registry (source of truth)
     const taskRewards = getTaskRewardsFromPath(task);
-    
+
     if (wasSubtaskCompleted) {
-      // Unchecking subtask - just uncheck this subtask only
+      // Unchecking just this subtask.
       setCompletedSubtasks(prev => {
         const newSet = new Set(prev);
         newSet.delete(subtaskId);
         return newSet;
       });
-      
-      // If parent was checked, uncheck parent and reverse rewards (but don't uncheck other subtasks)
+
+      // If the parent task was checked, cascade-uncheck it and reverse rewards.
+      // XP is reversed through the store (optimistic) — no local setCurrentXP,
+      // and we explicitly do NOT snap streak back to a stale `initialStreak`.
       if (wasParentCompleted) {
-        // Manually uncheck parent without triggering subtask cascade
         setCompletedTasks(prev => {
           const newSet = new Set(prev);
           newSet.delete(taskId);
           return newSet;
         });
-        
-        // Reverse XP
-        setCurrentXP(prev => Math.max(0, prev - task.rewards.xp));
-        setStatus('pending');
-        
-        // Reverse coin and stat rewards using path registry values (single call to avoid race condition)
+
+        if (identityId && task.rewards.xp > 0) {
+          const { updateIdentityXP } = useGameStore.getState();
+          updateIdentityXP(identityId, -task.rewards.xp).catch(error => {
+            logger.error('Failed to persist XP decrease (subtask cascade)', { error, identityId });
+          });
+        }
+
         if (taskRewards.coins > 0 || (taskRewards.points > 0 && taskRewards.stat)) {
           updateRewards(-taskRewards.coins, taskRewards.stat || '', taskRewards.points > 0 ? -taskRewards.points : 0);
         }
-        
-        // If all tasks were previously completed, revert streak
+
         if (allTasksWereCompleted) {
-          setStreak(initialStreak);
+          // Decrement streak by one (mirrors handleTaskComplete's un-check path)
+          // instead of resetting to a stale prop value.
+          const rolledBackStreak = Math.max(0, streak - 1);
           setAllTasksWereCompleted(false);
+          if (identityId) {
+            useGameStore.getState().updateIdentityStreak(identityId, rolledBackStreak).catch(error => {
+              logger.error('Failed to roll back streak (subtask cascade)', { error, identityId });
+            });
+          }
         }
       }
     } else {
@@ -674,24 +509,23 @@ export const PathCard = memo(({
       setCompletedSubtasks(prev => {
         const newSet = new Set(prev);
         newSet.add(subtaskId);
-        
-        // Check if all subtasks for this task are now completed
-        const allSubtasksCompleted = task.subtasks!.every(st => 
+
+        const allSubtasksCompleted = task.subtasks!.every(st =>
           st.id === subtaskId || newSet.has(st.id)
         );
-        
-        // Auto-check parent task if all subtasks are complete
+
+        // Auto-check parent task when all subtasks are complete.
         if (allSubtasksCompleted && !completedTasks.has(taskId)) {
           setTimeout(() => {
             const syntheticEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
             handleTaskComplete(taskId, syntheticEvent as any);
           }, 300);
         }
-        
+
         return newSet;
       });
     }
-  }, [tasks, completedTasks, completedSubtasks, handleTaskComplete, getTaskRewardsFromPath, updateRewards, allTasksWereCompleted, initialStreak]);
+  }, [tasks, completedTasks, completedSubtasks, handleTaskComplete, getTaskRewardsFromPath, updateRewards, allTasksWereCompleted, streak, identityId, setCompletedTasks, setCompletedSubtasks]);
 
   const handleSubtaskInfo = useCallback((taskId: string, subtaskId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -714,49 +548,32 @@ export const PathCard = memo(({
   }, [onTrialStart]);
 
   const handleTrialComplete = useCallback(async () => {
-    // Close modal
     setIsTrialModalOpen(false);
-    
-    // Level up
     const newLevel = currentLevel + 1;
-    
-    // Get next level data if callback provided
-    const nextLevelData = onLevelUp?.(newLevel);
-    
-    if (nextLevelData) {
-      // Update to next level's data
-      setCurrentTitle(nextLevelData.title);
-      setCurrentSubtitle(nextLevelData.subtitle);
-      setTasks(nextLevelData.tasks);
-      setTrialInfo(nextLevelData.trialInfo);
-      setMaxXP(nextLevelData.maxXP);
-    }
-    
-    setCurrentLevel(newLevel);
-    
-    // Reset XP, streak, and completion states
-    setCurrentXP(0);
-    setStreak(0);
-    setCompletedTasks(new Set());
-    setCompletedSubtasks(new Set());
+
+    // Clear local UI-only state (modal dismiss flags, expanded rows, gate).
     setExpandedTasks(new Set());
     setAllTasksWereCompleted(false);
-    setStatus('pending');
     setTrialDismissed(false);
-    
-    // Show level up notification
     setShowLevelUp(true);
-    
-    // Award trial rewards from trial info (coins + stars)
+
+    // Clear this path's per-day completed task set. The store is the source of
+    // truth; the next render will pick up the new level's task list from props.
+    setCompletedTasks(new Set());
+    setCompletedSubtasks(new Set());
+
+    // Award trial rewards (coins + stars). Stat points for the trial are
+    // granted as part of each path's level-config pipeline, not here.
     const rewards = trialInfo?.rewards;
     if (rewards) {
-      // Pass stars as 4th parameter to updateRewards
       updateRewards(rewards.coins, 'BODY', 0, rewards.stars || 0);
     }
-    
-    // Persist level change to database
+
+    // Persist the level change — the store optimistically bumps
+    // current_level / resets current_xp + current_streak, which flow back as
+    // props and re-key the path config in the parent.
     await onTrialComplete?.(newLevel);
-  }, [currentLevel, updateRewards, onLevelUp, trialInfo, onTrialComplete]);
+  }, [currentLevel, updateRewards, trialInfo, onTrialComplete, setCompletedTasks, setCompletedSubtasks]);
 
   return (
     <motion.div
@@ -792,7 +609,7 @@ export const PathCard = memo(({
               fontSize: 'clamp(1.6rem, 6vw, 2.5rem)'
             }}
           >
-            {currentTitle}
+            {title}
           </h3>
         </div>
         
@@ -823,10 +640,10 @@ export const PathCard = memo(({
       </div>
 
       {/* ROW 2: Subtitle (The Identity Row) */}
-      {currentSubtitle && (
+      {subtitle && (
         <div className="flex items-center gap-3 mb-3 relative z-10">
           <p className="text-sm text-purple-300/70">
-            {currentSubtitle}
+            {subtitle}
           </p>
         </div>
       )}
@@ -997,7 +814,7 @@ export const PathCard = memo(({
       {/* Trial Modal */}
       <TrialModal
         isOpen={isTrialModalOpen}
-        pathName={currentTitle}
+        pathName={title}
         trialName={trialInfo?.name || `Level ${currentLevel + 1} Trial`}
         level={currentLevel + 1}
         description={trialInfo?.description || `Complete the trial to advance to Level ${currentLevel + 1}.`}
@@ -1023,7 +840,7 @@ export const PathCard = memo(({
       {/* Level Up Notification */}
       <LevelUpNotification
         isVisible={showLevelUp}
-        pathName={currentTitle}
+        pathName={title}
         newLevel={currentLevel}
         onComplete={() => setShowLevelUp(false)}
       />

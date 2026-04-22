@@ -14,7 +14,11 @@ import {
 // ==================== CONSTANTS ====================
 
 export const TEMPERING_TEMPLATE_ID = 'tempering-warrior-trainee';
-export const TEMPERING_XP_PER_DAY = 40;
+// Daily XP quota for the starter Level 1 onboarding pace (2 tasks × 8 XP = 16 / day,
+// 48 XP over 3 days = level up). Higher levels have their own derived per-task XP
+// computed from `xpToLevelUp / (daysRequired × taskCount)`; this constant reflects
+// the L1 onboarding tempo only.
+export const TEMPERING_XP_PER_DAY = 16;
 
 // ==================== LEVEL CONFIGURATIONS ====================
 
@@ -42,11 +46,13 @@ export interface TemperingLevelConfig {
 }
 
 export const TEMPERING_LEVELS: TemperingLevelConfig[] = [
-  // ⚔️ Level 1: The Awakening
+  // ⚔️ Level 1: The Awakening (Starter - 2 tasks, 3 days to level up)
+  // L1 is intentionally gentle onboarding: just the two foundational gates
+  // (Rooting + Breath). Levels 2-10 expand back to the full Five-Gate System.
   {
     level: 1,
     subtitle: 'The Awakening of the Vessel',
-    xpToLevelUp: 120,
+    xpToLevelUp: 48,
     daysRequired: 3,
     mainStatLimit: 1.0,
     gateStatCap: 1.0 / 5,
@@ -58,24 +64,6 @@ export const TEMPERING_LEVELS: TemperingLevelConfig[] = [
         name: 'The Rooting',
         subtasks: [{ name: 'Zhan Zhuang: 3 Minutes', focus: 'Crown pulling up, chest sinking, back rounding. Do not move.' }],
         focus: 'Crown pulling up, chest sinking, back rounding. Do not move.',
-      },
-      {
-        gate: 'foundation',
-        name: 'The Foundation',
-        subtasks: [{ name: 'Wall Sit: 1 Set × 30 Seconds', focus: 'Crush the lower back against the wall. Tuck the pelvis.' }],
-        focus: 'Crush the lower back against the wall. Tuck the pelvis.',
-      },
-      {
-        gate: 'core',
-        name: 'The Core Link',
-        subtasks: [{ name: 'Dead Bug: 1 Set × 5 Reps (Slow)', focus: 'Spinal glue. If the back arches, the connection is lost.' }],
-        focus: 'Spinal glue. If the back arches, the connection is lost.',
-      },
-      {
-        gate: 'flow',
-        name: 'The Flow',
-        subtasks: [{ name: '90/90 Hip Switch: 1 Set × 10 Reps', focus: 'Open the Kua (Hips) without using hands for support.' }],
-        focus: 'Open the Kua (Hips) without using hands for support.',
       },
       {
         gate: 'breath',
@@ -628,7 +616,13 @@ export const generateTemperingTaskTemplates = (level: number): TaskTemplate[] =>
   const config = getTemperingLevel(level);
   if (!config) throw new Error(`Invalid tempering level: ${level}`);
 
-  const baseXpPerTask = Math.round(TEMPERING_XP_PER_DAY / config.tasks.length);
+  // Derive per-task XP from the level's own shape so that levels with a
+  // different task count (e.g. L1 uses 2 tasks) still land on exactly
+  // `xpToLevelUp` after `daysRequired` days of full completion.
+  const baseXpPerTask = Math.max(
+    1,
+    Math.round(config.xpToLevelUp / (config.daysRequired * config.tasks.length))
+  );
 
   return config.tasks.map((task) => {
     const taskId = `tempering-lvl${level}-task-${task.gate}`;

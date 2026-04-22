@@ -25,7 +25,7 @@ UPDATE public.profiles
 SET 
   rank_tier = 'E',
   coins = 0,
-  stars = 5,
+  stars = 15,
   body_points = 0,
   mind_points = 0,
   soul_points = 0,

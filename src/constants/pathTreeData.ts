@@ -1,7 +1,12 @@
 /**
  * Path Tree Data Structure - "Diamond Synthesis" Progression System
  * 
- * 4 Paths: Warrior, Mage, Mystic, Guardian
+ * 3 Paths aligned to the Trinity Seeds:
+ *   - Warrior → Body
+ *   - Mage    → Mind
+ *   - Mystic  → Soul
+ * (Guardian was retired; may return as a future Apex / Will path.)
+ *
  * 6 Stages with Diamond Layout:
  * 
  * Stage 1 (Training): 1 central node
@@ -486,141 +491,6 @@ export const PATH_DATA: CultivationPath[] = [
       {
         id: 'mystic-6-center',
         title: 'Saint',
-        stage: 6,
-        status: 'locked',
-        starsRequired: 10,
-        starsCurrent: 0,
-        position: 'center',
-      },
-    ],
-  },
-  // ========================================
-  // GUARDIAN - Eternal Pillar (Gold/Amber)
-  // ========================================
-  {
-    id: 'guardian',
-    title: 'Guardian',
-    subtitle: 'Eternal Pillar',
-    themeColor: 'gold',
-    totalProgress: 0,
-    nodes: [
-      // Stage 1 - Training
-      {
-        id: 'guardian-1-center',
-        title: 'Vow',
-        stage: 1,
-        status: 'unlockable',
-        starsRequired: 5,
-        starsCurrent: 0,
-        position: 'center',
-      },
-      // Stage 2 - Essence
-      {
-        id: 'guardian-2-left',
-        title: 'Constraint',
-        stage: 2,
-        status: 'locked',
-        starsRequired: 10,
-        starsCurrent: 0,
-        position: 'left-branch',
-      },
-      {
-        id: 'guardian-2-right',
-        title: 'Assertion',
-        stage: 2,
-        status: 'locked',
-        starsRequired: 10,
-        starsCurrent: 0,
-        position: 'right-branch',
-      },
-      // Stage 3 - Class
-      {
-        id: 'guardian-3-left',
-        title: 'Warden',
-        stage: 3,
-        status: 'locked',
-        starsRequired: 20,
-        starsCurrent: 0,
-        position: 'left-branch',
-      },
-      {
-        id: 'guardian-3-center',
-        title: 'Sovereign',
-        stage: 3,
-        status: 'locked',
-        starsRequired: 20,
-        starsCurrent: 0,
-        position: 'center-branch',
-      },
-      {
-        id: 'guardian-3-right',
-        title: 'Votary',
-        stage: 3,
-        status: 'locked',
-        starsRequired: 20,
-        starsCurrent: 0,
-        position: 'right-branch',
-      },
-      // Stage 4 - Specialization
-      {
-        id: 'guardian-4-left',
-        title: 'Sentinel',
-        stage: 4,
-        status: 'locked',
-        starsRequired: 40,
-        starsCurrent: 0,
-        position: 'left-branch',
-      },
-      {
-        id: 'guardian-4-center',
-        title: 'Imperator',
-        stage: 4,
-        status: 'locked',
-        starsRequired: 40,
-        starsCurrent: 0,
-        position: 'center-branch',
-      },
-      {
-        id: 'guardian-4-right',
-        title: 'Inquisitor',
-        stage: 4,
-        status: 'locked',
-        starsRequired: 40,
-        starsCurrent: 0,
-        position: 'right-branch',
-      },
-      // Stage 5 - Mastery
-      {
-        id: 'guardian-5-left',
-        title: 'Aegis',
-        stage: 5,
-        status: 'locked',
-        starsRequired: 50,
-        starsCurrent: 0,
-        position: 'left-branch',
-      },
-      {
-        id: 'guardian-5-center',
-        title: 'Monarch',
-        stage: 5,
-        status: 'locked',
-        starsRequired: 50,
-        starsCurrent: 0,
-        position: 'center-branch',
-      },
-      {
-        id: 'guardian-5-right',
-        title: 'Exemplar',
-        stage: 5,
-        status: 'locked',
-        starsRequired: 50,
-        starsCurrent: 0,
-        position: 'right-branch',
-      },
-      // Stage 6 - Apex
-      {
-        id: 'guardian-6-center',
-        title: 'Sovereign',
         stage: 6,
         status: 'locked',
         starsRequired: 10,

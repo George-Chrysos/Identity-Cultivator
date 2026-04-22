@@ -10,6 +10,7 @@
 import { supabase } from '@/lib/supabase';
 import { TEMPERING_LEVELS } from '@/constants/temperingPath';
 import { PRESENCE_LEVELS } from '@/constants/presencePath';
+import { MAGE_LEVELS } from '@/constants/magePath';
 import { handleError } from './errorHandler';
 import { logger } from '@/utils/logger';
 
@@ -81,6 +82,17 @@ const getFallbackPath = (pathId: string) => {
       tier: 'D',
       max_level: 10,
       levels: PRESENCE_LEVELS,
+    };
+  }
+  if (pathId === 'mage-scholar-training') {
+    return {
+      id: pathId,
+      name: 'Mage',
+      description: 'Scholar Training path (Offline Mode)',
+      primary_stat: 'MIND',
+      tier: 'D',
+      max_level: 10,
+      levels: MAGE_LEVELS,
     };
   }
   return null;

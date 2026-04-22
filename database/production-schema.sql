@@ -56,7 +56,7 @@ CREATE TABLE public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     display_name VARCHAR(100) NOT NULL DEFAULT 'Cultivator',
     coins INTEGER NOT NULL DEFAULT 100,
-    stars INTEGER NOT NULL DEFAULT 5,
+    stars INTEGER NOT NULL DEFAULT 15,
     body_points NUMERIC(10, 2) NOT NULL DEFAULT 0,
     mind_points NUMERIC(10, 2) NOT NULL DEFAULT 0,
     soul_points NUMERIC(10, 2) NOT NULL DEFAULT 0,
@@ -299,7 +299,7 @@ BEGIN
         NEW.id,
         COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email, 'Cultivator'),
         100,  -- Starting coins
-        5,    -- Starting stars (enough to buy first node)
+        15,   -- Starting stars (enough to plant one starter Seed per axis: Body + Mind + Soul, 5 stars each)
         0,
         0,
         0,
@@ -344,11 +344,9 @@ ON CONFLICT (id) DO NOTHING;
 -- Each level has 5 gates: Rooting, Foundation, Core, Flow, Breath
 
 INSERT INTO public.task_templates (id, identity_template_id, name, target_stat, base_points_reward, coin_reward, xp_reward, description, path_id, path_level) VALUES
--- Level 1 Tasks (The Awakening)
+-- Level 1 Tasks (The Awakening) — starter onboarding: 2 tasks only.
+-- Levels 2+ keep the full Five-Gate rotation (rooting, foundation, core, flow, breath).
 ('tempering-lvl1-rooting', 'tempering-warrior-trainee-lvl1', 'The Rooting', 'BODY', 0.04, 30, 8, 'Zhan Zhuang: 3 Minutes - Crown pulling up, chest sinking, back rounding.', 'tempering-warrior-trainee', 1),
-('tempering-lvl1-foundation', 'tempering-warrior-trainee-lvl1', 'The Foundation', 'BODY', 0.04, 30, 8, 'Wall Sit: 1 Set × 30 Seconds - Crush the lower back against the wall.', 'tempering-warrior-trainee', 1),
-('tempering-lvl1-core', 'tempering-warrior-trainee-lvl1', 'The Core Link', 'BODY', 0.04, 30, 8, 'Dead Bug: 1 Set × 5 Reps (Slow) - Spinal glue.', 'tempering-warrior-trainee', 1),
-('tempering-lvl1-flow', 'tempering-warrior-trainee-lvl1', 'The Flow', 'BODY', 0.04, 30, 8, '90/90 Hip Switch: 1 Set × 10 Reps - Open the Kua.', 'tempering-warrior-trainee', 1),
 ('tempering-lvl1-breath', 'tempering-warrior-trainee-lvl1', 'The Breath', 'BODY', 0.04, 30, 8, 'Reverse Breathing: 5 Cycles - Inhale (Belly in) / Exhale (Belly out).', 'tempering-warrior-trainee', 1),
 
 -- Level 2 Tasks (Silent Accumulation)
@@ -413,6 +411,37 @@ INSERT INTO public.task_templates (id, identity_template_id, name, target_stat, 
 ('tempering-lvl10-core', 'tempering-warrior-trainee-lvl10', 'The Core Link', 'BODY', 0.22, 120, 8, 'Dead Bug: 6 Sets × 15 Reps - Perfect integration.', 'tempering-warrior-trainee', 10),
 ('tempering-lvl10-flow', 'tempering-warrior-trainee-lvl10', 'The Flow', 'BODY', 0.22, 120, 8, '90/90 Hip Switch: 6 Sets × 30 Reps - Mastery.', 'tempering-warrior-trainee', 10),
 ('tempering-lvl10-breath', 'tempering-warrior-trainee-lvl10', 'The Breath', 'BODY', 0.22, 120, 8, 'Reverse Breathing: 50 Cycles - Breath immortality.', 'tempering-warrior-trainee', 10)
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- SEED DATA: MAGE PATH (IDENTITY TEMPLATES)
+-- ============================================================
+-- NOTE: Optional - the app reads from src/constants/magePath.ts at runtime.
+-- The Mage path is the MIND axis counterpart to Tempering (BODY) and Presence (SOUL).
+
+INSERT INTO public.identity_templates (id, name, primary_stat, tier, unlock_cost_stars, description, parent_path_id) VALUES
+('mage-scholar-training-lvl1',  'Mage Lv.1 - The Kindling Mind',     'MIND', 'D',  5, '🔮 Level 1: The Kindling Mind',     'mage-1-center'),
+('mage-scholar-training-lvl2',  'Mage Lv.2 - The Widening Gaze',     'MIND', 'D',  0, '🔮 Level 2: The Widening Gaze',     'mage-1-center'),
+('mage-scholar-training-lvl3',  'Mage Lv.3 - The Threading Thought', 'MIND', 'D+', 0, '🔮 Level 3: The Threading Thought', 'mage-1-center'),
+('mage-scholar-training-lvl4',  'Mage Lv.4 - The Mapping Mind',      'MIND', 'D+', 0, '🔮 Level 4: The Mapping Mind',      'mage-1-center'),
+('mage-scholar-training-lvl5',  'Mage Lv.5 - The Lucid Arc',         'MIND', 'C',  0, '🔮 Level 5: The Lucid Arc',         'mage-1-center'),
+('mage-scholar-training-lvl6',  'Mage Lv.6 - The Prism of Reason',   'MIND', 'C',  0, '🔮 Level 6: The Prism of Reason',   'mage-1-center'),
+('mage-scholar-training-lvl7',  'Mage Lv.7 - The Weight of Insight', 'MIND', 'C+', 0, '🔮 Level 7: The Weight of Insight', 'mage-1-center'),
+('mage-scholar-training-lvl8',  'Mage Lv.8 - The Converging Axes',   'MIND', 'C+', 0, '🔮 Level 8: The Converging Axes',   'mage-1-center'),
+('mage-scholar-training-lvl9',  'Mage Lv.9 - The Unbroken Thread',   'MIND', 'B',  0, '🔮 Level 9: The Unbroken Thread',   'mage-1-center'),
+('mage-scholar-training-lvl10', 'Mage Lv.10 - The Lucid Edge',       'MIND', 'B',  0, '🔮 Level 10: The Lucid Edge',       'mage-1-center')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- SEED DATA: MAGE PATH (TASK TEMPLATES - L1 ONLY)
+-- ============================================================
+-- NOTE: Only L1 is seeded here; L2-L10 content is authored in magePath.ts
+-- and consumed directly by the client (DB seeding for those levels pending).
+
+INSERT INTO public.task_templates (id, identity_template_id, name, target_stat, base_points_reward, coin_reward, xp_reward, description, path_id, path_level) VALUES
+-- Level 1 Tasks (The Kindling Mind) — starter onboarding: 2 tasks only.
+('mage-lvl1-focus',   'mage-scholar-training-lvl1', 'The Lens (Focus)',      'MIND', 0.04, 30, 8, 'Single-Point Attention: 5 Minutes - Pick one object. Stare. When attention drifts, return without judgment.', 'mage-scholar-training', 1),
+('mage-lvl1-inquiry', 'mage-scholar-training-lvl1', 'The Question (Inquiry)','MIND', 0.04, 30, 8, 'One Honest Question: Write + Sit - Write one sincere "Why?" question. Sit with it for 3 minutes.',         'mage-scholar-training', 1)
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================

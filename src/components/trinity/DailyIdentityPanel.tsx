@@ -30,6 +30,11 @@ import {
   generatePresenceTaskTemplates,
   PRESENCE_TEMPLATE_ID,
 } from '@/constants/presencePath';
+import {
+  getMageLevel,
+  generateMageTaskTemplates,
+  MAGE_TEMPLATE_ID,
+} from '@/constants/magePath';
 import { logger } from '@/utils/logger';
 import type { SeedAxis } from '@/types/database';
 
@@ -114,16 +119,21 @@ const DailyIdentityPanel = memo(() => {
   // Path-type detection (mirrors legacy Homepage rendering logic).
   const isTempering = identity.template.id.startsWith(TEMPERING_TEMPLATE_ID);
   const isPresence = identity.template.id.startsWith(PRESENCE_TEMPLATE_ID);
+  const isMage = identity.template.id.startsWith(MAGE_TEMPLATE_ID);
   const currentLevel = identity.current_level;
   const pathConfig = isTempering
     ? getTemperingLevel(currentLevel)
     : isPresence
     ? getPresenceLevel(currentLevel)
+    : isMage
+    ? getMageLevel(currentLevel)
     : null;
   const pathId = isTempering
     ? TEMPERING_TEMPLATE_ID
     : isPresence
     ? PRESENCE_TEMPLATE_ID
+    : isMage
+    ? MAGE_TEMPLATE_ID
     : undefined;
 
   const transformedTasks = identity.available_tasks.map((task) => ({
@@ -227,6 +237,40 @@ const DailyIdentityPanel = memo(() => {
         maxXP: nextConfig.xpToLevelUp,
       };
     }
+    if (isMage) {
+      const nextConfig = getMageLevel(newLevel);
+      if (!nextConfig) return null;
+      const nextTasks = generateMageTaskTemplates(newLevel);
+      return {
+        title: `Mage Lv.${newLevel}`,
+        subtitle: nextConfig.subtitle,
+        tasks: nextTasks.map((t) => ({
+          id: t.id,
+          title: t.name,
+          description: t.description || '',
+          rewards: {
+            xp: t.xp_reward,
+            stat: t.target_stat,
+            points: t.base_points_reward,
+            coins: t.coin_reward,
+          },
+          subtasks: t.subtasks?.map((st) => ({
+            id: st.id,
+            name: st.name,
+            description: st.description,
+          })),
+          path_id: t.path_id || MAGE_TEMPLATE_ID,
+          path_level: t.path_level || newLevel,
+        })),
+        trialInfo: {
+          name: nextConfig.trial.name,
+          description: nextConfig.trial.focus,
+          tasks: nextConfig.trial.tasks,
+          rewards: nextConfig.trial.rewards,
+        },
+        maxXP: nextConfig.xpToLevelUp,
+      };
+    }
     return null;
   };
 
@@ -234,6 +278,8 @@ const DailyIdentityPanel = memo(() => {
     ? `Tempering Lv.${currentLevel}`
     : isPresence
     ? `Presence Lv.${currentLevel}`
+    : isMage
+    ? `Mage Lv.${currentLevel}`
     : identity.template.name.split(' - ')[0];
 
   return (
@@ -248,7 +294,7 @@ const DailyIdentityPanel = memo(() => {
       level={currentLevel}
       tasks={transformedTasks}
       trialInfo={trialInfo}
-      onLevelUp={isTempering || isPresence ? getNextLevelData : undefined}
+      onLevelUp={isTempering || isPresence || isMage ? getNextLevelData : undefined}
       onTaskComplete={async (taskId) => {
         logger.info('Task completed', { taskId, identityId: identity.id });
         const result = await useGameStore

@@ -53,7 +53,7 @@ export const resetUserData = async (userId: string): Promise<boolean> => {
       .update({
         rank_tier: 'D',
         coins: 100,
-        stars: 5,
+        stars: 15,
         body_points: 0,
         mind_points: 0,
         soul_points: 0,

@@ -6,7 +6,7 @@ import ParticleBackground from '@/components/layout/ParticleBackground';
 import { ErrorBoundary } from '@/components/common';
 import { HeroNode, PathTabs, SubNode, TreeConnections } from '@/components/pathTree';
 import { NodeInfoModal } from '@/components/modals/NodeInfoModal';
-import { PATH_DATA, THEME_COLORS, type PathNode, type CultivationPath } from '@/constants/pathTreeData';
+import { PATH_DATA, THEME_COLORS, type PathNode, type CultivationPath, type NodeStatus } from '@/constants/pathTreeData';
 import { useGameStore } from '@/store/gameStore';
 import { useAuthStore } from '@/store/authStore';
 import { logger } from '@/utils/logger';
@@ -90,9 +90,62 @@ const findActiveNode = (nodes: PathNode[]): PathNode | undefined => {
   return nodes.find(n => n.status === 'active');
 };
 
+/**
+ * Maps a PATH_DATA path id to the identity template id that represents
+ * the Stage-1 ("hero") identity on that path. The `startsWith` match
+ * lets us recognise any level in the template family (e.g. -lvl1, -lvl2).
+ */
+const PATH_TO_IDENTITY_PREFIX: Record<string, string> = {
+  warrior: 'tempering-warrior-trainee',
+  mage: 'mage-scholar-training',
+  mystic: 'presence-mystic-training',
+};
+
+/**
+ * Pure deriver: given PATH_DATA, the currently active identities and any
+ * session-only unlock overrides, return the display-ready paths array.
+ *
+ * - If the path's starter identity exists: Stage-1 hero → active, Stage-2 → unlockable.
+ * - Otherwise the baseline PATH_DATA is returned (Stage-1 hero → unlockable).
+ * - `sessionUnlocks` lets `handleUnlockNode` keep its optimistic feedback
+ *   for Stage-2+ node state without introducing a second source of truth.
+ */
+const derivePathsFromIdentities = (
+  activeIdentityTemplateIds: string[],
+  sessionUnlocks: Record<string, NodeStatus>
+): CultivationPath[] => {
+  return PATH_DATA.map((path) => {
+    const prefix = PATH_TO_IDENTITY_PREFIX[path.id];
+    const starterActive = prefix
+      ? activeIdentityTemplateIds.some((tid) => tid.startsWith(prefix))
+      : false;
+
+    return {
+      ...path,
+      nodes: path.nodes.map((node) => {
+        const override = sessionUnlocks[node.id];
+        if (override) return { ...node, status: override };
+
+        if (starterActive) {
+          if (node.stage === 1 && node.position === 'center') {
+            return { ...node, status: 'active' as const };
+          }
+          if (node.stage === 2 && node.status === 'locked') {
+            return { ...node, status: 'unlockable' as const };
+          }
+        }
+        return node;
+      }),
+    };
+  });
+};
+
 const PathTreePage = memo(() => {
   const [activePathIndex, setActivePathIndex] = useState(0);
-  const [paths, setPaths] = useState<CultivationPath[]>(PATH_DATA);
+  // Session-only optimistic overrides for nodes the user has unlocked this
+  // session (Stage 2+). Stage 1 unlocks flow through activeIdentities so
+  // they survive refresh; Stage 2+ are transient until persisted elsewhere.
+  const [sessionUnlocks, setSessionUnlocks] = useState<Record<string, NodeStatus>>({});
   const [selectedNode, setSelectedNode] = useState<PathNode | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -138,63 +191,17 @@ const PathTreePage = memo(() => {
     initializeGameData();
   }, [isAuthenticated, authUser?.id, isInitialized, initializeUser]);
 
-  // Check if Tempering identity is active and update warrior hero node accordingly
-  useEffect(() => {
-    const temperingActive = activeIdentities.some(
-      identity => identity.template_id.startsWith('tempering-warrior-trainee')
-    );
-    
-    const presenceActive = activeIdentities.some(
-      identity => identity.template_id.startsWith('presence-mystic-training')
-    );
-    
-    setPaths(prevPaths => prevPaths.map(path => {
-      // Handle Warrior path
-      if (path.id === 'warrior' && temperingActive) {
-        return {
-          ...path,
-          nodes: path.nodes.map(node => {
-            // Mark warrior hero node as active if Tempering exists
-            if (node.stage === 1 && node.position === 'center' && node.status !== 'active') {
-              return { ...node, status: 'active' as const };
-            }
-            // Make stage 2 nodes unlockable
-            if (node.stage === 2 && node.status === 'locked') {
-              return { ...node, status: 'unlockable' as const };
-            }
-            return node;
-          }),
-        };
-      }
-      
-      // Handle Mystic path
-      if (path.id === 'mystic' && presenceActive) {
-        return {
-          ...path,
-          nodes: path.nodes.map(node => {
-            // Mark mystic hero node as active if Presence exists
-            if (node.stage === 1 && node.position === 'center' && node.status !== 'active') {
-              return { ...node, status: 'active' as const };
-            }
-            // Make stage 2 nodes unlockable
-            if (node.stage === 2 && node.status === 'locked') {
-              return { ...node, status: 'unlockable' as const };
-            }
-            return node;
-          }),
-        };
-      }
-      
-      return path;
-    }));
-    
-    if (temperingActive) {
-      logger.info('PathTree updated for Tempering identity');
-    }
-    if (presenceActive) {
-      logger.info('PathTree updated for Presence identity');
-    }
-  }, [activeIdentities]);
+  // Derive paths directly from activeIdentities + session unlocks.
+  // This replaces the previous `useState + useEffect` sync which held a
+  // second source of truth that could drift from the store.
+  const activeTemplateIds = useMemo(
+    () => activeIdentities.map((i) => i.template_id),
+    [activeIdentities]
+  );
+  const paths = useMemo(
+    () => derivePathsFromIdentities(activeTemplateIds, sessionUnlocks),
+    [activeTemplateIds, sessionUnlocks]
+  );
 
   // Get user stars (fallback to 0 if not loaded)
   const userStars = userProfile?.stars ?? 0;
@@ -266,66 +273,56 @@ const PathTreePage = memo(() => {
 
       // Get the nodes that will become unlockable after this unlock
       const nextUnlockableIds = getNextUnlockableNodes(node, activePath.nodes);
-      
+
       // Find the currently active node to mark as completed
       const previousActiveNode = currentActiveNode;
 
-      // Optimistic update
-      const updatedPaths = paths.map((path) => {
-        if (path.id === activePath.id) {
-          return {
-            ...path,
-            nodes: path.nodes.map((n) => {
-              // Mark the previously active node as completed
-              if (previousActiveNode && n.id === previousActiveNode.id) {
-                return { ...n, status: 'completed' as const };
-              }
-              // Newly unlocked node becomes active
-              if (n.id === nodeId) {
-                return { ...n, status: 'active' as const };
-              }
-              // Next nodes in progression become unlockable
-              if (nextUnlockableIds.includes(n.id)) {
-                return { ...n, status: 'unlockable' as const };
-              }
-              
-              // Special check: If both Stage 2 nodes are now active/completed, unlock Stage 3 center
-              if (n.stage === 3 && n.position === 'center-branch' && n.status === 'locked') {
-                const stage2Left = path.nodes.find(node => node.stage === 2 && node.position === 'left-branch');
-                const stage2Right = path.nodes.find(node => node.stage === 2 && node.position === 'right-branch');
-                
-                // Account for the node being unlocked right now (it will become active)
-                const leftCompleted = stage2Left?.id === nodeId || stage2Left?.status === 'active' || stage2Left?.status === 'completed';
-                const rightCompleted = stage2Right?.id === nodeId || stage2Right?.status === 'active' || stage2Right?.status === 'completed';
-                const bothStage2Completed = leftCompleted && rightCompleted;
-                
-                if (bothStage2Completed) {
-                  return { ...n, status: 'unlockable' as const };
-                }
-              }
-              
-              // When unlocking stage 3, LOCK the path:
-              // - Lock the other stage 2 branch (if not already active/completed)
-              // - Lock all stage 3+ nodes not on this branch
-              if (node.stage === 3) {
-                // Lock other stage 2 nodes
-                if (n.stage === 2 && n.status === 'unlockable') {
-                  return { ...n, status: 'locked' as const };
-                }
-                // Lock all stage 3+ nodes not on this branch (except center which may be accessible from both)
-                if (n.stage >= 3 && n.position !== node.position && n.position !== 'center-branch' && n.status !== 'active' && n.status !== 'completed') {
-                  return { ...n, status: 'locked' as const };
-                }
-              }
-              return n;
-            }),
-          };
-        }
-        return path;
-      });
+      // Build the session-unlock overlay patch for this unlock. All of this
+      // state used to live in a parallel `paths` state; moving it into
+      // `sessionUnlocks` keeps `activeIdentities` as the single source of
+      // truth for what actually persists.
+      const unlockPatch: Record<string, NodeStatus> = {};
+      if (previousActiveNode) {
+        unlockPatch[previousActiveNode.id] = 'completed';
+      }
+      unlockPatch[nodeId] = 'active';
+      for (const id of nextUnlockableIds) {
+        unlockPatch[id] = 'unlockable';
+      }
 
-      setPaths(updatedPaths);
-      
+      // Stage 3 center unlock: if both Stage 2 branches are now active/completed,
+      // the center Stage 3 node should become unlockable too.
+      const stage2Left = activePath.nodes.find(n => n.stage === 2 && n.position === 'left-branch');
+      const stage2Right = activePath.nodes.find(n => n.stage === 2 && n.position === 'right-branch');
+      const leftCompleted = stage2Left && (stage2Left.id === nodeId || stage2Left.status === 'active' || stage2Left.status === 'completed');
+      const rightCompleted = stage2Right && (stage2Right.id === nodeId || stage2Right.status === 'active' || stage2Right.status === 'completed');
+      if (leftCompleted && rightCompleted) {
+        const stage3Center = activePath.nodes.find(n => n.stage === 3 && n.position === 'center-branch');
+        if (stage3Center && stage3Center.status === 'locked') {
+          unlockPatch[stage3Center.id] = 'unlockable';
+        }
+      }
+
+      // When unlocking a Stage 3 node, LOCK the path to this branch.
+      if (node.stage === 3) {
+        for (const n of activePath.nodes) {
+          if (n.stage === 2 && n.status === 'unlockable') {
+            unlockPatch[n.id] = 'locked';
+          }
+          if (
+            n.stage >= 3 &&
+            n.position !== node.position &&
+            n.position !== 'center-branch' &&
+            n.status !== 'active' &&
+            n.status !== 'completed'
+          ) {
+            unlockPatch[n.id] = 'locked';
+          }
+        }
+      }
+
+      setSessionUnlocks((prev) => ({ ...prev, ...unlockPatch }));
+
       // Deduct stars for ALL node unlocks
       if (userProfile && node.starsRequired > 0) {
         try {
@@ -334,37 +331,45 @@ const PathTreePage = memo(() => {
           await gameDB.updateProfile(userProfile.id, {
             stars: userProfile.stars - node.starsRequired,
           });
-          
+
           // Reload profile to update UI with animated star count
           await loadUserProfile(userProfile.id);
-          
-          logger.info('Stars deducted for node unlock', { 
-            nodeId, 
+
+          logger.info('Stars deducted for node unlock', {
+            nodeId,
             starsDeducted: node.starsRequired,
-            remainingStars: userProfile.stars - node.starsRequired 
+            remainingStars: userProfile.stars - node.starsRequired,
           });
-          
-          // If unlocking warrior hero node (stage 1), also activate Tempering Lv.1 identity
-          if (activePath.id === 'warrior' && node.stage === 1 && node.position === 'center') {
-            await activateIdentity('tempering-warrior-trainee-lvl1');
-            logger.info('Tempering Lv.1 identity activated');
-          }
-          
-          // If unlocking mystic hero node (stage 1), also activate Presence Lv.1 identity
-          if (activePath.id === 'mystic' && node.stage === 1 && node.position === 'center') {
-            await activateIdentity('presence-mystic-training-lvl1');
-            logger.info('Presence Lv.1 identity activated');
+
+          // Stage 1 hero unlock also plants the starter identity on that axis.
+          if (node.stage === 1 && node.position === 'center') {
+            if (activePath.id === 'warrior') {
+              await activateIdentity('tempering-warrior-trainee-lvl1');
+              logger.info('Tempering Lv.1 identity activated');
+            } else if (activePath.id === 'mage') {
+              await activateIdentity('mage-scholar-training-lvl1');
+              logger.info('Mage Lv.1 identity activated');
+            } else if (activePath.id === 'mystic') {
+              await activateIdentity('presence-mystic-training-lvl1');
+              logger.info('Presence Lv.1 identity activated');
+            }
           }
         } catch (error) {
           logger.error('Failed to unlock node', error);
-          // Rollback UI state on error
-          setPaths(paths);
+          // Rollback: drop just this unlock patch (keep any earlier overrides).
+          setSessionUnlocks((prev) => {
+            const rollback = { ...prev };
+            for (const id of Object.keys(unlockPatch)) {
+              delete rollback[id];
+            }
+            return rollback;
+          });
         }
       }
-      
+
       logger.info('Node unlocked', { nodeId, previousActive: previousActiveNode?.id, nextUnlockable: nextUnlockableIds });
     },
-    [activePath, paths, currentActiveNode, userStars, activateIdentity, userProfile, loadUserProfile]
+    [activePath, currentActiveNode, userStars, activateIdentity, userProfile, loadUserProfile]
   );
 
   // Get nodes by stage for display

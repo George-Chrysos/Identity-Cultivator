@@ -14,7 +14,9 @@ import {
 // ==================== CONSTANTS ====================
 
 export const PRESENCE_TEMPLATE_ID = 'presence-mystic-training';
-export const PRESENCE_XP_PER_DAY = 40;
+// Daily XP quota for the starter Level 1 onboarding pace (2 tasks × 8 XP = 16 / day,
+// 48 XP over 3 days = level up). Higher levels have their own derived per-task XP.
+export const PRESENCE_XP_PER_DAY = 16;
 
 // ==================== LEVEL CONFIGURATIONS ====================
 
@@ -42,10 +44,13 @@ export interface PresenceLevelConfig {
 }
 
 export const PRESENCE_LEVELS: PresenceLevelConfig[] = [
+  // 🔮 Level 1: The First Ripple (Starter - 2 tasks, 3 days to level up)
+  // L1 is intentionally gentle onboarding: just the two foundational gates
+  // (Stillness + Disclosure). Levels 2-10 expand back to the full Five-Gate System.
   {
     "level": 1,
     "subtitle": "The First Ripple",
-    "xpToLevelUp": 120,
+    "xpToLevelUp": 48,
     "daysRequired": 3,
     "mainStatLimit": 1.0,
     "gateStatCap": 0.2,
@@ -59,30 +64,6 @@ export const PRESENCE_LEVELS: PresenceLevelConfig[] = [
           { "name": "The Drop: Set 2 Timers", "focus": "When timer rings: Stop. Drop shoulders. Unclench jaw. Reset to zero." }
         ],
         "focus": "When timer rings: Stop. Drop shoulders. Unclench jaw. Reset to zero."
-      },
-      {
-        "gate": "reflection",
-        "name": "The Mirror (Self-Knowing)",
-        "subtasks": [
-          { "name": "The Gaze: 2 Minutes", "focus": "Look at your reflection. Do not fix your hair. Just say 'I am here.'" }
-        ],
-        "focus": "Look at your reflection. Do not fix your hair. Just say 'I am here.'"
-      },
-      {
-        "gate": "insight",
-        "name": "The Sight (Symbolism)",
-        "subtasks": [
-          { "name": "Card Draw: Single Card", "focus": "Look at the image. What is the very first emotion you feel? Trust it." }
-        ],
-        "focus": "Look at the image. What is the very first emotion you feel? Trust it."
-      },
-      {
-        "gate": "sensing",
-        "name": "The Sonar (Sensation)",
-        "subtasks": [
-          { "name": "Gravity Check: Basic Weight", "focus": "Feel the physical weight of your body pressing into the chair/floor. Let gravity hold you." }
-        ],
-        "focus": "Feel the physical weight of your body pressing into the chair/floor. Let gravity hold you."
       },
       {
         "gate": "disclosure",
@@ -675,7 +656,13 @@ export const generatePresenceTaskTemplates = (level: number): TaskTemplate[] => 
   const config = getPresenceLevel(level);
   if (!config) throw new Error(`Invalid presence level: ${level}`);
 
-  const baseXpPerTask = Math.round(PRESENCE_XP_PER_DAY / config.tasks.length);
+  // Derive per-task XP from the level's own shape so that levels with a
+  // different task count (e.g. L1 uses 2 tasks) still land on exactly
+  // `xpToLevelUp` after `daysRequired` days of full completion.
+  const baseXpPerTask = Math.max(
+    1,
+    Math.round(config.xpToLevelUp / (config.daysRequired * config.tasks.length))
+  );
 
   return config.tasks.map((task) => {
     const taskId = `presence-lvl${level}-task-${task.gate}`;

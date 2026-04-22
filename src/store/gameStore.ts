@@ -4,6 +4,7 @@ import { logger } from '@/utils/logger';
 import { storage } from '@/services/storageService';
 import { STORE_KEYS } from '@/constants/storage';
 import { gameDB } from '@/api/gameDatabase';
+import { upsertDailyPathProgress } from '@/logic/ChronosManager';
 import {
   UserProfile,
   PlayerIdentityWithDetails,
@@ -73,6 +74,16 @@ interface DailyTaskState {
   completedSubtasks: string[];
   date: string; // ISO date string to reset on new day
 }
+
+// ========== SELECTOR CACHES ==========
+// Stable empty Set so "no tasks today" always returns the same reference and
+// doesn't re-render every subscriber when unrelated store slices change.
+// Callers treat the returned Set as read-only; they copy it when mutating.
+const EMPTY_STRING_SET: Set<string> = new Set<string>();
+// Per-DailyTaskState memoization: the same state object → the same Set instance.
+// Uses WeakMap so entries GC automatically when a DailyTaskState is replaced.
+const completedTasksCache: WeakMap<DailyTaskState, Set<string>> = new WeakMap();
+const completedSubtasksCache: WeakMap<DailyTaskState, Set<string>> = new WeakMap();
 
 /**
  * Trinity slot map — the Cyber-Grimoire "three Seeds" truth.
@@ -580,49 +591,104 @@ export const useGameStore = create<GameState>()(
       },
 
       completeTask: async (identityId: string, taskTemplateId: string) => {
-        const { userProfile, activeIdentities } = get();
+        const { userProfile, activeIdentities, dailyTaskStates } = get();
         if (!userProfile) throw new Error('No user profile');
 
         const identity = activeIdentities.find((i) => i.id === identityId);
         if (!identity) throw new Error('Identity not found');
 
-        try {
-          // Optimistic update - DO NOT increment streak here!
-          // Streak is managed by PathCard and only increments when ALL tasks are completed
-          // Incrementing here causes duplicate streak gains when navigating away and back
-          set({
-            activeIdentities: activeIdentities.map((i) =>
-              i.id === identityId ? { ...i } : i
-            ),
-          });
+        // ---------- OPTIMISTIC PHASE ----------
+        // Snapshot previous state for rollback on failure.
+        const previousIdentities = activeIdentities;
+        const previousProfile = userProfile;
+        const previousDailyTaskStates = dailyTaskStates;
 
-          // Complete task via gameDB
+        // Derive optimistic XP from the task template that the client already knows about.
+        // The DB response is authoritative; we use it to reconcile on success.
+        const task = identity.available_tasks?.find((t) => t.id === taskTemplateId);
+        const xpReward = task?.xp_reward ?? 0;
+        const optimisticXp = identity.current_xp + xpReward;
+
+        const today = getTodayDate();
+        const currentState = dailyTaskStates[identityId];
+        const baseState = currentState?.date === today
+          ? currentState
+          : { date: today, completedTasks: [], completedSubtasks: [] };
+        const alreadyCompleted = baseState.completedTasks.includes(taskTemplateId);
+        const nextCompletedTasks = alreadyCompleted
+          ? baseState.completedTasks
+          : [...baseState.completedTasks, taskTemplateId];
+        const nextCompletedSubtasks = baseState.completedSubtasks;
+
+        // Apply optimistic XP to the identity and optimistic completion to daily state.
+        // Streak is intentionally NOT incremented here — PathCard manages streak via
+        // onAllTasksComplete → updateIdentityStreak once the full gate is cleared.
+        set({
+          activeIdentities: activeIdentities.map((i) =>
+            i.id === identityId ? { ...i, current_xp: optimisticXp } : i
+          ),
+          dailyTaskStates: {
+            ...dailyTaskStates,
+            [identityId]: {
+              date: today,
+              completedTasks: nextCompletedTasks,
+              completedSubtasks: nextCompletedSubtasks,
+            },
+          },
+        });
+
+        // Fire-and-forget daily_path_progress upsert — owned by the store, not PathCard.
+        // Errors are swallowed by upsertDailyPathProgress itself (it logs + returns null),
+        // so we don't need to gate task completion on it.
+        const pathId = identity.template_id || identity.template?.id;
+        if (pathId) {
+          const totalTasks = identity.available_tasks?.length ?? 0;
+          upsertDailyPathProgress(
+            userProfile.id,
+            pathId,
+            totalTasks,
+            nextCompletedTasks.length,
+            nextCompletedTasks,
+            nextCompletedSubtasks,
+          ).catch((error) => {
+            logger.warn('daily_path_progress upsert failed (non-blocking)', { error, pathId });
+          });
+        }
+
+        try {
+          // ---------- DB PHASE ----------
           const result = await gameDB.completeTask({
             user_id: userProfile.id,
             identity_instance_id: identityId,
             task_template_id: taskTemplateId,
           });
 
-          // Update store with new data - use original streak, not database-incremented one
-          // Database also wrongly increments per task, so preserve the current streak
-          set({
+          // ---------- RECONCILE PHASE ----------
+          // Merge DB response back. Preserve original streak (per-path streak logic
+          // is owned by PathCard / updateIdentityStreak, not the per-task DB call).
+          set((state) => ({
             userProfile: result.updated_profile,
-            activeIdentities: activeIdentities.map((i) =>
-              i.id === identityId ? { 
-                ...i, 
-                ...result.updated_identity,
-                // Preserve original streak - PathCard manages streak separately
-                current_streak: identity.current_streak,
-              } : i
+            activeIdentities: state.activeIdentities.map((i) =>
+              i.id === identityId
+                ? {
+                    ...i,
+                    ...result.updated_identity,
+                    current_streak: identity.current_streak,
+                  }
+                : i,
             ),
-          });
+          }));
 
           logger.info('Task completed successfully', { identityId, taskTemplateId, rewards: result.rewards });
           return result;
         } catch (error) {
-          // Rollback optimistic update
-          await get().loadActiveIdentities(userProfile!.id);
-          logger.error('Failed to complete task', error);
+          // ---------- ROLLBACK PHASE ----------
+          set({
+            activeIdentities: previousIdentities,
+            userProfile: previousProfile,
+            dailyTaskStates: previousDailyTaskStates,
+          });
+          logger.error('Failed to complete task - rolled back optimistic updates', error);
           throw error;
         }
       },
@@ -912,25 +978,44 @@ export const useGameStore = create<GameState>()(
       },
 
       // ========== DAILY TASK STATE (per identity) ==========
-      
+      //
+      // IMPORTANT: `getCompletedTasks` / `getCompletedSubtasks` are used as zustand
+      // selectors inside components (e.g. PathCard). If we naively returned
+      // `new Set(...)` on every call, every unrelated store update (userProfile,
+      // activeIdentities, etc.) would yield a fresh Set reference — Object.is
+      // equality fails — and subscribers would re-render on every store write.
+      //
+      // We memoize per-identity using the DailyTaskState object identity as the
+      // cache key. Because setCompletedTask / setCompletedSubtask / clearDailyTasks
+      // all produce a new DailyTaskState object via immutable updates, the cache
+      // only invalidates when the data has genuinely changed.
+
       getCompletedTasks: (identityId: string) => {
         const today = getTodayDate();
         const state = get().dailyTaskStates[identityId];
-        // Return empty set if no state or if state is from a previous day
         if (!state || state.date !== today) {
-          return new Set<string>();
+          return EMPTY_STRING_SET;
         }
-        return new Set(state.completedTasks);
+        let cache = completedTasksCache.get(state);
+        if (!cache) {
+          cache = new Set(state.completedTasks);
+          completedTasksCache.set(state, cache);
+        }
+        return cache;
       },
-      
+
       getCompletedSubtasks: (identityId: string) => {
         const today = getTodayDate();
         const state = get().dailyTaskStates[identityId];
-        // Return empty set if no state or if state is from a previous day
         if (!state || state.date !== today) {
-          return new Set<string>();
+          return EMPTY_STRING_SET;
         }
-        return new Set(state.completedSubtasks);
+        let cache = completedSubtasksCache.get(state);
+        if (!cache) {
+          cache = new Set(state.completedSubtasks);
+          completedSubtasksCache.set(state, cache);
+        }
+        return cache;
       },
       
       setCompletedTask: (identityId: string, taskId: string, completed: boolean) => {

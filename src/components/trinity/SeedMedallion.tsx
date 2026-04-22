@@ -29,8 +29,6 @@ interface SeedMedallionProps {
   isActive: boolean;
   /** True when no identity is bound to this Seed yet. */
   isEmpty: boolean;
-  /** Compact size (for when stacked on mobile). */
-  size?: 'md' | 'lg';
   onSelect: (axis: SeedAxis) => void;
 }
 
@@ -50,7 +48,6 @@ const SeedMedallion = memo(({
   xpToNextLevel,
   isActive,
   isEmpty,
-  size = 'lg',
   onSelect,
 }: SeedMedallionProps) => {
   const { label, Icon, tint } = AXIS_META[axis];
@@ -63,8 +60,6 @@ const SeedMedallion = memo(({
   const progress = Math.max(0, Math.min(1, currentXP / safeTotal));
   const dashOffset = RING_CIRCUMFERENCE * (1 - progress);
 
-  const dim = size === 'lg' ? 72 : 56;
-
   return (
     <button
       type="button"
@@ -74,21 +69,18 @@ const SeedMedallion = memo(({
       className={[
         'seed-medallion',
         'relative flex flex-col items-center justify-center gap-1 rounded-full',
+        'w-14 h-14 sm:w-[72px] sm:h-[72px]',
         'outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
         isActive ? 'seed-medallion--active' : 'seed-medallion--idle',
       ].join(' ')}
       style={{
-        width: dim,
-        height: dim,
-        // The tint drives the ring color and the ring-offset on focus.
         ['--seed-tint' as string]: tint,
       }}
     >
       <svg
-        className="absolute inset-0"
-        width={dim}
-        height={dim}
+        className="absolute inset-0 w-full h-full"
         viewBox="0 0 60 60"
+        preserveAspectRatio="xMidYMid meet"
         aria-hidden="true"
       >
         {/* Background track */}
@@ -119,8 +111,7 @@ const SeedMedallion = memo(({
       </svg>
 
       <Icon
-        className="relative z-10"
-        size={size === 'lg' ? 24 : 18}
+        className="relative z-10 w-[18px] h-[18px] sm:w-6 sm:h-6"
         style={{
           color: isEmpty ? 'rgba(203, 213, 225, 0.55)' : tint,
           filter: isActive ? `drop-shadow(0 0 6px ${tint})` : undefined,
@@ -128,7 +119,7 @@ const SeedMedallion = memo(({
       />
 
       <span
-        className="relative z-10 font-mono text-[10px] tracking-[0.18em] leading-none"
+        className="relative z-10 font-mono text-[9px] sm:text-[10px] tracking-[0.18em] leading-none"
         style={{ color: isEmpty ? 'rgba(203, 213, 225, 0.55)' : 'rgba(233, 213, 255, 0.92)' }}
       >
         {isEmpty ? '—' : `L${level}`}

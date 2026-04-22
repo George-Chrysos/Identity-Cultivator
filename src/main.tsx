@@ -3,10 +3,6 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
-// Path sync disabled - app uses client-side constants (temperingPath.ts) as source of truth
-// Only enable if you need database-driven path configuration
-// import { syncPathsToDatabase } from './services/pathSyncService'
-// import { logger } from './utils/logger'
 
 // Add dark class to html element for dark mode
 document.documentElement.classList.add('dark');
@@ -15,13 +11,6 @@ document.documentElement.classList.add('dark');
 // paint. The IdentityInitializer will transition this to the computed state
 // once auth + game data are ready.
 document.documentElement.setAttribute('data-aura', 'initializing');
-
-// Path sync disabled - unnecessary database writes
-// The app reads path data from temperingPath.ts constants, not from database
-// Syncing all 10 levels on every startup is wasteful
-// syncPathsToDatabase().catch(err => {
-//   logger.warn('Path sync failed on startup, using client-side constants as fallback', { error: err });
-// });
 
 // Global error handler for uncaught errors
 window.onerror = (message, source, lineno, colno, error) => {

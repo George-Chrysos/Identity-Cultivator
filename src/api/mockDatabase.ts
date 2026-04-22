@@ -44,6 +44,17 @@ const loadPresenceModule = async (): Promise<PresenceModule> => {
   return _presenceModule;
 };
 
+// Lazy import for mage path functions - loaded on demand to avoid circular dependency
+type MageModule = typeof import('@/constants/magePath');
+let _mageModule: MageModule | null = null;
+
+const loadMageModule = async (): Promise<MageModule> => {
+  if (!_mageModule) {
+    _mageModule = await import('@/constants/magePath');
+  }
+  return _mageModule;
+};
+
 // Helper to get tempering level config (returns null if module not loaded yet)
 const getTemperingLevelSync = (level: number) => {
   if (!_temperingModule) return null;
@@ -250,6 +261,13 @@ const initializeDemoData = async (): Promise<void> => {
     mockIdentityTemplates.set(template.id, template);
   });
 
+  // Add Mage Path templates (Levels 1-10) - loaded lazily
+  const mageModule = await loadMageModule();
+  const mageData = mageModule.getAllMageData();
+  mageData.templates.forEach((template) => {
+    mockIdentityTemplates.set(template.id, template);
+  });
+
   // Create task templates
   const tasks: TaskTemplate[] = [
     // MORNING WARRIOR tasks (550e8400-e29b-41d4-a716-446655440007)
@@ -450,6 +468,11 @@ const initializeDemoData = async (): Promise<void> => {
 
   // Add Presence Path tasks (Levels 1-10)
   presenceData.tasks.forEach((task) => {
+    mockTaskTemplates.set(task.id, task);
+  });
+
+  // Add Mage Path tasks (Levels 1-10)
+  mageData.tasks.forEach((task) => {
     mockTaskTemplates.set(task.id, task);
   });
 

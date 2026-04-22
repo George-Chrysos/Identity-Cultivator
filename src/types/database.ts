@@ -115,8 +115,10 @@ export interface DailyPathProgress {
 }
 
 // ==================== PATH SYNC TABLES ====================
-// These tables store normalized path data from temperingPath.ts constants
-// Synced via pathSyncService.ts on app initialization
+// These tables store normalized path data from the client-side path
+// constants (temperingPath.ts, presencePath.ts, magePath.ts). The legacy
+// pathSyncService has been removed; these types remain for any callers
+// that still read the normalized path schema directly from the DB.
 
 /**
  * Main path metadata (e.g., Tempering Warrior path)
@@ -621,7 +623,9 @@ export const STAT_COLUMN_MAPPING = {
  */
 export const DEFAULT_PROFILE_VALUES = {
   coins: 100,
-  stars: 5,
+  // 15 stars = enough to plant one starter identity per Seed axis
+  // (Body + Mind + Soul), each costing 5 stars at the Stage 1 hero node.
+  stars: 15,
   body_points: 0,
   mind_points: 0,
   soul_points: 0,
