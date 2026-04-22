@@ -84,6 +84,13 @@ interface QuestState {
   isLoading: boolean;
   error: string | null;
   userId: string | null; // Track current user for DB operations
+  /**
+   * The Main Quest is a single pinned quest (per day) that sits in the
+   * homepage twin-hero panel. Null when nothing is pinned. Mercy behavior
+   * (demote-on-miss, Alchemical Recycle at demotionCount>=3) lives in
+   * Phase 4 of the Cyber-Grimoire refactor.
+   */
+  mainQuestId: string | null;
 
   // Actions
   loadQuests: (userId: string) => Promise<void>;
@@ -97,6 +104,10 @@ interface QuestState {
   moveIncompleteQuestsToDate: (newDate: Date) => Promise<void>;
   resetRecurringQuests: (newDate: Date) => Promise<void>;
   clearQuests: () => void;
+
+  // ---- Cyber-Grimoire Main Quest + mercy actions (Phase 4) ----
+  pinMainQuest: (questId: string | null) => void;
+  getMainQuest: () => Quest | null;
 }
 
 // Helper to convert DB quest to frontend Quest format
@@ -128,6 +139,7 @@ export const useQuestStore = create<QuestState>()(
       isLoading: false,
       error: null,
       userId: null,
+      mainQuestId: null,
 
       loadQuests: async (userId: string) => {
         set({ isLoading: true, error: null, userId });
@@ -522,8 +534,34 @@ export const useQuestStore = create<QuestState>()(
       },
       
       clearQuests: () => {
-        set({ quests: [], isLoading: false, error: null, userId: null });
+        set({ quests: [], isLoading: false, error: null, userId: null, mainQuestId: null });
         logger.info('Quests cleared');
+      },
+
+      // ========== MAIN QUEST ==========
+      // Pinning is UI-only for now. Full Phase 4 mercy behavior
+      // (demote-on-miss, Alchemical Recycle at demotionCount>=3) wires into
+      // this via ChronosManager and RuneReRollSheet.
+      pinMainQuest: (questId: string | null) => {
+        const { quests, mainQuestId: prevId } = get();
+        if (prevId === questId) return;
+
+        // Flip the isMainQuest flag on the quest records themselves so
+        // consumers reading a single quest get consistent data. This is
+        // a client-only mutation; DB status column moves to 'main' on save
+        // in Phase 4.
+        const nextQuests = quests.map((q) => ({
+          ...q,
+          isMainQuest: q.id === questId,
+        }));
+        set({ quests: nextQuests, mainQuestId: questId });
+        logger.info('Main Quest pinned', { questId });
+      },
+
+      getMainQuest: () => {
+        const { quests, mainQuestId } = get();
+        if (!mainQuestId) return null;
+        return quests.find((q) => q.id === mainQuestId) ?? null;
       },
     }),
     {
@@ -531,6 +569,7 @@ export const useQuestStore = create<QuestState>()(
       partialize: (state) => ({
         quests: state.quests,
         userId: state.userId,
+        mainQuestId: state.mainQuestId,
       }),
     }
   )

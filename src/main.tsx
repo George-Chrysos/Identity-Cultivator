@@ -11,6 +11,11 @@ import './index.css'
 // Add dark class to html element for dark mode
 document.documentElement.classList.add('dark');
 
+// Seed the Vitality Aura in its shrouded initialization state before first
+// paint. The IdentityInitializer will transition this to the computed state
+// once auth + game data are ready.
+document.documentElement.setAttribute('data-aura', 'initializing');
+
 // Path sync disabled - unnecessary database writes
 // The app reads path data from temperingPath.ts constants, not from database
 // Syncing all 10 levels on every startup is wasteful

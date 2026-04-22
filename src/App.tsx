@@ -1,6 +1,7 @@
 import { Suspense, lazy, Component, ReactNode } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ToastContainer } from './components/notifications/Toast';
+import AuraFrame from './components/layout/AuraFrame';
 
 // Lazy load pages to reduce initial bundle size
 const Homepage = lazy(() => import('./pages/Homepage'));
@@ -70,6 +71,7 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryS
 function App() {
   return (
     <AppErrorBoundary>
+      <AuraFrame />
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route path="/" element={<Homepage />} />

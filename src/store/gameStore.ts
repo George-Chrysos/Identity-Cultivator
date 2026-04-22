@@ -15,6 +15,8 @@ import {
   PlayerInventoryItem,
   PurchaseItemRequest,
   DailyRecord,
+  SeedAxis,
+  PRIMARY_STAT_TO_SEED_AXIS,
 } from '@/types/database';
 import { 
   UserSealLog, 
@@ -72,6 +74,20 @@ interface DailyTaskState {
   date: string; // ISO date string to reset on new day
 }
 
+/**
+ * Trinity slot map — the Cyber-Grimoire "three Seeds" truth.
+ * Each axis holds the id of the player_identities row currently expressing it.
+ * Null = empty Seed. Hydrated from UserProfile on load, migrated from
+ * activeIdentities if the profile has no slot bindings yet.
+ */
+export type TrinitySlots = {
+  body: string | null;
+  mind: string | null;
+  soul: string | null;
+};
+
+const EMPTY_TRINITY: TrinitySlots = { body: null, mind: null, soul: null };
+
 interface GameState {
   // User data
   userProfile: UserProfile | null;
@@ -81,6 +97,12 @@ interface GameState {
   
   // Active player identities
   activeIdentities: PlayerIdentityWithDetails[];
+
+  // ---- Trinity: the 3-Seed layer ----
+  /** Which identity currently expresses each axis. */
+  trinity: TrinitySlots;
+  /** Which Seed the UI is currently focused on (controls DailyIdentityPanel). */
+  activeSeed: SeedAxis;
   
   // Available templates (cached)
   identityTemplates: IdentityTemplate[];
@@ -151,6 +173,17 @@ interface GameState {
   updateIdentityXP: (identityId: string, xpDelta: number) => Promise<void>;
   updateRewards: (coins: number, statType: string, statPoints: number, stars?: number) => Promise<void>;
   setCurrentPage: (page: 'home' | 'tavern') => void;
+
+  // ---- Trinity actions ----
+  /** Set which Seed the UI is focused on (does NOT persist to DB; UI-only). */
+  setActiveSeed: (axis: SeedAxis) => void;
+  /** Bind a player_identities.id into a Seed slot; null clears the slot. */
+  setTrinitySlot: (axis: SeedAxis, identityId: string | null) => Promise<void>;
+  /** Seed the trinity map from activeIdentities when profile has no bindings yet. */
+  hydrateTrinityFromIdentities: () => void;
+  /** Resolve the currently-active Seed's bound PlayerIdentity, or null. */
+  getActiveSeedIdentity: () => PlayerIdentityWithDetails | null;
+
   clearGameData: () => void;
 }
 
@@ -170,6 +203,8 @@ export const useGameStore = create<GameState>()(
       showDawnSummary: false,
       lastDailyRecord: null,
       dailyTaskStates: {},
+      trinity: { ...EMPTY_TRINITY },
+      activeSeed: 'body',
       isLoading: false,
       isInitialized: false,
       currentPage: 'home',
@@ -246,6 +281,9 @@ export const useGameStore = create<GameState>()(
           const identitiesWithDetails = await gameDB.getActiveIdentities(userId);
           set({ activeIdentities: identitiesWithDetails });
           logger.info('Loaded active identities', { count: identitiesWithDetails.length });
+          // Trinity hydration: prefer slot bindings from profile; fall back to
+          // inferring slots from the identities' primary_stat.
+          get().hydrateTrinityFromIdentities();
         } catch (error) {
           logger.error('Failed to load active identities', error);
           throw error;
@@ -1121,6 +1159,100 @@ export const useGameStore = create<GameState>()(
         }
       },
 
+      // ========== TRINITY (3-Seed binding layer) ==========
+
+      setActiveSeed: (axis: SeedAxis) => {
+        const current = get().activeSeed;
+        if (current === axis) return;
+        set({ activeSeed: axis });
+        logger.info('Active Seed changed', { from: current, to: axis });
+      },
+
+      setTrinitySlot: async (axis: SeedAxis, identityId: string | null) => {
+        const { trinity, userProfile } = get();
+        const nextTrinity: TrinitySlots = { ...trinity, [axis]: identityId };
+        set({ trinity: nextTrinity });
+
+        // Persist to profile if we have one. Keep the DB write best-effort —
+        // the in-memory trinity is the source of truth for the session, and
+        // loadActiveIdentities re-hydrates on next load if the DB write fails.
+        if (userProfile) {
+          const columnKey: keyof UserProfile = (
+            axis === 'body'
+              ? 'trinity_body_identity_id'
+              : axis === 'mind'
+              ? 'trinity_mind_identity_id'
+              : 'trinity_soul_identity_id'
+          );
+          try {
+            const updates = { [columnKey]: identityId } as Partial<UserProfile>;
+            const updatedProfile = await gameDB.updateProfile(userProfile.id, updates);
+            set({ userProfile: updatedProfile });
+          } catch (error) {
+            logger.warn('Trinity slot persisted in memory only (DB unavailable)', {
+              axis,
+              identityId,
+              error,
+            });
+          }
+        }
+      },
+
+      hydrateTrinityFromIdentities: () => {
+        const { userProfile, activeIdentities, trinity } = get();
+
+        // First: prefer explicit slot bindings on the profile.
+        const fromProfile: TrinitySlots = {
+          body: userProfile?.trinity_body_identity_id ?? null,
+          mind: userProfile?.trinity_mind_identity_id ?? null,
+          soul: userProfile?.trinity_soul_identity_id ?? null,
+        };
+        const hasAnyProfileBinding =
+          !!fromProfile.body || !!fromProfile.mind || !!fromProfile.soul;
+
+        if (hasAnyProfileBinding) {
+          // Validate that each bound identity still exists and is active.
+          const validIds = new Set(activeIdentities.map((i) => i.id));
+          const validated: TrinitySlots = {
+            body: fromProfile.body && validIds.has(fromProfile.body) ? fromProfile.body : null,
+            mind: fromProfile.mind && validIds.has(fromProfile.mind) ? fromProfile.mind : null,
+            soul: fromProfile.soul && validIds.has(fromProfile.soul) ? fromProfile.soul : null,
+          };
+          set({ trinity: validated });
+          logger.info('Trinity hydrated from profile bindings', validated);
+          return;
+        }
+
+        // Fallback: infer from primary_stat. For each axis, pick the first
+        // active identity whose template.primary_stat maps to that axis.
+        const inferred: TrinitySlots = { ...EMPTY_TRINITY };
+        for (const identity of activeIdentities) {
+          const stat = identity.template?.primary_stat;
+          if (!stat) continue;
+          const axis = PRIMARY_STAT_TO_SEED_AXIS[stat];
+          if (axis && !inferred[axis]) {
+            inferred[axis] = identity.id;
+          }
+        }
+
+        // Only write if we actually changed something — avoids redundant re-renders.
+        if (
+          inferred.body !== trinity.body ||
+          inferred.mind !== trinity.mind ||
+          inferred.soul !== trinity.soul
+        ) {
+          set({ trinity: inferred });
+          logger.info('Trinity inferred from identity primary_stat', inferred);
+        }
+      },
+
+      getActiveSeedIdentity: () => {
+        const { trinity, activeSeed, activeIdentities } = get();
+        const boundId = trinity[activeSeed];
+        if (!boundId) return null;
+        return activeIdentities.find((i) => i.id === boundId) || null;
+      },
+
       clearGameData: () => {
         set({
           userProfile: null,
@@ -1136,6 +1268,8 @@ export const useGameStore = create<GameState>()(
           showDawnSummary: false,
           lastDailyRecord: null,
           dailyTaskStates: {},
+          trinity: { ...EMPTY_TRINITY },
+          activeSeed: 'body',
           isLoading: false,
           isInitialized: false,
           currentPage: 'home',
@@ -1154,6 +1288,11 @@ export const useGameStore = create<GameState>()(
         // Persist daily task states so completed tasks survive page refresh
         // These will be validated against DB on next load
         dailyTaskStates: state.dailyTaskStates,
+        // Trinity slot map + UI active-seed pointer persist across refreshes
+        // so the Aha! sequence doesn't flicker "unseeded" for valid users.
+        // Slots re-validate against activeIdentities on load.
+        trinity: state.trinity,
+        activeSeed: state.activeSeed,
       }),
       onRehydrateStorage: () => {
         return (state, error) => {

@@ -5,7 +5,14 @@ import { ChevronDown, Calendar, Clock, ChevronLeft, ChevronRight, Trash2 } from 
 import { QUEST_COIN_REWARDS } from '@/store/questStore';
 import { GPU_ACCELERATION_STYLES } from '@/components/common';
 
-export type QuestStatus = 'today' | 'backlog' | 'completed';
+export type QuestStatus =
+  | 'today'
+  | 'backlog'
+  | 'completed'
+  | 'main'
+  | 'expired'
+  | 'respawning'
+  | 'someday';
 export type QuestDifficulty = 'Easy' | 'Moderate' | 'Difficult' | 'Hard' | 'Hell';
 
 export interface SubQuest {
@@ -31,6 +38,17 @@ export interface Quest {
   customRewards?: CustomReward[];
   isRecurring?: boolean;
   daysNotCompleted?: number; // Counter for quest aging - escalates difficulty at 3/10/20 days
+  // ---- Cyber-Grimoire mercy fields (populated by questStore / ChronosManager) ----
+  /** True when this quest is currently the Main Quest. Only one per day. */
+  isMainQuest?: boolean;
+  /** Times demoted from Main without completion. At >=3 triggers RuneReRoll. */
+  demotionCount?: number;
+  /** Times this quest has been re-planted after expiry. */
+  respawnCount?: number;
+  /** ISO timestamp of last expiry — cleared on respawn. */
+  expiredAt?: string | null;
+  /** ISO timestamp of last Alchemical Recycle resolution. */
+  recycledAt?: string | null;
 }
 
 interface QuestCardProps {

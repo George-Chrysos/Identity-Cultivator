@@ -2,6 +2,74 @@
 @tailwind components; 
 @tailwind utilities;
 
+/* ==========================================================================
+ * CYBER-GRIMOIRE TOKENS
+ * Centralized CSS custom properties. Consumed by AuraFrame, TrinityStrip,
+ * SeedMedallion, MainQuestPanel, ArsenalEcho, IdentityProclamation.
+ * Aura state is selected by [data-aura] on <html>.
+ * ========================================================================== */
+:root {
+  --grim-violet-core: 168, 85, 247;
+  --grim-violet-deep: 109, 40, 217;
+  --grim-cyan-core: 34, 211, 238;
+  --grim-cyan-deep: 8, 145, 178;
+  --grim-gold-core: 250, 204, 21;
+  --grim-crimson-core: 244, 63, 94;
+
+  --grim-ink: rgba(15, 7, 40, 0.95);
+  --grim-ink-translucent: rgba(15, 7, 40, 0.7);
+  --grim-lightlip: rgba(255, 255, 255, 0.08);
+
+  --grim-text-neon: #e9d5ff;
+  --grim-text-shrouded: rgba(203, 213, 225, 0.5);
+
+  --grim-easing-ritual: cubic-bezier(0.22, 1, 0.36, 1);
+  --grim-dur-ignite: 500ms;
+  --grim-dur-reveal: 400ms;
+
+  --aura-primary: rgb(var(--grim-violet-core));
+  --aura-secondary: rgb(var(--grim-cyan-core));
+  --aura-intensity: 0.45;
+  --aura-reach: 120px;
+  --aura-grain: 0;
+}
+
+html[data-aura='neon-ascendant'] {
+  --aura-primary: rgb(var(--grim-cyan-core));
+  --aura-secondary: rgb(var(--grim-violet-core));
+  --aura-intensity: 0.85;
+  --aura-reach: 180px;
+  --aura-grain: 0;
+}
+html[data-aura='neon-steady'] {
+  --aura-primary: rgb(var(--grim-violet-core));
+  --aura-secondary: rgb(var(--grim-cyan-core));
+  --aura-intensity: 0.5;
+  --aura-reach: 120px;
+  --aura-grain: 0;
+}
+html[data-aura='shrouded'] {
+  --aura-primary: rgba(71, 85, 105, 0.9);
+  --aura-secondary: rgba(49, 46, 129, 0.6);
+  --aura-intensity: 0.22;
+  --aura-reach: 60px;
+  --aura-grain: 0.4;
+}
+html[data-aura='respawn'] {
+  --aura-primary: rgb(var(--grim-gold-core));
+  --aura-secondary: rgb(var(--grim-violet-core));
+  --aura-intensity: 0.55;
+  --aura-reach: 100px;
+  --aura-grain: 0.1;
+}
+html[data-aura='initializing'] {
+  --aura-primary: rgba(71, 85, 105, 0.9);
+  --aura-secondary: rgba(49, 46, 129, 0.6);
+  --aura-intensity: 0;
+  --aura-reach: 40px;
+  --aura-grain: 0.6;
+}
+
 @layer base {
   * {
     border-color: #374151;
@@ -355,4 +423,147 @@ body.soul-interface-open .nav-menu {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
+}
+
+/* ==========================================================================
+ * VITALITY AURA — passive viewport border-glow driven by data-aura on <html>.
+ * Single fixed element, pointer-events:none, single box-shadow transition.
+ * No per-frame JS. State changes = CSS variable swap.
+ * ========================================================================== */
+.aura-frame {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    inset 0 0 var(--aura-reach) calc(var(--aura-reach) * -0.35) var(--aura-primary),
+    inset 0 0 calc(var(--aura-reach) * 0.5) calc(var(--aura-reach) * -0.6) var(--aura-secondary);
+  opacity: var(--aura-intensity);
+  transition:
+    box-shadow var(--grim-dur-ignite) var(--grim-easing-ritual),
+    opacity var(--grim-dur-ignite) var(--grim-easing-ritual);
+}
+
+.aura-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 30% 40%, rgba(255,255,255,0.025) 0.5px, transparent 1px),
+    radial-gradient(circle at 70% 60%, rgba(255,255,255,0.02) 0.5px, transparent 1px);
+  background-size: 3px 3px, 5px 5px;
+  opacity: var(--aura-grain);
+  mix-blend-mode: overlay;
+  transition: opacity var(--grim-dur-ignite) var(--grim-easing-ritual);
+}
+
+html[data-aura='neon-ascendant'] .aura-frame {
+  animation: auraBreath 4.5s ease-in-out infinite;
+}
+
+html[data-aura='neon-steady'] .aura-frame {
+  animation: auraBreath 6s ease-in-out infinite;
+}
+
+@keyframes auraBreath {
+  0%, 100% { filter: brightness(1) saturate(1); }
+  50%       { filter: brightness(1.15) saturate(1.1); }
+}
+
+/* ==========================================================================
+ * ARSENAL ECHO — peripheral glitch-ghost of high-priority side quests.
+ * ========================================================================== */
+.arsenal-echo {
+  color: rgba(203, 213, 225, 0.45);
+  text-shadow:
+    1px 0 0 rgba(255, 0, 0, 0.12),
+    -1px 0 0 rgba(0, 255, 255, 0.12);
+  animation: echoFlicker 8s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.arsenal-echo:hover {
+  color: rgba(203, 213, 225, 0.85);
+  cursor: pointer;
+}
+
+@keyframes echoFlicker {
+  0%, 100%     { opacity: 0.28; transform: translateX(0); }
+  23%          { opacity: 0.38; transform: translateX(0.4px); }
+  47%          { opacity: 0.22; transform: translateX(-0.4px); }
+  70%          { opacity: 0.35; transform: translateX(0); }
+  85%          { opacity: 0.24; transform: translateX(0.2px); }
+}
+
+/* ==========================================================================
+ * IDENTITY PROCLAMATION — clip-path typewriter-glitch mantra reveal.
+ * ========================================================================== */
+.identity-proclamation {
+  font-family: 'Cinzel Decorative', serif;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--grim-text-neon);
+  text-shadow:
+    0 0 8px rgba(var(--grim-violet-core), 0.55),
+    0 0 18px rgba(var(--grim-cyan-core), 0.35);
+}
+
+.identity-proclamation--revealing {
+  animation: proclamationReveal 700ms var(--grim-easing-ritual) forwards;
+  clip-path: inset(0 100% 0 0);
+}
+
+.identity-proclamation--docked {
+  opacity: 0.35;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@keyframes proclamationReveal {
+  0%   { clip-path: inset(0 100% 0 0); opacity: 0; }
+  15%  { opacity: 1; }
+  60%  { clip-path: inset(0 0 0 0); opacity: 1; }
+  75%  { clip-path: inset(0 0 0 0); opacity: 0.95; filter: blur(0.4px); }
+  100% { clip-path: inset(0 0 0 0); opacity: 1; filter: blur(0); }
+}
+
+/* ==========================================================================
+ * SEED MEDALLION — Trinity strip idle/active states.
+ * ========================================================================== */
+.seed-medallion {
+  transition: transform 260ms var(--grim-easing-ritual),
+              filter 260ms var(--grim-easing-ritual),
+              opacity 260ms var(--grim-easing-ritual);
+}
+
+.seed-medallion--idle {
+  opacity: 0.55;
+  filter: saturate(0.6) brightness(0.75);
+}
+
+.seed-medallion--active {
+  opacity: 1;
+  filter: saturate(1.15) brightness(1.05);
+  animation: seedActivePulse 5s ease-in-out infinite;
+}
+
+@keyframes seedActivePulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.03); }
+}
+
+/* Reduce motion for users who ask for it */
+@media (prefers-reduced-motion: reduce) {
+  .aura-frame,
+  .seed-medallion--active,
+  .arsenal-echo,
+  .identity-proclamation--revealing {
+    animation: none !important;
+  }
+  .identity-proclamation--revealing {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
 }

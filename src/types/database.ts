@@ -16,6 +16,26 @@ export type PrimaryStat = 'BODY' | 'MIND' | 'SOUL';
 export type PlayerIdentityStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED';
 export type IdentityTier = 'D' | 'D+' | 'C' | 'C+' | 'B' | 'B+' | 'A' | 'A+' | 'S' | 'S+' | 'SS' | 'SS+' | 'SSS';
 
+/**
+ * The three fixed Seed axes of the Trinity. Lowercase for URL/storage parity;
+ * use SEED_AXIS_TO_PRIMARY_STAT to cross into the legacy PrimaryStat enum.
+ */
+export type SeedAxis = 'body' | 'mind' | 'soul';
+
+export const SEED_AXES: readonly SeedAxis[] = ['body', 'mind', 'soul'] as const;
+
+export const SEED_AXIS_TO_PRIMARY_STAT: Record<SeedAxis, PrimaryStat> = {
+  body: 'BODY',
+  mind: 'MIND',
+  soul: 'SOUL',
+};
+
+export const PRIMARY_STAT_TO_SEED_AXIS: Record<PrimaryStat, SeedAxis> = {
+  BODY: 'body',
+  MIND: 'mind',
+  SOUL: 'soul',
+};
+
 // ==================== CORE TABLES ====================
 
 /**
@@ -37,6 +57,15 @@ export interface UserProfile {
   created_at: string;
   updated_at: string;
   last_reset_date?: string; // ISO date string (YYYY-MM-DD) for Chronos Reset tracking
+
+  /**
+   * Trinity Seed slot bindings. Each holds the player_identities.id that
+   * currently expresses this axis. Null = empty slot. Migration derives these
+   * from the player's existing active identities by PrimaryStat.
+   */
+  trinity_body_identity_id?: string | null;
+  trinity_mind_identity_id?: string | null;
+  trinity_soul_identity_id?: string | null;
 }
 
 /**
@@ -435,12 +464,25 @@ export const SUPABASE_TABLES = {
   QUESTS: 'quests',
   QUEST_SUBTASKS: 'quest_subtasks',
   QUEST_CUSTOM_REWARDS: 'quest_custom_rewards',
+  // Grimoire micro-log
+  GRIMOIRE_ENTRIES: 'grimoire_entries',
 } as const;
 
 // ==================== QUEST TYPES ====================
 
 export type QuestDifficulty = 'Easy' | 'Moderate' | 'Difficult' | 'Hard' | 'Hell';
-export type QuestStatus = 'today' | 'backlog' | 'completed';
+
+/**
+ * Quest lifecycle states.
+ * - today: visible in today's list
+ * - backlog: future-dated or deferred
+ * - completed: archived
+ * - main: pinned as the single Main Quest for today (only one may hold this state)
+ * - expired: rolled past its date >= 2 times; surfaces in the Rebirth list, not today
+ * - respawning: queued for Respawn (transient state during the re-plant animation)
+ * - someday: Alchemical Recycle "defer" rune target — visible in a Someday vault, not expected
+ */
+export type QuestStatus = 'today' | 'backlog' | 'completed' | 'main' | 'expired' | 'respawning' | 'someday';
 
 /**
  * Quest subtask stored in database
@@ -482,10 +524,88 @@ export interface DBQuest {
   days_not_completed: number;
   created_at: string;
   updated_at: string;
+
+  /**
+   * Cyber-Grimoire mercy fields.
+   * - respawn_count: times this quest has been re-planted after expiry (soft friction).
+   * - expired_at: ISO timestamp when quest was marked expired; cleared on respawn.
+   * - demotion_count: times this quest has been pinned as Main and demoted without completion.
+   *   At >= 3 the Alchemical Recycle (RuneReRollSheet) is forced on next open.
+   * - recycled_at: ISO timestamp of last Alchemical Recycle resolution; resets demotion_count.
+   */
+  respawn_count?: number;
+  expired_at?: string | null;
+  demotion_count?: number;
+  recycled_at?: string | null;
+
   // Joined fields
   subtasks?: DBQuestSubtask[];
   custom_rewards?: DBQuestCustomReward[];
 }
+
+// ==================== GRIMOIRE / RUNE TYPES ====================
+
+/**
+ * Rune categories — determines glyph styling and auraDelta direction.
+ * - action: something done (Trained, Studied, Meditated, Created, Connected)
+ * - state: felt condition (Energized, Drained, Focused, Scattered)
+ * - mercy: mercy-loop entries, never shame-inducing (Rest, Reset, Slipped)
+ */
+export type RuneCategory = 'action' | 'state' | 'mercy';
+
+/**
+ * A single Rune — the atomic unit of the Grimoire micro-log.
+ * Intentionally lightweight: runes are UI-level tags, not heavy entities.
+ */
+export interface Rune {
+  id: string;
+  label: string;
+  category: RuneCategory;
+  /** Lucide icon name, consumed by RuneGrid to render the glyph. */
+  iconName: string;
+  /** Optional aura bias: positive runes nudge the aura brighter, mercy runes soften it. */
+  auraDelta?: number;
+  /** Optional Seed axis affinity — routes the rune into the right Seed's narrative when logged. */
+  statHint?: SeedAxis;
+  /** Optional hex color override for the glyph (otherwise derived from category). */
+  tint?: string;
+}
+
+/**
+ * Source of a grimoire entry — distinguishes manual rune-log taps from
+ * auto-entries written by task/quest completions and mercy events.
+ */
+export type GrimoireSource = 'manual' | 'task_complete' | 'quest_complete' | 'streak_rest' | 'respawn' | 'recycle';
+
+/**
+ * A single day's grimoire entry. Users may log multiple entries per day; the
+ * UI concatenates them into the day's "grimoire page". The default sheet
+ * commits one entry with up to 3 runes + optional 1-line note.
+ * @table public.grimoire_entries
+ */
+export interface GrimoireEntry {
+  id: string;
+  user_id: string;
+  entry_date: string; // YYYY-MM-DD
+  rune_ids: string[];
+  note?: string;
+  source: GrimoireSource;
+  /** Optional link to the quest/identity/seal that triggered an auto-entry. */
+  linked_ref?: string;
+  created_at: string;
+}
+
+// ==================== VITALITY AURA TYPES ====================
+
+/**
+ * Aura visual states. Mapped to [data-aura] on <html> by useVitalityAura.
+ * - initializing: pre-auth / during the Aha! boot sequence
+ * - neon-ascendant: peak state — all Seed tasks + Main Quest done + Will healthy
+ * - neon-steady:    default active state — progress today, Will present
+ * - shrouded:       debuff — yesterday missed OR Will low
+ * - respawn:        mercy mode — a quest is awaiting Respawn / RuneReRoll
+ */
+export type AuraState = 'initializing' | 'neon-ascendant' | 'neon-steady' | 'shrouded' | 'respawn';
 
 /**
  * Map stat types to profile columns

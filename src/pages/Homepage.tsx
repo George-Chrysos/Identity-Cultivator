@@ -1,40 +1,68 @@
+/**
+ * Homepage — the Cyber-Grimoire dashboard.
+ *
+ * Structural hierarchy:
+ *  1. PlayerCard           — rank, coins, stats (untouched)
+ *  2. TrinityStrip         — three Seeds; the Mirror of Identity
+ *  3. IdentityProclamation — docked daily mantra for the active Seed
+ *  4. Twin-hero grid
+ *     - DailyIdentityPanel  (left/top)  — PathCard for the active Seed
+ *     - MainQuestPanel      (right/bot) — the single pinned Main Quest
+ *  5. Side Quests (Arsenal) — demoted below the fold, QuestList for now
+ *                             (replaced by ArsenalDrawer + ArsenalEcho in Phase 3)
+ *  6. SealsCard             — demoted below the fold; its data now feeds the
+ *                             Vitality Aura passively.
+ *
+ * The aura is mounted at the App level; `useVitalityAura` runs here to
+ * derive and write the current state.
+ */
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Sparkles } from 'lucide-react';
+import { Crown } from 'lucide-react';
+import { shallow } from 'zustand/shallow';
+
 import { useGameStore } from '@/store/gameStore';
 import { useAuthStore } from '@/store/authStore';
+
 import Header from '@/components/layout/Header';
 import { NavMenu } from '@/components/layout/NavMenu';
 import ParticleBackground from '@/components/layout/ParticleBackground';
+
 import PlayerCard from '@/components/player/PlayerCard';
 import SealsCard from '@/components/player/SealsCard';
-import PathCard from '@/components/path/PathCard';
+
+import TrinityStrip from '@/components/trinity/TrinityStrip';
+import DailyIdentityPanel from '@/components/trinity/DailyIdentityPanel';
+import IdentityProclamation from '@/components/trinity/IdentityProclamation';
+import MainQuestPanel from '@/components/quest/MainQuestPanel';
+
 import { InitialStatRankingModal } from '@/components/modals/InitialStatRankingModal';
-import { NewQuestModal } from '@/components/modals/NewQuestModal';
-import { QuestList } from '@/components/quest';
+import ArsenalDrawer from '@/components/quest/ArsenalDrawer';
+import QuestForgeSheet from '@/components/grimoire/QuestForgeSheet';
+import RuneLogSheet from '@/components/grimoire/RuneLogSheet';
+import IdentityInitializer from '@/components/layout/IdentityInitializer';
+
 import { logger } from '@/utils/logger';
-import { shallow } from 'zustand/shallow';
 import { StatType } from '@/constants/statRanks';
-import { getTemperingLevel, generateTemperingTaskTemplates, TEMPERING_TEMPLATE_ID } from '@/constants/temperingPath';
-import { getPresenceLevel, generatePresenceTaskTemplates, PRESENCE_TEMPLATE_ID } from '@/constants/presencePath';
 import { useChronosReset } from '@/hooks';
+import { useVitalityAura } from '@/hooks/useVitalityAura';
+import { useGrimoireStore } from '@/store/grimoireStore';
+import { ScrollText } from 'lucide-react';
 
 const Homepage = () => {
   const { isAuthenticated, currentUser: authUser } = useAuthStore();
   const [showStatRankingModal, setShowStatRankingModal] = useState(false);
-  const [showNewQuestModal, setShowNewQuestModal] = useState(false);
-  const statModalCheckedRef = useRef(false); // Track if we've already checked for stat modal this session
-  
-  // Chronos Reset hook - handles day change detection and daily resets
-  // Note: showDawnSummary and dismissDawnSummary will be used for the Dawn Summary modal (future implementation)
-  // executeManualReset is exposed for testing via PlayerMenu
+  const [showForgeSheet, setShowForgeSheet] = useState(false);
+  const [forgePinAsMain, setForgePinAsMain] = useState(false);
+  const [showRuneLog, setShowRuneLog] = useState(false);
+  const statModalCheckedRef = useRef(false);
+
+  // Chronos reset hook (keeps its dev-console hookup from legacy Homepage).
   const chronosReset = useChronosReset();
-  // Expose for testing in dev console
   if (typeof window !== 'undefined') {
     (window as unknown as { __chronosReset?: typeof chronosReset }).__chronosReset = chronosReset;
   }
-  
-  // ✅ OPTIMIZED: Use new game store
+
   const {
     userProfile,
     activeIdentities,
@@ -54,67 +82,49 @@ const Homepage = () => {
     shallow
   );
 
-  // Initialize game data when user logs in
-  const initStartedRef = useRef(false);
+  // Vitality Aura derivation runs here so the data-aura attribute is set
+  // as soon as the homepage has mounted with any meaningful state.
+  useVitalityAura();
 
+  // Bind grimoire store to current user so manual entries are user-scoped.
+  const setGrimoireUser = useGrimoireStore((s) => s.setUserId);
   useEffect(() => {
-    logger.debug('useEffect triggered', { 
-      isAuthenticated, 
-      hasAuthUser: !!authUser, 
-      hasUserProfile: !!userProfile, 
-      isLoading,
-      isInitialized
-    });
-    
+    setGrimoireUser(authUser?.id ?? null);
+  }, [authUser?.id, setGrimoireUser]);
+
+  // ===== Game data initialization =====
+  const initStartedRef = useRef(false);
+  useEffect(() => {
     const initializeGameData = async () => {
       if (!isAuthenticated || !authUser?.id) {
         initStartedRef.current = false;
         return;
       }
-
       if (initStartedRef.current) return;
-
       if (isAuthenticated && !userProfile && !isInitialized) {
         initStartedRef.current = true;
-        const userID = authUser.id;
-        
-        logger.info('Starting game data initialization', { userID });
-        await initializeUser(userID);
+        await initializeUser(authUser.id);
         logger.info('Game data initialization complete');
-      } else {
-        logger.debug('Skipping initialization', {
-          needsAuth: !isAuthenticated,
-          hasUserProfile: !!userProfile,
-          isCurrentlyLoading: isLoading,
-          alreadyInitialized: isInitialized
-        });
       }
     };
-    
     initializeGameData();
   }, [isAuthenticated, authUser?.id, isInitialized, userProfile, initializeUser]);
 
-  // Check if user is first-time (all stats are 0) - only check once per session
+  // First-time users: trigger the stat ranking modal.
   useEffect(() => {
     if (userProfile && !isLoading && !statModalCheckedRef.current) {
-      statModalCheckedRef.current = true; // Mark as checked to prevent re-triggering
-      
-      const isFirstTime = 
+      statModalCheckedRef.current = true;
+      const isFirstTime =
         userProfile.body_points === 0 &&
         userProfile.mind_points === 0 &&
         userProfile.soul_points === 0 &&
         (userProfile.will_points === 0 || userProfile.will_points === undefined);
-      
-      if (isFirstTime) {
-        logger.info('First-time user detected, showing stat ranking modal');
-        setShowStatRankingModal(true);
-      }
+      if (isFirstTime) setShowStatRankingModal(true);
     }
   }, [userProfile, isLoading]);
 
   const handleStatRankingSubmit = async (rankings: Record<StatType, number>) => {
     if (!userProfile) return;
-
     try {
       const { gameDB } = await import('@/api/gameDatabase');
       await gameDB.updateProfile(userProfile.id, {
@@ -123,11 +133,8 @@ const Homepage = () => {
         soul_points: rankings.soul,
         will_points: rankings.will,
       });
-
-      // Reload profile to reflect changes
       const { loadUserProfile } = useGameStore.getState();
       await loadUserProfile(userProfile.id);
-
       setShowStatRankingModal(false);
       logger.info('Initial stat rankings saved', rankings);
     } catch (error) {
@@ -135,88 +142,35 @@ const Homepage = () => {
     }
   };
 
-  const handleNewQuestSubmit = async (questData: {
-    title: string;
-    project: string;
-    difficulty: string;
-    date: string;
-    time: string;
-    subtasks: Array<{ id: string; title: string }>;
-    customRewards: Array<{ id: string; description: string }>;
-  }) => {
-    try {
-      const { useQuestStore } = await import('@/store/questStore');
-      const { addQuest } = useQuestStore.getState();
-      
-      // Determine status based on date
-      const getTodayFormatted = () => {
-        // Check if testing mode is active
-        const testingStore = (window as any).__testingStore;
-        let today = new Date();
-        if (testingStore) {
-          const state = testingStore.getState();
-          if (state.isTestingMode) {
-            today = new Date(state.testingDate);
-          }
-        }
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        return `${months[today.getMonth()]} ${today.getDate()}`;
-      };
-      
-      const isToday = questData.date === getTodayFormatted();
-      
-      await addQuest({
-        title: questData.title,
-        project: questData.project,
-        date: questData.date,
-        hour: questData.time !== '--:--' ? questData.time : undefined,
-        status: isToday ? 'today' : 'backlog',
-        difficulty: questData.difficulty as 'Easy' | 'Moderate' | 'Difficult' | 'Hard' | 'Hell',
-        subtasks: questData.subtasks,
-        customRewards: questData.customRewards,
-      });
-      
-      logger.info('New quest created successfully', questData);
-    } catch (error) {
-      logger.error('Failed to create quest', error);
-    }
+  const openForgeSheet = (opts?: { pinAsMain?: boolean }) => {
+    setForgePinAsMain(opts?.pinAsMain ?? false);
+    setShowForgeSheet(true);
   };
 
-  // Get display date (respects testing mode)
   const getDisplayDate = () => {
-    const testingStore = (window as any).__testingStore;
+    const testingStore = (window as unknown as { __testingStore?: { getState: () => { isTestingMode: boolean; testingDate: string } } }).__testingStore;
     if (testingStore) {
       const state = testingStore.getState();
-      if (state.isTestingMode) {
-        return new Date(state.testingDate);
-      }
+      if (state.isTestingMode) return new Date(state.testingDate);
     }
     return new Date();
   };
-  const todayDisplay = getDisplayDate().toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-
-  // Debug logging
-  logger.debug('Render state', { 
-    isAuthenticated, 
-    authUser: !!authUser, 
-    userProfile: !!userProfile, 
-    isLoading,
-    isInitialized,
-    activeIdentitiesCount: activeIdentities.length
+  const todayDisplay = getDisplayDate().toLocaleDateString(undefined, {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
   });
 
-  // Show welcome page if not authenticated
+  // ===== Unauthenticated landing =====
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-dark-bg relative overflow-hidden">
         <ParticleBackground />
         <Header />
-        
-        {/* Background decoration */}
         <div className="absolute inset-0 bg-gradient-to-br from-violet-700/10 via-violet-800/10 to-cyan-700/10" />
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-600/20 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/20 rounded-full blur-3xl" />
-        
         <div className="relative flex items-center justify-center min-h-screen px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -225,27 +179,23 @@ const Homepage = () => {
             className="text-center max-w-4xl"
           >
             <motion.div
-              animate={{ 
+              animate={{
                 boxShadow: [
-                  "0 0 20px rgba(168, 85, 247, 0.3)",
-                  "0 0 40px rgba(168, 85, 247, 0.5)",
-                  "0 0 20px rgba(168, 85, 247, 0.3)"
-                ]
+                  '0 0 20px rgba(168, 85, 247, 0.3)',
+                  '0 0 40px rgba(168, 85, 247, 0.5)',
+                  '0 0 20px rgba(168, 85, 247, 0.3)',
+                ],
               }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               className="w-32 h-32 bg-gradient-to-br from-violet-600 via-violet-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_40px_-10px_rgba(139,92,246,0.6),0_0_50px_-10px_rgba(56,189,248,0.5)]"
             >
               <Crown className="h-16 w-16 text-white" />
             </motion.div>
-            
-            <h1 className="text-6xl md:text-8xl font-bold text-white mb-6">
-              System
-            </h1>
+            <h1 className="text-6xl md:text-8xl font-bold text-white mb-6">System</h1>
             <p className="text-xl md:text-2xl text-gray-400 mb-8 leading-relaxed">
               Master yourself through the ancient art of cultivation.<br />
               Build identities, track progress, and evolve beyond limits.
             </p>
-            
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <div className="flex items-center gap-2 text-gray-300">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
@@ -258,7 +208,7 @@ const Homepage = () => {
     );
   }
 
-  // Show loading spinner when initializing game data
+  // ===== Initialization spinner =====
   if (isAuthenticated && (isLoading || (!isInitialized && !userProfile))) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center relative overflow-hidden">
@@ -267,361 +217,141 @@ const Homepage = () => {
         <div className="text-center relative z-10">
           <motion.div
             animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
             className="w-12 h-12 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full mx-auto mb-4"
           />
           <p className="text-white">Initializing your cultivation journey...</p>
-          <p className="text-gray-400 text-sm mt-2">
-            Loading: {isLoading ? '✓' : '✗'} | 
-            Initialized: {isInitialized ? '✓' : '✗'} | 
-            Profile: {userProfile ? '✓' : '✗'}
-          </p>
         </div>
       </div>
     );
   }
 
+  // ===== Main Cyber-Grimoire dashboard =====
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-violet-950 text-white">
       <ParticleBackground />
       <Header />
       <NavMenu />
-      
-      {/* Animation Events - TODO: Add back animation system later */}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-4 pb-24 relative z-10">
-        {/* NEW DESIGN: Combined Player Card with Expandable Stats */}
         <PlayerCard />
 
-        {/* Seals System */}
-        <SealsCard todayLog={todaySealLog || undefined} />
-
-        {/* ORIGINAL DESIGN: Separate Cards for comparison */}
-        {/* Uncomment to compare with original design */}
-        {/* 
-        <PlayerRankCard />
-        <PlayerStatsCard />
-        */}
-
-        {/* Active Identities */}
-        <div className="mb-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-col items-center text-center gap-3 mb-10 relative w-full"
-          >
-            {/* PATHS Title with Glitch Effect */}
-            <h2 
-              className="text-3xl md:text-4xl font-bold text-white font-section uppercase tracking-[0.2em] animate-glitch"
-              style={{
-                textShadow: '1px 0 0 rgba(255, 0, 0, 0.15), -1px 0 0 rgba(0, 255, 255, 0.15)'
-              }}
-            >
-              PATHS
-            </h2>
-            
-            {/* Diamond with Fading Lines */}
-            <div className="flex items-center justify-center w-full max-w-md gap-2">
-              {/* Left fading line */}
-              <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-violet-500/50 to-violet-500" />
-              
-              {/* Central diamond */}
-              <div className="relative">
-                <div className="w-3 h-3 bg-gradient-to-br from-violet-400 to-cyan-400 rotate-45 shadow-[0_0_10px_2px_rgba(168,85,247,0.6)]" />
-                <div className="absolute inset-0 w-3 h-3 bg-gradient-to-br from-violet-400 to-cyan-400 rotate-45 blur-sm animate-pulse" />
-              </div>
-              
-              {/* Right fading line */}
-              <div className="flex-1 h-[1px] bg-gradient-to-l from-transparent via-cyan-500/50 to-cyan-500" />
-            </div>
-            
-            {/* Date with Monospace Font */}
-            <p className="text-xs font-mono text-gray-400 opacity-60 tracking-wider mt-3">{todayDisplay}</p>
-          </motion.div>
-
-          {activeIdentities.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3 }}
-              className="text-center py-16"
-            >
-              <div className="w-20 h-20 bg-gradient-to-br from-violet-700/40 to-cyan-600/30 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_-8px_rgba(139,92,246,0.5)]">
-                <Sparkles className="h-10 w-10 text-cyan-300" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-4">
-                No Active Paths
-              </h3>
-              <p className="text-gray-400 mb-8 max-w-md mx-auto">
-                Unlock paths in the Path Tree to begin your cultivation journey.
-              </p>
-            </motion.div>
-          ) : (
-            <div className="flex flex-col items-center gap-6 w-full max-w-2xl mx-auto">
-              {activeIdentities.map((identity) => {
-                // Determine which path this identity belongs to
-                const isTemperingPath = identity.template.id.startsWith(TEMPERING_TEMPLATE_ID);
-                const isPresencePath = identity.template.id.startsWith(PRESENCE_TEMPLATE_ID);
-                const currentLevel = identity.current_level;
-                
-                // Get level config from appropriate path constants (source of truth)
-                const temperingConfig = isTemperingPath ? getTemperingLevel(currentLevel) : null;
-                const presenceConfig = isPresencePath ? getPresenceLevel(currentLevel) : null;
-                const pathConfig = temperingConfig || presenceConfig;
-                
-                // Determine path_id for registry lookup
-                const pathId = isTemperingPath 
-                  ? TEMPERING_TEMPLATE_ID 
-                  : isPresencePath 
-                    ? PRESENCE_TEMPLATE_ID 
-                    : undefined;
-                
-                // Transform tasks to PathCard format - include path_id and path_level for registry lookup
-                const transformedTasks = identity.available_tasks.map((task) => {
-                  const transformed = {
-                    id: task.id,
-                    title: task.name,
-                    description: task.description || `Complete ${task.name} to earn rewards and progress your cultivation journey.`,
-                    rewards: {
-                      xp: task.xp_reward,
-                      stat: task.target_stat,
-                      points: task.base_points_reward,
-                      coins: task.coin_reward,
-                    },
-                    subtasks: task.subtasks?.map((subtask) => ({
-                      id: subtask.id,
-                      name: subtask.name,
-                      description: subtask.description,
-                    })),
-                    // Path integration - enables dynamic reward lookup from pathRegistry
-                    path_id: task.path_id || pathId,
-                    path_level: task.path_level || currentLevel,
-                  };
-                  logger.debug('Task transformed', { 
-                    taskId: task.id, 
-                    originalPathId: task.path_id,
-                    finalPathId: transformed.path_id,
-                    finalPathLevel: transformed.path_level,
-                    isTemperingPath,
-                    isPresencePath,
-                  });
-                  return transformed;
-                });
-
-                // Calculate XP to next level from path config
-                const maxXP = pathConfig?.xpToLevelUp || 100 * (currentLevel + 1);
-                
-                // Build trial info from path config
-                const trialInfo = pathConfig ? {
-                  name: pathConfig.trial.name,
-                  description: pathConfig.trial.focus,
-                  tasks: pathConfig.trial.tasks,
-                  rewards: pathConfig.trial.rewards,
-                } : undefined;
-
-                // Helper to get next level data for level up (supports both paths)
-                const getNextLevelData = (newLevel: number) => {
-                  if (isTemperingPath) {
-                    const nextConfig = getTemperingLevel(newLevel);
-                    if (!nextConfig) return null;
-                    
-                    const nextTasks = generateTemperingTaskTemplates(newLevel);
-                    const transformedNextTasks = nextTasks.map((task) => ({
-                      id: task.id,
-                      title: task.name,
-                      description: task.description || '',
-                      rewards: {
-                        xp: task.xp_reward,
-                        stat: task.target_stat,
-                        points: task.base_points_reward,
-                        coins: task.coin_reward,
-                      },
-                      subtasks: task.subtasks?.map((st) => ({
-                        id: st.id,
-                        name: st.name,
-                        description: st.description,
-                      })),
-                      path_id: task.path_id || TEMPERING_TEMPLATE_ID,
-                      path_level: task.path_level || newLevel,
-                    }));
-                    
-                    return {
-                      title: `Tempering Lv.${newLevel}`,
-                      subtitle: nextConfig.subtitle,
-                      tasks: transformedNextTasks,
-                      trialInfo: {
-                        name: nextConfig.trial.name,
-                        description: nextConfig.trial.focus,
-                        tasks: nextConfig.trial.tasks,
-                        rewards: nextConfig.trial.rewards,
-                      },
-                      maxXP: nextConfig.xpToLevelUp,
-                    };
-                  } else if (isPresencePath) {
-                    const nextConfig = getPresenceLevel(newLevel);
-                    if (!nextConfig) return null;
-                    
-                    const nextTasks = generatePresenceTaskTemplates(newLevel);
-                    const transformedNextTasks = nextTasks.map((task) => ({
-                      id: task.id,
-                      title: task.name,
-                      description: task.description || '',
-                      rewards: {
-                        xp: task.xp_reward,
-                        stat: task.target_stat,
-                        points: task.base_points_reward,
-                        coins: task.coin_reward,
-                      },
-                      subtasks: task.subtasks?.map((st) => ({
-                        id: st.id,
-                        name: st.name,
-                        description: st.description,
-                      })),
-                      path_id: task.path_id || PRESENCE_TEMPLATE_ID,
-                      path_level: task.path_level || newLevel,
-                    }));
-                    
-                    return {
-                      title: `Presence Lv.${newLevel}`,
-                      subtitle: nextConfig.subtitle,
-                      tasks: transformedNextTasks,
-                      trialInfo: {
-                        name: nextConfig.trial.name,
-                        description: nextConfig.trial.focus,
-                        tasks: nextConfig.trial.tasks,
-                        rewards: nextConfig.trial.rewards,
-                      },
-                      maxXP: nextConfig.xpToLevelUp,
-                    };
-                  }
-                  return null;
-                };
-
-                // Derive title from current level (not from template name which is static)
-                // For tempering/presence paths, use "Tempering Lv.X" or "Presence Lv.X"
-                // For other paths, fall back to template name
-                const pathTitle = isTemperingPath 
-                  ? `Tempering Lv.${currentLevel}`
-                  : isPresencePath 
-                    ? `Presence Lv.${currentLevel}`
-                    : identity.template.name.split(' - ')[0];
-
-                return (
-                  <div key={identity.id} className="w-full">
-                    <PathCard
-                      identityId={identity.id}
-                      title={pathTitle}
-                      subtitle={pathConfig?.subtitle}
-                      status={identity.completed_today ? 'completed' : 'pending'}
-                      currentXP={identity.current_xp}
-                      maxXP={maxXP}
-                      streak={identity.current_streak}
-                      level={currentLevel}
-                      tasks={transformedTasks}
-                      trialInfo={trialInfo}
-                      onLevelUp={(isTemperingPath || isPresencePath) ? getNextLevelData : undefined}
-                      onTaskComplete={async (taskId) => {
-                        logger.info('Task completed', { taskId, identityId: identity.id });
-                        const result = await useGameStore.getState().completeTask(identity.id, taskId);
-                        
-                        // Return progressive stat points from backend (properly capped)
-                        const bodyPoints = result.rewards.body_points ?? 0;
-                        const mindPoints = result.rewards.mind_points ?? 0;
-                        const soulPoints = result.rewards.soul_points ?? 0;
-                        const statPointsAwarded = bodyPoints + mindPoints + soulPoints;
-                        
-                        return { 
-                          didGainBody: bodyPoints > 0,
-                          statPointsAwarded,
-                          coinsAwarded: result.rewards.coins ?? 0,
-                        };
-                      }}
-                      onAllTasksComplete={async (newStreak) => {
-                        logger.info('All tasks completed for identity', { identityId: identity.id, newStreak });
-                        // Persist streak to database
-                        await useGameStore.getState().updateIdentityStreak(identity.id, newStreak);
-                      }}
-                      onTrialStart={() => {
-                        logger.info('Trial started for identity', { identityId: identity.id });
-                      }}
-                      onTrialComplete={async (newLevel) => {
-                        logger.info('Trial completed - level up', { identityId: identity.id, newLevel });
-                        // Persist level change to database (XP resets to 0, streak resets to 0)
-                        await useGameStore.getState().updateIdentityLevel(identity.id, newLevel, 0);
-                      }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        {/* Trinity strip: three Seeds, centered */}
+        <div className="mt-6 mb-3">
+          <TrinityStrip />
         </div>
 
-        {/* Quests Section */}
-        <div className="mb-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-col items-center text-center gap-3 mb-10 relative w-full"
-          >
-            {/* QUESTS Title with Glitch Effect */}
-            <h2 
-              className="text-3xl md:text-4xl font-bold text-white font-section uppercase tracking-[0.2em] animate-glitch"
-              style={{
-                textShadow: '1px 0 0 rgba(255, 0, 0, 0.15), -1px 0 0 rgba(0, 255, 255, 0.15)'
-              }}
-            >
-              QUESTS
-            </h2>
-            
-            {/* Diamond with Fading Lines */}
-            <div className="flex items-center justify-center w-full max-w-md gap-2">
-              {/* Left fading line */}
-              <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-violet-500/50 to-violet-500" />
-              
-              {/* Central diamond */}
-              <div className="relative">
-                <div className="w-3 h-3 bg-gradient-to-br from-violet-400 to-cyan-400 rotate-45 shadow-[0_0_10px_2px_rgba(168,85,247,0.6)]" />
-                <div className="absolute inset-0 w-3 h-3 bg-gradient-to-br from-violet-400 to-cyan-400 rotate-45 blur-sm animate-pulse" />
-              </div>
-              
-              {/* Right fading line */}
-              <div className="flex-1 h-[1px] bg-gradient-to-l from-transparent via-cyan-500/50 to-cyan-500" />
-            </div>
-          </motion.div>
+        {/* Docked mantra for the active Seed */}
+        <div className="mb-8">
+          <IdentityProclamation mode="docked" />
+        </div>
 
-          {/* One-Time Tasks Quest List */}
-          <div className="flex flex-col items-center gap-6 w-full max-w-2xl mx-auto">
-            <div className="w-full">
-              <QuestList
-                onQuestAdd={() => {
-                  logger.info('Add quest clicked');
-                  setShowNewQuestModal(true);
-                }}
-              />
-            </div>
+        {/* Date ribbon (kept as a subtle anchor) */}
+        <div className="flex items-center justify-center w-full max-w-md mx-auto gap-2 mb-8 opacity-70">
+          <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-violet-500/50 to-violet-500" />
+          <div className="relative">
+            <div className="w-3 h-3 bg-gradient-to-br from-violet-400 to-cyan-400 rotate-45 shadow-[0_0_10px_2px_rgba(168,85,247,0.6)]" />
           </div>
+          <div className="flex-1 h-[1px] bg-gradient-to-l from-transparent via-cyan-500/50 to-cyan-500" />
+          <p className="text-xs font-mono text-gray-400 opacity-60 tracking-wider ml-3">
+            {todayDisplay}
+          </p>
         </div>
+
+        {/* Twin-hero grid: DailyIdentityPanel + MainQuestPanel co-equal */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-14">
+          <section
+            aria-label="Daily Identity reps"
+            className="min-w-0"
+          >
+            {activeIdentities.length === 0 ? (
+              <EmptyIdentities />
+            ) : (
+              <DailyIdentityPanel />
+            )}
+          </section>
+
+          <section aria-label="Main Quest" className="min-w-0">
+            <MainQuestPanel
+              onQuestForge={() => openForgeSheet({ pinAsMain: true })}
+            />
+          </section>
+        </div>
+
+        {/* Arsenal — collapsed-by-default drawer with peripheral glitch-echo
+            for high-priority side quests. */}
+        <div className="mb-12 w-full max-w-2xl mx-auto">
+          <ArsenalDrawer onQuestForge={() => openForgeSheet()} />
+        </div>
+
+        {/* Seals — demoted; its data now drives the Vitality Aura passively. */}
+        <section className="opacity-90 relative" aria-label="Seals">
+          <SealsCard todayLog={todaySealLog || undefined} />
+
+          {/* Grimoire micro-log affordance: a small, non-intrusive button
+              that opens the RuneLogSheet for a three-tap ritual log. */}
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setShowRuneLog(true)}
+              className={[
+                'inline-flex items-center gap-2',
+                'rounded-full px-4 py-2',
+                'border border-violet-500/40 bg-violet-950/30 backdrop-blur-sm',
+                'text-xs font-mono tracking-[0.16em] uppercase text-violet-200',
+                'hover:border-violet-400/70 hover:bg-violet-900/40 transition-colors',
+              ].join(' ')}
+              aria-label="Inscribe a Grimoire entry"
+            >
+              <ScrollText className="w-3.5 h-3.5" />
+              Inscribe
+            </button>
+          </div>
+        </section>
       </div>
 
-      {/* Removed Calendar Modal (now per card) */}
-
-      {/* Initial Stat Ranking Modal for first-time users */}
-      <InitialStatRankingModal 
+      <InitialStatRankingModal
         isOpen={showStatRankingModal}
         onSubmit={handleStatRankingSubmit}
       />
 
-      {/* New Quest Modal */}
-      <NewQuestModal
-        isOpen={showNewQuestModal}
-        onClose={() => setShowNewQuestModal(false)}
-        onSubmit={handleNewQuestSubmit}
+      <QuestForgeSheet
+        isOpen={showForgeSheet}
+        onClose={() => setShowForgeSheet(false)}
+        defaultPinAsMain={forgePinAsMain}
       />
+
+      <RuneLogSheet
+        isOpen={showRuneLog}
+        onClose={() => setShowRuneLog(false)}
+      />
+
+      {/* Aha! ritual — runs once per session, once initialization is done. */}
+      <IdentityInitializer isReady={Boolean(userProfile && isInitialized)} />
     </div>
   );
 };
+
+/**
+ * Empty-state for users with zero activated identities. The CTA routes to
+ * the Path Tree where they can bind their first Seed.
+ */
+const EmptyIdentities = () => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.96 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ duration: 0.35 }}
+    className="card-style flex flex-col items-center text-center gap-4 py-12 px-6"
+  >
+    <div className="w-20 h-20 bg-gradient-to-br from-violet-700/40 to-cyan-600/30 rounded-full flex items-center justify-center shadow-[0_0_30px_-8px_rgba(139,92,246,0.5)]">
+      <Crown className="h-10 w-10 text-cyan-300" />
+    </div>
+    <h3 className="text-xl font-bold text-white">Three Seeds Await</h3>
+    <p className="text-gray-400 max-w-md">
+      The Trinity is empty. Walk the Path Tree to bind your first Seed — one
+      for Body, one for Mind, one for Soul.
+    </p>
+  </motion.div>
+);
 
 export default Homepage;

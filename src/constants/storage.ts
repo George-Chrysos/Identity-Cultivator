@@ -12,6 +12,7 @@ export const STORE_KEYS = {
   SHOP: 'shop-store',
   TOAST: 'toast-store',
   QUEST: 'quest-store',
+  GRIMOIRE: 'grimoire-store',
 } as const;
 
 /**
