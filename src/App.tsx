@@ -1,25 +1,9 @@
-import { Suspense, lazy, Component, ReactNode } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Component, ReactNode } from 'react';
 import { ToastContainer } from './components/notifications/Toast';
-import AuraFrame from './components/layout/AuraFrame';
+import AuthSync from './components/layout/AuthSync';
+import DashboardSync from './components/layout/DashboardSync';
+import Dashboard from './pages/Dashboard';
 
-// Lazy load pages to reduce initial bundle size
-const Homepage = lazy(() => import('./pages/Homepage'));
-const ShopPage = lazy(() => import('./pages/ShopPage'));
-const InventoryPage = lazy(() => import('./pages/InventoryPage'));
-const PathTreePage = lazy(() => import('./pages/PathTreePage'));
-
-// Loading fallback component
-const LoadingFallback = () => (
-  <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-    <div className="text-center">
-      <div className="w-12 h-12 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin mx-auto mb-4" />
-      <p className="text-white text-lg">Loading...</p>
-    </div>
-  </div>
-);
-
-// Global Error Boundary for the entire app
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
@@ -71,15 +55,9 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryS
 function App() {
   return (
     <AppErrorBoundary>
-      <AuraFrame />
-      <Suspense fallback={<LoadingFallback />}>
-        <Routes>
-          <Route path="/" element={<Homepage />} />
-          <Route path="/shop" element={<ShopPage />} />
-          <Route path="/inventory" element={<InventoryPage />} />
-          <Route path="/path-tree" element={<PathTreePage />} />
-        </Routes>
-      </Suspense>
+      <AuthSync />
+      <DashboardSync />
+      <Dashboard />
       <ToastContainer />
     </AppErrorBoundary>
   );

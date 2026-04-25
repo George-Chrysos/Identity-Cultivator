@@ -39,16 +39,14 @@ export default defineConfig(({ mode }) => {
             
             // Separate store logic
             'store': [
-              './src/store/gameStore.ts',
               './src/store/authStore.ts',
+              './src/store/identityStore.ts',
               './src/store/toastStore.ts',
-              './src/store/questStore.ts',
             ],
-            
+
             // Separate API/services
             'services': [
-              './src/api/gameDatabase.ts',
-              './src/api/mockDatabase.ts',
+              './src/api/identityDatabase.ts',
               './src/services/storageService.ts',
             ],
           },

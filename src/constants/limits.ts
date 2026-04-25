@@ -6,7 +6,7 @@
  * Identity limits
  */
 export const IDENTITY_LIMITS = {
-  MAX_ACTIVE: 5,
+  MAX_ACTIVE: 3,
   MIN_ACTIVE: 1,
   MAX_TOTAL: 20,
   TITLE_MIN_LENGTH: 3,

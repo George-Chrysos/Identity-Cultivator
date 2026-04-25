@@ -1,29 +1,28 @@
 import { useEffect, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
-import { useToastStore, Toast as ToastType } from '@/store/toastStore';
-import { AcquisitionToast } from './AcquisitionToast';
+import { useToastStore, type Toast as ToastType } from '@/store/toastStore';
 
 const ToastIcons = {
   success: CheckCircle,
   error: AlertCircle,
   info: Info,
   warning: AlertTriangle,
-};
+} as const;
 
 const ToastColors = {
-  success: 'bg-gradient-to-r from-purple-900/95 to-pink-900/95 border-purple-400/70',
+  success: 'bg-gradient-to-r from-violet-900/95 to-cyan-900/95 border-cyan-400/60',
   error: 'bg-red-900/95 border-red-400',
-  info: 'bg-blue-900/95 border-blue-400',
+  info: 'bg-slate-900/95 border-cyan-400/60',
   warning: 'bg-yellow-900/95 border-yellow-400',
-};
+} as const;
 
 const ToastShadows = {
-  success: 'shadow-[0_0_20px_rgba(168,85,247,0.5)]',
+  success: 'shadow-[0_0_20px_rgba(34,211,238,0.5)]',
   error: 'shadow-[0_0_20px_rgba(239,68,68,0.5)]',
-  info: 'shadow-[0_0_20px_rgba(59,130,246,0.5)]',
+  info: 'shadow-[0_0_20px_rgba(34,211,238,0.45)]',
   warning: 'shadow-[0_0_20px_rgba(234,179,8,0.5)]',
-};
+} as const;
 
 interface ToastItemProps {
   toast: ToastType;
@@ -31,18 +30,11 @@ interface ToastItemProps {
 
 const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast }, ref) => {
   const removeToast = useToastStore((state) => state.removeToast);
-  
-  // Skip rendering acquisition toasts (handled by AcquisitionToast component)
-  if (toast.type === 'acquisition') return null;
-  
   const Icon = ToastIcons[toast.type];
 
   useEffect(() => {
     if (toast.duration && toast.duration > 0) {
-      const timer = setTimeout(() => {
-        removeToast(toast.id);
-      }, toast.duration);
-
+      const timer = setTimeout(() => removeToast(toast.id), toast.duration);
       return () => clearTimeout(timer);
     }
   }, [toast.id, toast.duration, removeToast]);
@@ -66,6 +58,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast }, ref) =>
       <button
         onClick={() => removeToast(toast.id)}
         className="flex-shrink-0 p-1 hover:bg-white/20 rounded transition-colors"
+        aria-label="Dismiss"
       >
         <X className="h-4 w-4" />
       </button>
@@ -77,17 +70,12 @@ ToastItem.displayName = 'ToastItem';
 
 export const ToastContainer = () => {
   const toasts = useToastStore((state) => state.toasts);
-  const removeToast = useToastStore((state) => state.removeToast);
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 items-center">
       <AnimatePresence mode="popLayout">
-        {toasts.map((toast) => (
-          toast.type === 'acquisition' ? (
-            <AcquisitionToast key={toast.id} toast={toast} onRemove={removeToast} />
-          ) : (
-            <ToastItem key={toast.id} toast={toast} />
-          )
+        {toasts.map((t) => (
+          <ToastItem key={t.id} toast={t} />
         ))}
       </AnimatePresence>
     </div>

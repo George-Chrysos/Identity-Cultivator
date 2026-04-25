@@ -1,21 +1,12 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import App from './App.tsx'
-import './index.css'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
 
-// Add dark class to html element for dark mode
 document.documentElement.classList.add('dark');
 
-// Seed the Vitality Aura in its shrouded initialization state before first
-// paint. The IdentityInitializer will transition this to the computed state
-// once auth + game data are ready.
-document.documentElement.setAttribute('data-aura', 'initializing');
-
-// Global error handler for uncaught errors
 window.onerror = (message, source, lineno, colno, error) => {
   console.error('Global error:', { message, source, lineno, colno, error });
-  // Show error in DOM if React hasn't rendered
   const root = document.getElementById('root');
   if (root && root.children.length === 0) {
     root.innerHTML = `
@@ -31,15 +22,12 @@ window.onerror = (message, source, lineno, colno, error) => {
   }
 };
 
-// Handle unhandled promise rejections
 window.onunhandledrejection = (event) => {
   console.error('Unhandled promise rejection:', event.reason);
 };
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-      <App />
-    </BrowserRouter>
+    <App />
   </React.StrictMode>,
-)
+);

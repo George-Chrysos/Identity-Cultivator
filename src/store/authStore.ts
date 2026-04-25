@@ -1,18 +1,23 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { signInWithGoogle, signOut as supabaseSignOut, getCurrentUser, onAuthStateChange } from '@/lib/supabase';
+import {
+  signInWithGoogle,
+  signOut as supabaseSignOut,
+  getCurrentUser,
+  onAuthStateChange,
+} from '@/lib/supabase';
 import { logger } from '@/utils/logger';
-import { storage } from '@/services/storageService';
 import { STORE_KEYS } from '@/constants/storage';
-import { 
-  isLocalAuthEnabled, 
-  getLocalUser, 
-  signInWithDemoUser, 
+import {
+  isLocalAuthEnabled,
+  getLocalUser,
+  signInWithDemoUser,
   signOutLocalUser,
 } from '@/services/localAuthService';
+import { useIdentityStore } from './identityStore';
 
 interface AuthUser {
-  id?: string;  // Supabase auth user ID
+  id?: string;
   name?: string;
   email?: string;
   avatar_url?: string;
@@ -22,24 +27,22 @@ interface AuthState {
   currentUser: AuthUser | null;
   isAuthenticated: boolean;
   isLocalAuth: boolean;
-  
-  // Actions
+
   login: () => Promise<boolean>;
   logout: () => Promise<void>;
   setUser: (user: AuthUser | null) => void;
 }
 
-// Initialize with local auth if enabled
 const getInitialState = () => {
   if (isLocalAuthEnabled()) {
     const localUser = getLocalUser();
     if (localUser) {
       return {
-        currentUser: { 
-          id: localUser.id, 
-          name: localUser.name, 
+        currentUser: {
+          id: localUser.id,
+          name: localUser.name,
           email: localUser.email,
-          avatar_url: localUser.avatar_url 
+          avatar_url: localUser.avatar_url,
         },
         isAuthenticated: true,
         isLocalAuth: true,
@@ -53,22 +56,30 @@ const getInitialState = () => {
   };
 };
 
+// Clears any identity-scoped state on logout.
+const clearIdentityState = () => {
+  try {
+    useIdentityStore.getState().clearAll();
+  } catch (error) {
+    logger.error('Error clearing identity store on logout', error);
+  }
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       ...getInitialState(),
 
       login: async () => {
-        // Use local auth in dev mode
         if (isLocalAuthEnabled()) {
           const demoUser = signInWithDemoUser();
-          set({ 
-            currentUser: { 
-              id: demoUser.id, 
-              name: demoUser.name, 
+          set({
+            currentUser: {
+              id: demoUser.id,
+              name: demoUser.name,
               email: demoUser.email,
-              avatar_url: demoUser.avatar_url 
-            }, 
+              avatar_url: demoUser.avatar_url,
+            },
             isAuthenticated: true,
             isLocalAuth: true,
           });
@@ -82,7 +93,6 @@ export const useAuthStore = create<AuthState>()(
             logger.error('Supabase sign-in error', error);
             return false;
           }
-          // signInWithGoogle triggers a redirect; return true if call succeeded
           return true;
         } catch (err) {
           logger.error('Login error', err);
@@ -91,34 +101,11 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        // Handle local auth logout
         if (isLocalAuthEnabled()) {
           signOutLocalUser();
           set({ currentUser: null, isAuthenticated: false, isLocalAuth: false });
-          storage.remove(STORE_KEYS.GAME);
-          logger.info('Signed out demo user');
-          
-          // Clear all stores
-          try {
-            const { useGameStore } = await import('./gameStore');
-            const { usePathStore } = await import('./pathStore');
-            const { useShopStore } = await import('./shopStore');
-            const { useQuestStore } = await import('./questStore');
-            const { useUIStore } = await import('./uiStore');
-            
-            useGameStore.getState().clearGameData();
-            usePathStore.getState().clearCache();
-            useShopStore.getState().clearMarketStates();
-            useQuestStore.getState().clearQuests();
-            useUIStore.getState().resetUI();
-          } catch (error) {
-            logger.error('Error clearing stores on logout', error);
-          }
-          
-          // Navigate to homepage
-          if (typeof window !== 'undefined') {
-            window.location.href = '/';
-          }
+          clearIdentityState();
+          if (typeof window !== 'undefined') window.location.href = '/';
           return;
         }
 
@@ -128,34 +115,11 @@ export const useAuthStore = create<AuthState>()(
           logger.error('Sign out error', err);
         }
         set({ currentUser: null, isAuthenticated: false, isLocalAuth: false });
-        
-        // Clear storage to reset cultivator data
-        storage.remove(STORE_KEYS.GAME);
-        
-        // Clear all stores
-        try {
-          const { useGameStore } = await import('./gameStore');
-          const { usePathStore } = await import('./pathStore');
-          const { useShopStore } = await import('./shopStore');
-          const { useQuestStore } = await import('./questStore');
-          const { useUIStore } = await import('./uiStore');
-          
-          useGameStore.getState().clearGameData();
-          usePathStore.getState().clearCache();
-          useShopStore.getState().clearMarketStates();
-          useQuestStore.getState().clearQuests();
-          useUIStore.getState().resetUI();
-        } catch (error) {
-          logger.error('Error clearing stores on logout', error);
-        }
-        
-        // Navigate to homepage
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
+        clearIdentityState();
+        if (typeof window !== 'undefined') window.location.href = '/';
       },
 
-      setUser: (user: AuthUser | null) => set({ currentUser: user, isAuthenticated: Boolean(user) }),
+      setUser: (user) => set({ currentUser: user, isAuthenticated: Boolean(user) }),
     }),
     {
       name: STORE_KEYS.AUTH,
@@ -167,37 +131,33 @@ export const useAuthStore = create<AuthState>()(
   )
 );
 
-// Initialize auth state from Supabase if not using local auth
+// Hydrate from Supabase if we aren't in local-auth mode.
 if (!isLocalAuthEnabled()) {
-  // Wrap in try-catch to prevent app crash if Supabase is misconfigured
   try {
     getCurrentUser()
       .then(({ user }) => {
         if (user) {
-          useAuthStore.setState({ 
-            currentUser: { 
+          useAuthStore.setState({
+            currentUser: {
               id: user.id,
-              name: user.user_metadata?.full_name || user.email, 
-              email: user.email 
-            }, 
-            isAuthenticated: true 
+              name: user.user_metadata?.full_name || user.email,
+              email: user.email,
+            },
+            isAuthenticated: true,
           });
         }
       })
-      .catch((error) => {
-        logger.error('Failed to get current user', error);
-      });
+      .catch((error) => logger.error('Failed to get current user', error));
 
-    // Listen for auth state changes (keeps store in sync)
     onAuthStateChange((authUser) => {
       if (authUser) {
-        useAuthStore.setState({ 
-          currentUser: { 
+        useAuthStore.setState({
+          currentUser: {
             id: authUser.id,
-            name: authUser.user_metadata?.full_name || authUser.email, 
-            email: authUser.email 
-          }, 
-          isAuthenticated: true 
+            name: authUser.user_metadata?.full_name || authUser.email,
+            email: authUser.email,
+          },
+          isAuthenticated: true,
         });
       } else {
         useAuthStore.setState({ currentUser: null, isAuthenticated: false });
