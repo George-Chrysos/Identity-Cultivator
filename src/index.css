@@ -123,6 +123,18 @@ html[data-aura='initializing'] {
     font-family: 'Cinzel Decorative', serif;
     font-weight: 700;
   }
+
+  /* Improve secondary text contrast for dark HUD */
+  .text-slate-500 { color: rgba(241, 245, 249, 0.72) !important; }
+  .text-slate-400 { color: rgba(241, 245, 249, 0.82) !important; }
+  .text-slate-300 { color: rgba(248, 250, 252, 0.92) !important; }
+  .text-gray-500 { color: rgba(241, 245, 249, 0.72) !important; }
+  .text-gray-400 { color: rgba(241, 245, 249, 0.82) !important; }
+
+  /* Microtext readability on mobile */
+  @media (max-width: 640px) {
+    .hud-card .text-\[10px\] { font-size: 11px !important; }
+  }
 }
 
 @layer components {

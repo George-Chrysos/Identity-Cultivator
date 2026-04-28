@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { useDashboardStore } from '@/store/dashboardStore';
+import { DEFAULT_DASHBOARD_STATE, useDashboardStore } from '@/store/dashboardStore';
 import { dashboardDB } from '@/api/dashboardDatabase';
 import { logger } from '@/utils/logger';
 
@@ -18,10 +18,12 @@ const DashboardSync = () => {
   const userId = useAuthStore((s) => s.currentUser?.id ?? null);
   const dashboard = useDashboardStore((s) => s.dashboard);
   const setDashboard = useDashboardStore((s) => s.setDashboard);
+  const resetDashboard = useDashboardStore((s) => s.resetDashboard);
 
   const lastPushedAtRef = useRef<number>(0);
   const debounceTimerRef = useRef<number | null>(null);
   const hasHydratedRef = useRef(false);
+  const lastUserIdRef = useRef<string | null>(null);
 
   const canSync = useMemo(() => Boolean(userId) && dashboardDB.isReady(), [userId]);
 
@@ -30,6 +32,13 @@ const DashboardSync = () => {
     if (!userId || !dashboardDB.isReady()) return;
 
     hasHydratedRef.current = false;
+    lastPushedAtRef.current = 0;
+
+    // If user changes, reset local dashboard so we don't leak state across accounts.
+    if (lastUserIdRef.current !== userId) {
+      lastUserIdRef.current = userId;
+      resetDashboard();
+    }
 
     void (async () => {
       try {
@@ -39,6 +48,10 @@ const DashboardSync = () => {
 
         if (remote.state && remoteMs > localMs) {
           setDashboard({ ...remote.state, updatedAt: remote.state.updatedAt ?? remoteMs });
+        } else if (!remote.state) {
+          // First login / brand new user: initialize remote state with defaults.
+          // Local will already be defaults due to resetDashboard() above.
+          await dashboardDB.upsertDashboard(userId, DEFAULT_DASHBOARD_STATE);
         }
       } catch (error) {
         logger.error('DashboardSync hydrate failed', error);
@@ -48,6 +61,15 @@ const DashboardSync = () => {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  // On logout, reset to defaults (keeps local UX consistent).
+  useEffect(() => {
+    if (userId !== null) return;
+    lastUserIdRef.current = null;
+    lastPushedAtRef.current = 0;
+    hasHydratedRef.current = false;
+    resetDashboard();
+  }, [userId, resetDashboard]);
 
   // Debounced push on every change while authenticated.
   useEffect(() => {

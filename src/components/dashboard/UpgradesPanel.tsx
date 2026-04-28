@@ -1,14 +1,13 @@
 import { useMemo, useState } from 'react';
 import type { SectorId } from '@/types/dashboard';
 import { useDashboardStore } from '@/store/dashboardStore';
+import { Trash2 } from 'lucide-react';
 
 const SECTOR_LABEL: Record<SectorId, string> = {
   finance: 'Finance',
-  health: 'Health',
-  career: 'Career',
-  romantic: 'Romantic',
-  growth: 'Growth',
-  environment: 'Environment',
+  selfCare: 'Self‑Care',
+  home: 'Home',
+  motorcycle: 'Motorcycle',
 };
 
 const dots = (count: number) =>
@@ -33,7 +32,7 @@ export const UpgradesPanel = () => {
   const [name, setName] = useState('');
   const [effort, setEffort] = useState(3);
   const [value, setValue] = useState(3);
-  const [sector, setSector] = useState<SectorId>('growth');
+  const [sector, setSector] = useState<SectorId>('selfCare');
 
   return (
     <section className="hud-card p-5 md:p-6">
@@ -65,7 +64,7 @@ export const UpgradesPanel = () => {
             setName('');
             setEffort(3);
             setValue(3);
-            setSector('growth');
+            setSector('selfCare');
             setExpanded(false);
           }}
         >
@@ -171,10 +170,10 @@ export const UpgradesPanel = () => {
               <button
                 type="button"
                 onClick={() => deleteUpgrade(u.id)}
-                className="text-[10px] uppercase tracking-[0.22em] text-slate-400 hover:text-white"
+                className="text-slate-300 hover:text-white"
                 aria-label="Delete upgrade"
               >
-                Del
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           );

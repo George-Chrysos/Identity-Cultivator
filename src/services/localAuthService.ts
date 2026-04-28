@@ -42,7 +42,8 @@ export const isDevMode = (): boolean => {
 export const isLocalAuthEnabled = (): boolean => {
   if (!isDevMode()) return false;
   const enabled = localStorage.getItem(LOCAL_AUTH_ENABLED_KEY);
-  return enabled === 'true' || enabled === null; // Default to enabled in dev
+  // Default to disabled so Google OAuth works unless explicitly enabled.
+  return enabled === 'true';
 };
 
 /**

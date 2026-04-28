@@ -31,3 +31,84 @@ export interface IdentityCompletionRow {
   completed_date: string; // YYYY-MM-DD
   created_at: string;
 }
+
+// ============================================================================
+// Life Widgets tables
+// ============================================================================
+
+export interface FinanceExpenseRow {
+  id: string;
+  user_id: string;
+  amount_cents: number;
+  category: string;
+  created_at: string;
+}
+
+export interface FinanceAccountRow {
+  id: string;
+  user_id: string;
+  label: string;
+  balance_cents: number;
+  updated_at: string;
+}
+
+export interface FinanceDebtRow {
+  id: string;
+  user_id: string;
+  label: string;
+  balance_cents: number;
+  apr: number | null;
+  updated_at: string;
+}
+
+export interface SelfCareCheckinRow {
+  id: string;
+  user_id: string;
+  day: string; // YYYY-MM-DD
+  sleep_quality: number | null;
+  meals_count: number | null;
+  meals_quality: number | null;
+  activated: boolean;
+  stretched: boolean;
+  created_at: string;
+}
+
+export interface HygieneEventRow {
+  id: string;
+  user_id: string;
+  type: string;
+  created_at: string;
+}
+
+export interface HomeCheckinRow {
+  id: string;
+  user_id: string;
+  day: string; // YYYY-MM-DD
+  cleanliness: number | null;
+  organization: number | null;
+  created_at: string;
+}
+
+export interface MotorcycleOdometerRow {
+  id: string;
+  user_id: string;
+  km: number;
+  recorded_at: string;
+}
+
+export interface MotorcycleFuelLogRow {
+  id: string;
+  user_id: string;
+  liters: number | null;
+  price_cents: number | null;
+  total_cents: number | null;
+  km_at_fill: number | null;
+  recorded_at: string;
+}
+
+export interface MotorcycleEventRow {
+  id: string;
+  user_id: string;
+  type: string;
+  recorded_at: string;
+}

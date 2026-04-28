@@ -1,10 +1,8 @@
 export type SectorId =
   | 'finance'
-  | 'health'
-  | 'career'
-  | 'romantic'
-  | 'growth'
-  | 'environment';
+  | 'selfCare'
+  | 'home'
+  | 'motorcycle';
 
 export type QuadrantKey = 'doNow' | 'schedule' | 'delegate' | 'eliminate';
 

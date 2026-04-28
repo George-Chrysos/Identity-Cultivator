@@ -13,7 +13,7 @@ export const MainQuestCard = () => {
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[11px] uppercase tracking-[0.34em] text-cyan-200/70 font-title">
-            Main Quest <span className="text-slate-500">— Your focus right now.</span>
+            Main Quest
           </div>
           <div className="mt-2">
             <InlineEditableText

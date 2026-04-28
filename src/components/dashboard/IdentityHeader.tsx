@@ -1,6 +1,5 @@
 import { computeLifeScore, useDashboardStore } from '@/store/dashboardStore';
 import { InlineEditableText } from './InlineEditableText';
-import { InlineEditableNumber } from './InlineEditableNumber';
 import { ProgressBar } from './ProgressBar';
 
 const lifeScoreTone = (lifeScore: number) => {
@@ -66,14 +65,7 @@ export const IdentityHeader = () => {
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-slate-300">
           <span className="text-purple-300/90 font-title">XP</span>
           <span className="text-slate-400">Lvl</span>
-          <InlineEditableNumber
-            value={dashboard.identity.level}
-            min={1}
-            max={9999}
-            className="font-data text-slate-100 hover:text-white transition-colors"
-            inputClassName="w-20 bg-transparent border-b border-purple-400/40 focus:outline-none font-data text-slate-100"
-            onCommit={(level) => updateIdentity({ level })}
-          />
+          <span className="font-data text-slate-100">{dashboard.identity.level}</span>
         </div>
 
         <div className="min-w-0">
@@ -81,25 +73,9 @@ export const IdentityHeader = () => {
         </div>
 
         <div className="flex items-center justify-end gap-2 text-[11px] text-slate-300">
-          <span className="font-data text-slate-100">
-            <InlineEditableNumber
-              value={dashboard.identity.currentXp}
-              min={0}
-              max={9_999_999}
-              className="font-data text-slate-100 hover:text-white transition-colors"
-              inputClassName="w-24 bg-transparent border-b border-purple-400/40 focus:outline-none font-data text-slate-100 text-right"
-              onCommit={(currentXp) => updateIdentity({ currentXp })}
-            />
-          </span>
+          <span className="font-data text-slate-100">{dashboard.identity.currentXp}</span>
           <span className="opacity-60">/</span>
-          <InlineEditableNumber
-            value={dashboard.identity.xpToNext}
-            min={1}
-            max={9_999_999}
-            className="font-data text-slate-100 hover:text-white transition-colors"
-            inputClassName="w-24 bg-transparent border-b border-purple-400/40 focus:outline-none font-data text-slate-100 text-right"
-            onCommit={(xpToNext) => updateIdentity({ xpToNext })}
-          />
+          <span className="font-data text-slate-100">{dashboard.identity.xpToNext}</span>
           <span className="opacity-60">to next</span>
         </div>
       </div>

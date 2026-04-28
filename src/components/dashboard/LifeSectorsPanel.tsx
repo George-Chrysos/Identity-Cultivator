@@ -1,4 +1,4 @@
-import { DollarSign, HeartPulse, Briefcase, Heart, Sparkles, Leaf } from 'lucide-react';
+import { DollarSign, HeartPulse, Home, Bike } from 'lucide-react';
 import { useDashboardStore } from '@/store/dashboardStore';
 import type { SectorId } from '@/types/dashboard';
 import { InlineEditableNumber } from './InlineEditableNumber';
@@ -12,14 +12,12 @@ const SECTORS: Array<{
   iconTone: string;
 }> = [
   { id: 'finance', name: 'Finance', icon: DollarSign, accent: 'amber', iconTone: 'text-amber-300' },
-  { id: 'health', name: 'Health', icon: HeartPulse, accent: 'cyan', iconTone: 'text-emerald-300' },
-  { id: 'career', name: 'Career', icon: Briefcase, accent: 'cyan', iconTone: 'text-sky-300' },
-  { id: 'romantic', name: 'Romantic', icon: Heart, accent: 'pink', iconTone: 'text-pink-300' },
-  { id: 'growth', name: 'Growth', icon: Sparkles, accent: 'purple', iconTone: 'text-purple-300' },
-  { id: 'environment', name: 'Environment', icon: Leaf, accent: 'cyan', iconTone: 'text-cyan-300' },
+  { id: 'selfCare', name: 'Self‑Care', icon: HeartPulse, accent: 'pink', iconTone: 'text-pink-300' },
+  { id: 'home', name: 'Home', icon: Home, accent: 'cyan', iconTone: 'text-cyan-300' },
+  { id: 'motorcycle', name: 'Motorcycle', icon: Bike, accent: 'purple', iconTone: 'text-purple-300' },
 ];
 
-export const LifeSectorsPanel = () => {
+export const LifeSectorsPanel = ({ onOpenSector }: { onOpenSector?: (sector: SectorId) => void }) => {
   const scores = useDashboardStore((s) => s.dashboard.scores);
   const setSectorScore = useDashboardStore((s) => s.setSectorScore);
 
@@ -36,7 +34,11 @@ export const LifeSectorsPanel = () => {
           return (
             <div key={id} className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => onOpenSector?.(id)}
+                  className="flex items-center gap-2 min-w-0 text-left hover:text-white transition-colors"
+                >
                   <Icon className={`w-4 h-4 flex-shrink-0 ${iconTone}`} />
                   <div className="text-xs text-slate-200 truncate">{name}</div>
                   {danger && (
@@ -44,7 +46,7 @@ export const LifeSectorsPanel = () => {
                       !
                     </span>
                   )}
-                </div>
+                </button>
 
                 <InlineEditableNumber
                   value={value}

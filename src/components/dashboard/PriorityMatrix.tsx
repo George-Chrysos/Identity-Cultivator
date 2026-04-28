@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Trash2, Check } from 'lucide-react';
 import type { QuadrantKey } from '@/types/dashboard';
 import { useDashboardStore } from '@/store/dashboardStore';
 
@@ -139,7 +140,7 @@ const Quadrant = ({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Add task…"
-          className="w-full rounded-xl bg-transparent border border-white/10 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400/30"
+          className="w-full rounded-xl bg-transparent border border-white/10 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-cyan-400/30"
         />
       </form>
 
@@ -154,13 +155,15 @@ const Quadrant = ({
             <button
               type="button"
               onClick={() => onToggle(t.id)}
-              className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 ${
+              className={`mt-0.5 w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center ${
                 t.done
-                  ? 'bg-cyan-400/20 border-cyan-400/40'
+                  ? 'bg-cyan-400/20 border-cyan-400/50'
                   : 'bg-transparent border-white/20 hover:border-white/35'
               }`}
               aria-label={t.done ? 'Mark as not done' : 'Mark as done'}
-            />
+            >
+              {t.done && <Check className="w-3.5 h-3.5 text-cyan-200" />}
+            </button>
 
             <div className="flex-1 min-w-0">
               <div className={`text-sm text-slate-100 break-words ${t.done ? 'line-through' : ''}`}>
@@ -186,10 +189,10 @@ const Quadrant = ({
             <button
               type="button"
               onClick={() => onDelete(t.id)}
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] uppercase tracking-[0.22em] text-slate-400 hover:text-white"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-white"
               aria-label="Delete task"
             >
-              Del
+              <Trash2 className="w-4 h-4" />
             </button>
           </div>
         ))}
