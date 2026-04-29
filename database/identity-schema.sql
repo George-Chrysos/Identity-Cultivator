@@ -38,6 +38,10 @@ drop table if exists public.daily_logs              cascade;
 -- Also drop the new tables so this script is idempotent.
 drop table if exists public.identity_completions    cascade;
 drop table if exists public.user_identities         cascade;
+drop table if exists public.xp_ledger               cascade;
+drop table if exists public.sector_visits           cascade;
+drop table if exists public.quest_completions       cascade;
+drop table if exists public.main_quest_streaks      cascade;
 drop table if exists public.profiles                cascade;
 
 -- ----------------------------------------------------------------------------
@@ -184,7 +188,120 @@ create policy "identity_completions_delete_own"
   );
 
 -- ----------------------------------------------------------------------------
--- 6. Auto-create a profile row on new auth.user signup.
+-- 6. Gamification tables (normalized event/state model).
+-- ----------------------------------------------------------------------------
+create table public.xp_ledger (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null references auth.users(id) on delete cascade,
+  delta_xp      integer not null,
+  reason        text not null,
+  sector_id     text,
+  quest_id      text,
+  occurred_on   date not null,
+  metadata      jsonb not null default '{}'::jsonb,
+  created_at    timestamptz not null default now()
+);
+
+create index xp_ledger_user_date_idx on public.xp_ledger (user_id, occurred_on desc);
+create index xp_ledger_reason_idx on public.xp_ledger (reason);
+
+alter table public.xp_ledger enable row level security;
+
+create policy "xp_ledger_select_own"
+  on public.xp_ledger for select
+  using (auth.uid() = user_id);
+
+create policy "xp_ledger_insert_own"
+  on public.xp_ledger for insert
+  with check (auth.uid() = user_id);
+
+create policy "xp_ledger_delete_own"
+  on public.xp_ledger for delete
+  using (auth.uid() = user_id);
+
+create table public.sector_visits (
+  id                 uuid primary key default gen_random_uuid(),
+  user_id            uuid not null references auth.users(id) on delete cascade,
+  sector_id          text not null,
+  visit_date         date not null,
+  streak_current     integer not null default 1,
+  streak_best        integer not null default 1,
+  streak_last_date   date not null,
+  created_at         timestamptz not null default now(),
+
+  unique (user_id, sector_id, visit_date)
+);
+
+create index sector_visits_user_sector_idx on public.sector_visits (user_id, sector_id, visit_date desc);
+
+alter table public.sector_visits enable row level security;
+
+create policy "sector_visits_select_own"
+  on public.sector_visits for select
+  using (auth.uid() = user_id);
+
+create policy "sector_visits_insert_own"
+  on public.sector_visits for insert
+  with check (auth.uid() = user_id);
+
+create policy "sector_visits_delete_own"
+  on public.sector_visits for delete
+  using (auth.uid() = user_id);
+
+create table public.quest_completions (
+  id               uuid primary key default gen_random_uuid(),
+  user_id          uuid not null references auth.users(id) on delete cascade,
+  quest_id         text not null,
+  sector_id        text not null,
+  quest_type       text not null check (quest_type in ('main', 'side', 'sector_specialized')),
+  completion_date  date not null,
+  created_at       timestamptz not null default now(),
+
+  unique (user_id, quest_id, completion_date)
+);
+
+create index quest_completions_user_date_idx on public.quest_completions (user_id, completion_date desc);
+create index quest_completions_sector_idx on public.quest_completions (user_id, sector_id, completion_date desc);
+
+alter table public.quest_completions enable row level security;
+
+create policy "quest_completions_select_own"
+  on public.quest_completions for select
+  using (auth.uid() = user_id);
+
+create policy "quest_completions_insert_own"
+  on public.quest_completions for insert
+  with check (auth.uid() = user_id);
+
+create policy "quest_completions_delete_own"
+  on public.quest_completions for delete
+  using (auth.uid() = user_id);
+
+create table public.main_quest_streaks (
+  user_id            uuid primary key references auth.users(id) on delete cascade,
+  current_streak     integer not null default 0,
+  best_streak        integer not null default 0,
+  last_completed_date date,
+  updated_at         timestamptz not null default now()
+);
+
+alter table public.main_quest_streaks enable row level security;
+
+create policy "main_quest_streaks_select_own"
+  on public.main_quest_streaks for select
+  using (auth.uid() = user_id);
+
+create policy "main_quest_streaks_insert_own"
+  on public.main_quest_streaks for insert
+  with check (auth.uid() = user_id);
+
+create policy "main_quest_streaks_update_own"
+  on public.main_quest_streaks for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- ----------------------------------------------------------------------------
+-- 7. Auto-create a profile row on new auth.user signup.
 -- ----------------------------------------------------------------------------
 create or replace function public.handle_new_auth_user()
 returns trigger

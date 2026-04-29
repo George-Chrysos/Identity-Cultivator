@@ -3,10 +3,27 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Plus, Check, Trash2, Sparkles } from 'lucide-react';
 import { useIdentityStore } from '@/store/identityStore';
 import { todayKey } from '@/utils/leveling';
+import type { SectorTag } from '@/types/dashboard';
+
+const SECTOR_OPTIONS: SectorTag[] = [
+  'finance',
+  'selfCare',
+  'home',
+  'motorcycle',
+  'energySense',
+  'grounding',
+  'logos',
+  'gratitude',
+  'focus',
+  'chaos',
+  'play',
+  'social',
+];
 
 const SideQuestDrawer = memo(() => {
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState('');
+  const [selectedSector, setSelectedSector] = useState<SectorTag>('selfCare');
 
   const sideQuests = useIdentityStore((s) => s.sideQuests);
   const addSideQuest = useIdentityStore((s) => s.addSideQuest);
@@ -124,7 +141,7 @@ const SideQuestDrawer = memo(() => {
 
                         <button
                           type="button"
-                          onClick={() => completeSideQuestToday(quest.id)}
+                          onClick={() => completeSideQuestToday(quest.id, selectedSector)}
                           disabled={done}
                           className={[
                             'inline-flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] uppercase tracking-[0.18em] transition-colors',
@@ -137,6 +154,17 @@ const SideQuestDrawer = memo(() => {
                           <Check className="w-3 h-3" />
                           {done ? 'Done' : 'Complete'}
                         </button>
+                        <select
+                          value={quest.sectorTag ?? selectedSector}
+                          onChange={(e) => setSelectedSector(e.target.value as SectorTag)}
+                          className="rounded-md border border-white/10 bg-transparent px-1.5 py-1 text-[10px]"
+                        >
+                          {SECTOR_OPTIONS.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
 
                         <button
                           type="button"

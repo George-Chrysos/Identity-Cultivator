@@ -10,6 +10,7 @@ import type {
   SideQuest,
   UserIdentity,
 } from '@/types/identity';
+import type { SectorTag } from '@/types/dashboard';
 import { toast } from './toastStore';
 import { logger } from '@/utils/logger';
 import { identityDB } from '@/api/identityDatabase';
@@ -41,7 +42,7 @@ interface IdentityState {
   addSideQuest: (title: string) => SideQuest | null;
   removeSideQuest: (sideQuestId: string) => void;
   toggleSideQuestActive: (sideQuestId: string) => void;
-  completeSideQuestToday: (sideQuestId: string) => void;
+  completeSideQuestToday: (sideQuestId: string, sectorTag: SectorTag) => void;
 
   clearAll: () => void;
 }
@@ -257,11 +258,13 @@ export const useIdentityStore = create<IdentityState>()(
         }));
       },
 
-      completeSideQuestToday: (sideQuestId) => {
+      completeSideQuestToday: (sideQuestId, sectorTag) => {
         const today = todayKey();
+        const target = get().sideQuests.find((q) => q.id === sideQuestId);
+        if (!target || target.lastCompletedDate === today) return;
         set((state) => ({
           sideQuests: state.sideQuests.map((q) =>
-            q.id === sideQuestId ? { ...q, lastCompletedDate: today } : q
+            q.id === sideQuestId ? { ...q, lastCompletedDate: today, sectorTag } : q
           ),
         }));
       },

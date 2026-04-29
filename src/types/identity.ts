@@ -69,6 +69,7 @@ export interface SideQuest {
   createdAt: string;
   active: boolean; // whether the user has opted this into today's list
   lastCompletedDate: string | null;
+  sectorTag?: string;
 }
 
 /**

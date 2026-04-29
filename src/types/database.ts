@@ -32,6 +32,47 @@ export interface IdentityCompletionRow {
   created_at: string;
 }
 
+export interface XpLedgerRow {
+  id: string;
+  user_id: string;
+  delta_xp: number;
+  reason: string;
+  sector_id: string | null;
+  quest_id: string | null;
+  occurred_on: string; // YYYY-MM-DD
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface SectorVisitRow {
+  id: string;
+  user_id: string;
+  sector_id: string;
+  visit_date: string; // YYYY-MM-DD
+  streak_current: number;
+  streak_best: number;
+  streak_last_date: string; // YYYY-MM-DD
+  created_at: string;
+}
+
+export interface QuestCompletionRow {
+  id: string;
+  user_id: string;
+  quest_id: string;
+  sector_id: string;
+  quest_type: 'main' | 'side' | 'sector_specialized';
+  completion_date: string; // YYYY-MM-DD
+  created_at: string;
+}
+
+export interface MainQuestStreakRow {
+  user_id: string;
+  current_streak: number;
+  best_streak: number;
+  last_completed_date: string | null; // YYYY-MM-DD
+  updated_at: string;
+}
+
 // ============================================================================
 // Life Widgets tables
 // ============================================================================

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Trash2, Check } from 'lucide-react';
-import type { QuadrantKey } from '@/types/dashboard';
+import type { QuadrantKey, SectorTag } from '@/types/dashboard';
 import { useDashboardStore } from '@/store/dashboardStore';
 
 const QUADRANTS: Array<{
@@ -41,6 +41,20 @@ const QUADRANTS: Array<{
 ];
 
 const quadrantLabel = (q: QuadrantKey) => QUADRANTS.find((x) => x.key === q)?.title ?? q;
+const SECTOR_OPTIONS: SectorTag[] = [
+  'finance',
+  'selfCare',
+  'home',
+  'motorcycle',
+  'energySense',
+  'grounding',
+  'logos',
+  'gratitude',
+  'focus',
+  'chaos',
+  'play',
+  'social',
+];
 
 export const PriorityMatrix = () => {
   const tasks = useDashboardStore((s) => s.dashboard.tasks);
@@ -48,6 +62,8 @@ export const PriorityMatrix = () => {
   const toggleTaskDone = useDashboardStore((s) => s.toggleTaskDone);
   const deleteTask = useDashboardStore((s) => s.deleteTask);
   const moveTask = useDashboardStore((s) => s.moveTask);
+  const setTaskSector = useDashboardStore((s) => s.setTaskSector);
+  const completeDashboardTask = useDashboardStore((s) => s.completeDashboardTask);
 
   const grouped = useMemo(() => {
     const map: Record<QuadrantKey, typeof tasks> = {
@@ -86,6 +102,8 @@ export const PriorityMatrix = () => {
             onToggle={toggleTaskDone}
             onDelete={deleteTask}
             onMove={moveTask}
+            onSetSector={setTaskSector}
+            onCompleteWithSector={completeDashboardTask}
           />
         ))}
       </div>
@@ -103,16 +121,20 @@ const Quadrant = ({
   onToggle,
   onDelete,
   onMove,
+  onSetSector,
+  onCompleteWithSector,
 }: {
   title: string;
   subtitle: string;
   accent: string;
   border: string;
-  tasks: Array<{ id: string; text: string; done: boolean; quadrant: QuadrantKey }>;
+  tasks: Array<{ id: string; text: string; done: boolean; quadrant: QuadrantKey; sectorTag?: SectorTag }>;
   onAdd: (text: string) => void;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onMove: (id: string, quadrant: QuadrantKey) => void;
+  onSetSector: (id: string, sectorTag: SectorTag) => void;
+  onCompleteWithSector: (id: string, sectorTag: SectorTag) => void;
 }) => {
   const [draft, setDraft] = useState('');
 
@@ -154,7 +176,10 @@ const Quadrant = ({
           >
             <button
               type="button"
-              onClick={() => onToggle(t.id)}
+              onClick={() => {
+                if (t.done) onToggle(t.id);
+                else onCompleteWithSector(t.id, t.sectorTag ?? 'selfCare');
+              }}
               className={`mt-0.5 w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center ${
                 t.done
                   ? 'bg-cyan-400/20 border-cyan-400/50'
@@ -171,6 +196,18 @@ const Quadrant = ({
               </div>
               <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-500">
                 <span className="uppercase tracking-[0.22em]">{quadrantLabel(t.quadrant)}</span>
+                <span className="opacity-40">•</span>
+                <select
+                  value={t.sectorTag ?? 'selfCare'}
+                  onChange={(e) => onSetSector(t.id, e.target.value as SectorTag)}
+                  className="bg-transparent border border-white/10 rounded-lg px-2 py-1 focus:outline-none"
+                >
+                  {SECTOR_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
                 <span className="opacity-40">•</span>
                 <select
                   value={t.quadrant}

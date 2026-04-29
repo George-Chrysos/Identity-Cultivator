@@ -1,19 +1,32 @@
-import { computeLifeScore, useDashboardStore } from '@/store/dashboardStore';
+import { computeUnifiedLifeScore, useDashboardStore } from '@/store/dashboardStore';
 import { InlineEditableText } from './InlineEditableText';
 import { ProgressBar } from './ProgressBar';
 
-const lifeScoreTone = (lifeScore: number) => {
-  if (lifeScore >= 70) return 'text-emerald-300 border-emerald-400/40';
-  if (lifeScore >= 40) return 'text-amber-300 border-amber-400/40';
-  return 'text-rose-300 border-rose-400/40';
+const rankForScore = (score: number): 'D' | 'C' | 'B' | 'A' | 'S' => {
+  if (score >= 81) return 'S';
+  if (score >= 61) return 'A';
+  if (score >= 41) return 'B';
+  if (score >= 21) return 'C';
+  return 'D';
+};
+
+const rankTone = (rank: 'D' | 'C' | 'B' | 'A' | 'S') => {
+  if (rank === 'S') return { classes: 'text-fuchsia-200 border-fuchsia-300/70', glow: '0 0 24px rgba(217,70,239,0.55)' };
+  if (rank === 'A') return { classes: 'text-emerald-200 border-emerald-300/65', glow: '0 0 22px rgba(16,185,129,0.5)' };
+  if (rank === 'B') return { classes: 'text-cyan-200 border-cyan-300/60', glow: '0 0 20px rgba(34,211,238,0.48)' };
+  if (rank === 'C') return { classes: 'text-amber-200 border-amber-300/55', glow: '0 0 18px rgba(245,158,11,0.45)' };
+  return { classes: 'text-rose-200 border-rose-300/55', glow: '0 0 16px rgba(244,63,94,0.45)' };
 };
 
 export const IdentityHeader = () => {
   const dashboard = useDashboardStore((s) => s.dashboard);
   const updateIdentity = useDashboardStore((s) => s.updateIdentity);
 
-  const lifeScore = computeLifeScore(dashboard.scores);
-  const tone = lifeScoreTone(lifeScore);
+  const lifeScore = computeUnifiedLifeScore(dashboard);
+  const rank = rankForScore(Math.round(lifeScore));
+  const tone = rankTone(rank);
+  const mainStreak = dashboard.mainQuestStreak.current;
+  const hottestVisitStreak = Math.max(...Object.values(dashboard.sectorVisits).map((s) => s.streak.current), 0);
 
   const xpToNext = Math.max(1, dashboard.identity.xpToNext);
   const xpPct = Math.max(0, Math.min(100, (dashboard.identity.currentXp / xpToNext) * 100));
@@ -51,12 +64,11 @@ export const IdentityHeader = () => {
 
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
           <div
-            className={`w-16 h-16 md:w-[72px] md:h-[72px] rounded-full border bg-black/20 backdrop-blur-sm flex flex-col items-center justify-center ${tone}`}
+            className={`w-16 h-16 md:w-[78px] md:h-[78px] rounded-full border bg-black/25 backdrop-blur-sm flex flex-col items-center justify-center ${tone.classes}`}
+            style={{ boxShadow: tone.glow }}
           >
-            <div className="font-data text-xl leading-none">{Math.round(lifeScore)}</div>
-            <div className="text-[9px] uppercase tracking-[0.24em] text-white/60">
-              Life
-            </div>
+            <div className="text-[8px] uppercase tracking-[0.24em] text-white/65">RANK</div>
+            <div className="font-data text-2xl leading-none">{rank}</div>
           </div>
         </div>
       </div>
@@ -78,6 +90,11 @@ export const IdentityHeader = () => {
           <span className="font-data text-slate-100">{dashboard.identity.xpToNext}</span>
           <span className="opacity-60">to next</span>
         </div>
+      </div>
+      <div className="mt-3 flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] text-slate-400">
+        <span>Main streak 🔥 {mainStreak}</span>
+        <span className="opacity-40">/</span>
+        <span>Visit ember ✨ {hottestVisitStreak}</span>
       </div>
     </section>
   );

@@ -1,5 +1,6 @@
 import { useDashboardStore } from '@/store/dashboardStore';
 import { InlineEditableTextarea } from './InlineEditableTextarea';
+import { TricksterLifeSectorsPanel } from './TricksterLifeSectorsPanel';
 
 export const TricksterPanel = () => {
   const trickster = useDashboardStore((s) => s.dashboard.trickster);
@@ -7,6 +8,7 @@ export const TricksterPanel = () => {
 
   return (
     <div className="space-y-4">
+      <TricksterLifeSectorsPanel />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <section className="hud-card p-4 border-[#f72585]/20">
           <div className="text-[11px] uppercase tracking-[0.28em] text-pink-200/90 font-title mb-2">
