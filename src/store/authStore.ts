@@ -14,7 +14,6 @@ import {
   signInWithDemoUser,
   signOutLocalUser,
 } from '@/services/localAuthService';
-import { useIdentityStore } from './identityStore';
 
 interface AuthUser {
   id?: string;
@@ -56,15 +55,6 @@ const getInitialState = () => {
   };
 };
 
-// Clears any identity-scoped state on logout.
-const clearIdentityState = () => {
-  try {
-    useIdentityStore.getState().clearAll();
-  } catch (error) {
-    logger.error('Error clearing identity store on logout', error);
-  }
-};
-
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -104,7 +94,6 @@ export const useAuthStore = create<AuthState>()(
         if (isLocalAuthEnabled()) {
           signOutLocalUser();
           set({ currentUser: null, isAuthenticated: false, isLocalAuth: false });
-          clearIdentityState();
           if (typeof window !== 'undefined') window.location.href = '/';
           return;
         }
@@ -115,7 +104,6 @@ export const useAuthStore = create<AuthState>()(
           logger.error('Sign out error', err);
         }
         set({ currentUser: null, isAuthenticated: false, isLocalAuth: false });
-        clearIdentityState();
         if (typeof window !== 'undefined') window.location.href = '/';
       },
 
@@ -131,7 +119,6 @@ export const useAuthStore = create<AuthState>()(
   )
 );
 
-// Hydrate from Supabase if we aren't in local-auth mode.
 if (!isLocalAuthEnabled()) {
   try {
     getCurrentUser()

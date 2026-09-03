@@ -1,6 +1,5 @@
 import { Component, ReactNode } from 'react';
 import { ToastContainer } from './components/notifications/Toast';
-import AuthSync from './components/layout/AuthSync';
 import DashboardSync from './components/layout/DashboardSync';
 import Dashboard from './pages/Dashboard';
 
@@ -55,7 +54,6 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryS
 function App() {
   return (
     <AppErrorBoundary>
-      <AuthSync />
       <DashboardSync />
       <Dashboard />
       <ToastContainer />

@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { LogIn, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import LoginModal from '@/components/auth/LoginModal';
 
 const Header = () => {
-  const { isAuthenticated, currentUser, logout, login } = useAuthStore();
+  const { isAuthenticated, currentUser, logout } = useAuthStore();
+  const [loginOpen, setLoginOpen] = useState(false);
 
   return (
     <>
@@ -11,7 +14,6 @@ const Header = () => {
         className="fixed top-0 left-0 right-0 w-full h-12 md:h-20 flex items-center justify-between px-4 md:px-6 bg-slate-950/80 backdrop-blur-md border-b border-purple-500/20 z-50"
         style={{ transform: 'translateZ(0)' }}
       >
-        {/* Left: user identity chip */}
         <div className="flex items-center gap-3 z-10">
           {isAuthenticated && currentUser ? (
             <div className="flex items-center gap-2">
@@ -36,7 +38,6 @@ const Header = () => {
           )}
         </div>
 
-        {/* Center: overflowing logo */}
         <div
           className="absolute left-1/2 -translate-x-1/2 -top-2 w-14 h-14 md:-top-6 md:w-32 md:h-32 z-20"
           style={{ willChange: 'transform' }}
@@ -53,7 +54,6 @@ const Header = () => {
           />
         </div>
 
-        {/* Right: login / sign-out */}
         <div className="flex items-center gap-4 z-10">
           {isAuthenticated ? (
             <motion.button
@@ -69,7 +69,7 @@ const Header = () => {
             </motion.button>
           ) : (
             <motion.button
-              onClick={() => void login()}
+              onClick={() => setLoginOpen(true)}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 shadow-lg backdrop-blur-sm font-body font-medium"
@@ -82,8 +82,8 @@ const Header = () => {
         </div>
       </header>
 
-      {/* Spacer so content doesn't hide under the fixed header */}
       <div className="h-20 md:h-24" />
+      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
     </>
   );
 };

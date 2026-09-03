@@ -3,7 +3,6 @@
  */
 export const STORE_KEYS = {
   AUTH: 'identity-auth-store',
-  IDENTITY: 'identity-store',
   TOAST: 'identity-toast-store',
-  DASHBOARD: 'identity-dashboard-store',
+  DASHBOARD: 'anima-dashboard-v2',
 } as const;

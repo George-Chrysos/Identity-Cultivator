@@ -12,7 +12,7 @@ const parseIsoMs = (iso: string | null) => {
 
 /**
  * Keeps the dashboard store synced to Supabase when authenticated.
- * Local persisted state is always the offline cache/source of truth when unauthenticated.
+ * Local persisted state is the source of truth when unauthenticated.
  */
 const DashboardSync = () => {
   const userId = useAuthStore((s) => s.currentUser?.id ?? null);
@@ -27,14 +27,12 @@ const DashboardSync = () => {
 
   const canSync = useMemo(() => Boolean(userId) && dashboardDB.isReady(), [userId]);
 
-  // Hydrate from remote on login (remote wins if newer).
   useEffect(() => {
     if (!userId || !dashboardDB.isReady()) return;
 
     hasHydratedRef.current = false;
     lastPushedAtRef.current = 0;
 
-    // If user changes, reset local dashboard so we don't leak state across accounts.
     if (lastUserIdRef.current !== userId) {
       lastUserIdRef.current = userId;
       resetDashboard();
@@ -44,13 +42,11 @@ const DashboardSync = () => {
       try {
         const remote = await dashboardDB.fetchDashboard(userId);
         const remoteMs = parseIsoMs(remote.updatedAt) ?? 0;
-        const localMs = dashboard.updatedAt ?? 0;
+        const localMs = useDashboardStore.getState().dashboard.updatedAt ?? 0;
 
         if (remote.state && remoteMs > localMs) {
           setDashboard({ ...remote.state, updatedAt: remote.state.updatedAt ?? remoteMs });
         } else if (!remote.state) {
-          // First login / brand new user: initialize remote state with defaults.
-          // Local will already be defaults due to resetDashboard() above.
           await dashboardDB.upsertDashboard(userId, DEFAULT_DASHBOARD_STATE);
         }
       } catch (error) {
@@ -59,19 +55,19 @@ const DashboardSync = () => {
         hasHydratedRef.current = true;
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [userId, resetDashboard, setDashboard]);
 
-  // On logout, reset to defaults (keeps local UX consistent).
   useEffect(() => {
     if (userId !== null) return;
+    // Stay on local persist when the session starts logged out.
+    // Only clear after a real logout (previous user id present).
+    if (lastUserIdRef.current === null) return;
     lastUserIdRef.current = null;
     lastPushedAtRef.current = 0;
     hasHydratedRef.current = false;
     resetDashboard();
   }, [userId, resetDashboard]);
 
-  // Debounced push on every change while authenticated.
   useEffect(() => {
     if (!canSync || !userId) return;
     if (!hasHydratedRef.current) return;
@@ -106,4 +102,3 @@ const DashboardSync = () => {
 };
 
 export default DashboardSync;
-

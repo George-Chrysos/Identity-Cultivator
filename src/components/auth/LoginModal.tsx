@@ -27,7 +27,7 @@ const LoginModal = memo(({ isOpen, onClose }: LoginModalProps) => {
       <div className="p-6 space-y-6">
         <div className="text-center">
           <p className="text-gray-300 text-base leading-relaxed font-body">
-            Sign in with your Google account to start your cultivation journey
+            Sign in with Google to sync your dashboard across devices
           </p>
         </div>
 
