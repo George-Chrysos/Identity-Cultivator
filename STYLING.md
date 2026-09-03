@@ -16,7 +16,27 @@ bg-[radial-gradient(1000px_500px_at_20%_10%,rgba(0,245,212,0.10),transparent_60%
 
 Always keep `ParticleBackground` behind content (`absolute inset-0 z-0`). Content sits at `relative z-10`. Header is `fixed` with `z-50`.
 
-Layout: `max-w-6xl mx-auto px-4 sm:px-6 lg:px-8`, vertical stack with `space-y-4`. Default text is white / near-white.
+Layout: `max-w-6xl mx-auto px-4 sm:px-6 lg:px-8`, `space-y-4`. Default text is white / near-white.
+
+### Command HUD
+
+Desktop (`lg+`):
+
+1. History control (top right)
+2. Metric strip — three compact `hud-card` orbs in a row. Orbs show **7-day averages** (`font-data`). Click opens the metric log modal (today / yesterday only).
+3. Two-column body: main task + its momentum (`lg:col-span-2`), dailies + three momentum rows (`lg:col-span-1`)
+
+Mobile: same order stacked.
+
+Metric orbs never show today's raw score on the HUD.
+
+### Momentum blocks
+
+14 cells, oldest left, today right. No numeric streak.
+
+- Filled: `h-3 flex-1 rounded-sm` + accent fill (`bg-cyan-400/80` / violet / pink) and a small matching glow
+- Empty: `border-white/10 bg-slate-950/50`
+- Label: `text-[10px] uppercase tracking-widest font-section`
 
 ## Fonts
 
@@ -96,3 +116,7 @@ Existing keyframes: `glow`, `hudPulse`, `hudPulseCyan`, `slide-up`, `fade-in`. R
 ## Toasts
 
 Glass row, `backdrop-blur-sm`, cyan/violet border for success/info, red/yellow for error/warning. Centered `fixed top-4`.
+
+## History calendar
+
+Glass `BaseModal` (`max-w-2xl`). Monday-first month grid. Selected day shows metrics, main task, and dailies. Days after today are disabled. Days before yesterday are read-only.

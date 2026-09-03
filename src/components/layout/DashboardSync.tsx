@@ -1,26 +1,23 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { DEFAULT_DASHBOARD_STATE, useDashboardStore } from '@/store/dashboardStore';
+import { syncFrom, useDashboardStore } from '@/store/dashboardStore';
 import { dashboardDB } from '@/api/dashboardDatabase';
 import { logger } from '@/utils/logger';
-
-const parseIsoMs = (iso: string | null) => {
-  if (!iso) return null;
-  const ms = Date.parse(iso);
-  return Number.isFinite(ms) ? ms : null;
-};
+import { todayKey } from '@/utils/date';
 
 /**
- * Keeps the dashboard store synced to Supabase when authenticated.
- * Local persisted state is the source of truth when unauthenticated.
+ * Hydrates the last ~45 days of daily_entries when authenticated,
+ * then debounce-upserts dirty dates.
  */
 const DashboardSync = () => {
   const userId = useAuthStore((s) => s.currentUser?.id ?? null);
-  const dashboard = useDashboardStore((s) => s.dashboard);
-  const setDashboard = useDashboardStore((s) => s.setDashboard);
+  const displayName = useAuthStore((s) => s.currentUser?.name ?? s.currentUser?.email ?? null);
+  const dirtyDates = useDashboardStore((s) => s.dashboard.dirtyDates);
+  const entries = useDashboardStore((s) => s.dashboard.entries);
+  const hydrateEntries = useDashboardStore((s) => s.hydrateEntries);
   const resetDashboard = useDashboardStore((s) => s.resetDashboard);
+  const clearDirty = useDashboardStore((s) => s.clearDirty);
 
-  const lastPushedAtRef = useRef<number>(0);
   const debounceTimerRef = useRef<number | null>(null);
   const hasHydratedRef = useRef(false);
   const lastUserIdRef = useRef<string | null>(null);
@@ -31,7 +28,6 @@ const DashboardSync = () => {
     if (!userId || !dashboardDB.isReady()) return;
 
     hasHydratedRef.current = false;
-    lastPushedAtRef.current = 0;
 
     if (lastUserIdRef.current !== userId) {
       lastUserIdRef.current = userId;
@@ -40,30 +36,23 @@ const DashboardSync = () => {
 
     void (async () => {
       try {
-        const remote = await dashboardDB.fetchDashboard(userId);
-        const remoteMs = parseIsoMs(remote.updatedAt) ?? 0;
-        const localMs = useDashboardStore.getState().dashboard.updatedAt ?? 0;
-
-        if (remote.state && remoteMs > localMs) {
-          setDashboard({ ...remote.state, updatedAt: remote.state.updatedAt ?? remoteMs });
-        } else if (!remote.state) {
-          await dashboardDB.upsertDashboard(userId, DEFAULT_DASHBOARD_STATE);
-        }
+        await dashboardDB.ensureProfile(userId, displayName);
+        const to = todayKey();
+        const from = syncFrom(to);
+        const remote = await dashboardDB.fetchRange(userId, from, to);
+        hydrateEntries(remote, { markClean: true });
       } catch (error) {
         logger.error('DashboardSync hydrate failed', error);
       } finally {
         hasHydratedRef.current = true;
       }
     })();
-  }, [userId, resetDashboard, setDashboard]);
+  }, [userId, displayName, hydrateEntries, resetDashboard]);
 
   useEffect(() => {
     if (userId !== null) return;
-    // Stay on local persist when the session starts logged out.
-    // Only clear after a real logout (previous user id present).
     if (lastUserIdRef.current === null) return;
     lastUserIdRef.current = null;
-    lastPushedAtRef.current = 0;
     hasHydratedRef.current = false;
     resetDashboard();
   }, [userId, resetDashboard]);
@@ -71,19 +60,25 @@ const DashboardSync = () => {
   useEffect(() => {
     if (!canSync || !userId) return;
     if (!hasHydratedRef.current) return;
-
-    const updatedAt = dashboard.updatedAt ?? 0;
-    if (updatedAt <= lastPushedAtRef.current) return;
+    if (dirtyDates.length === 0) return;
 
     if (debounceTimerRef.current) {
       window.clearTimeout(debounceTimerRef.current);
     }
 
+    const pending = [...dirtyDates];
+
     debounceTimerRef.current = window.setTimeout(() => {
       void (async () => {
         try {
-          await dashboardDB.upsertDashboard(userId, dashboard);
-          lastPushedAtRef.current = updatedAt;
+          await Promise.all(
+            pending.map((date) => {
+              const entry = useDashboardStore.getState().dashboard.entries[date];
+              if (!entry) return Promise.resolve();
+              return dashboardDB.upsertEntry(userId, entry);
+            })
+          );
+          clearDirty(pending);
         } catch (error) {
           logger.error('DashboardSync upsert failed', error);
         }
@@ -96,7 +91,7 @@ const DashboardSync = () => {
         debounceTimerRef.current = null;
       }
     };
-  }, [canSync, userId, dashboard]);
+  }, [canSync, userId, dirtyDates, entries, clearDirty]);
 
   return null;
 };
