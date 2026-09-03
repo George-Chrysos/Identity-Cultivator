@@ -10,3 +10,4 @@ export const STORE_KEYS = {
 export const HISTORY_DAYS = 45;
 export const AVERAGE_WINDOW = 7;
 export const MOMENTUM_WINDOW = 14;
+export const RANK_WINDOW = 30;

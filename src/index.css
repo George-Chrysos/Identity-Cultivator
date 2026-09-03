@@ -24,6 +24,11 @@
   --hud-amber: #f9c74f;
   --hud-purple: #a855f7;
 
+  --space-xs: 8px;
+  --space-sm: 16px;
+  --space-md: 24px;
+  --space-lg: 32px;
+
   --grim-ink: rgba(15, 7, 40, 0.95);
   --grim-ink-translucent: rgba(15, 7, 40, 0.7);
   --grim-lightlip: rgba(255, 255, 255, 0.08);
@@ -643,11 +648,215 @@ html[data-aura='neon-steady'] .aura-frame {
   .arsenal-echo,
   .identity-proclamation--revealing,
   .hud-pulse,
-  .hud-pulse--cyan {
+  .hud-pulse--cyan,
+  .quest-empty-pulse,
+  .quest-complete-pulse,
+  .quest-check-bounce,
+  .stat-ring-arc,
+  .stat-orb-pulse,
+  .stat-orb-ripple,
+  .segment-glow,
+  .daily-row-ripple,
+  .quest-complete-burst,
+  .slot-pop {
     animation: none !important;
   }
   .identity-proclamation--revealing {
     clip-path: inset(0 0 0 0);
     opacity: 1;
   }
+  .stat-ring-arc,
+  .stat-pip {
+    transition: none !important;
+  }
+}
+
+.quest-card {
+  @apply relative rounded-2xl backdrop-blur-xl;
+  background: linear-gradient(180deg, var(--hud-surface-2) 0%, var(--hud-surface-1) 100%);
+  border: 2px solid rgba(249, 199, 79, 0.5);
+  box-shadow:
+    0 0 22px rgba(249, 199, 79, 0.22),
+    0 10px 30px -18px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.quest-empty-pulse {
+  animation: questEmptyPulse 2.8s ease-in-out infinite;
+}
+
+.quest-complete-pulse {
+  animation: questCompletePulse 0.7s ease-out;
+}
+
+.quest-strike {
+  background-image: linear-gradient(rgba(203, 213, 225, 0.85), rgba(203, 213, 225, 0.85));
+  background-repeat: no-repeat;
+  background-position: left 50%;
+  background-size: 0% 2px;
+  transition: background-size 300ms var(--grim-easing-ritual);
+}
+
+.quest-strike-on {
+  background-size: 100% 2px;
+}
+
+@keyframes questEmptyPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(249, 199, 79, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+  50% { box-shadow: 0 0 18px rgba(249, 199, 79, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+}
+
+@keyframes questCompletePulse {
+  0% { box-shadow: 0 0 22px rgba(249, 199, 79, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+  40% { box-shadow: 0 0 36px rgba(249, 199, 79, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+  100% { box-shadow: 0 0 22px rgba(249, 199, 79, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+}
+
+.quest-check-bounce {
+  animation: questCheckBounce 300ms var(--grim-easing-ritual);
+}
+
+@keyframes questCheckBounce {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.stat-ring-arc {
+  transition: stroke-dashoffset 700ms var(--grim-easing-ritual);
+}
+
+.stat-orb {
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.ring-tick {
+  pointer-events: none;
+}
+
+.rank-badge {
+  color: var(--hud-amber);
+  text-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
+}
+
+.login-btn {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  background: transparent;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 8px;
+  font-family: inherit;
+}
+
+.login-btn:hover {
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.stats-util-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 0.55;
+  border-radius: 8px;
+  padding: 0;
+  transition: opacity 0.2s ease;
+}
+
+.stats-util-btn:hover,
+.stats-util-btn:focus-visible {
+  opacity: 1;
+}
+
+.segment-glow {
+  filter: blur(3.5px);
+  opacity: 0.55;
+}
+
+.stat-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.stat-value-decimal {
+  letter-spacing: 0.06em;
+}
+
+.stat-denominator {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 400;
+  margin-left: 0.08em;
+}
+
+.stat-pip {
+  transition:
+    stroke-dasharray 300ms var(--grim-easing-ritual),
+    opacity 300ms var(--grim-easing-ritual);
+}
+
+.stat-orb-pulse {
+  animation: statOrbPulse 400ms var(--grim-easing-ritual);
+}
+
+@keyframes statOrbPulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.stat-orb-ripple {
+  animation: statOrbRipple 600ms var(--grim-easing-ritual) forwards;
+  transform-origin: center;
+}
+
+@keyframes statOrbRipple {
+  0% { transform: scale(0.7); opacity: 0.55; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+
+.daily-row-ripple {
+  position: absolute;
+  inset: 4px;
+  border-radius: 0.75rem;
+  pointer-events: none;
+  animation: dailyRowRipple 500ms var(--grim-easing-ritual) forwards;
+}
+
+@keyframes dailyRowRipple {
+  0% { transform: scale(0.96); opacity: 0.45; box-shadow: 0 0 0 0 currentColor; }
+  100% { transform: scale(1.04); opacity: 0; box-shadow: 0 0 18px 6px transparent; }
+}
+
+.quest-complete-btn {
+  transition:
+    background-color 200ms var(--grim-easing-ritual),
+    color 200ms var(--grim-easing-ritual),
+    border-color 200ms var(--grim-easing-ritual),
+    box-shadow 200ms var(--grim-easing-ritual);
+}
+
+.quest-complete-burst {
+  position: absolute;
+  inset: -6px;
+  border-radius: 0.9rem;
+  border: 2px solid rgba(249, 199, 79, 0.7);
+  pointer-events: none;
+  animation: statOrbRipple 500ms var(--grim-easing-ritual) forwards;
+}
+
+.slot-pop {
+  animation: slotPop 280ms var(--grim-easing-ritual);
+}
+
+@keyframes slotPop {
+  0% { transform: scale(0.85); }
+  100% { transform: scale(1); }
 }

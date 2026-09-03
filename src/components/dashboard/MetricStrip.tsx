@@ -1,34 +1,48 @@
+import { CalendarDays } from 'lucide-react';
 import { METRIC_CONFIG } from './metricConfig';
+import { StatRing } from './StatRing';
 import { metricAverages7, useDashboardStore } from '@/store/dashboardStore';
+import { formatMetricAvg } from '@/utils/metrics';
 
 interface MetricStripProps {
   onOpenLog: () => void;
+  onOpenHistory: () => void;
 }
 
-const formatAvg = (value: number | null) => (value === null ? '—' : String(value));
-
-export const MetricStrip = ({ onOpenLog }: MetricStripProps) => {
+export const MetricStrip = ({ onOpenLog, onOpenHistory }: MetricStripProps) => {
   const averages = useDashboardStore((s) => metricAverages7(s.dashboard));
 
   return (
-    <section className="grid grid-cols-3 gap-3" aria-label="Seven day metric averages">
-      {METRIC_CONFIG.map(({ key, label, Icon, text, bg, border, glow }) => (
+    <section className="flex flex-col gap-1" aria-label="Seven day metric averages">
+      <div className="flex justify-end pr-1">
         <button
-          key={key}
           type="button"
-          onClick={onOpenLog}
-          aria-label={`${label} seven day average ${formatAvg(averages[key])}. Log metrics.`}
-          className={`hud-card hud-pulse p-3 sm:p-4 flex items-center gap-3 text-left ${glow}`}
+          onClick={onOpenHistory}
+          aria-label="History"
+          className="stats-util-btn"
         >
-          <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full ${bg} border ${border} flex items-center justify-center shrink-0`}>
-            <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${text}`} aria-hidden />
-          </div>
-          <div className="min-w-0">
-            <span className={`block text-[10px] uppercase tracking-widest font-section ${text}`}>{label}</span>
-            <span className="font-data text-xl sm:text-2xl text-white">{formatAvg(averages[key])}</span>
-          </div>
+          <CalendarDays className="h-[18px] w-[18px]" strokeWidth={1.5} />
         </button>
-      ))}
+      </div>
+      <div className="flex items-stretch justify-center">
+        {METRIC_CONFIG.map(({ key, label, Icon, text, stroke }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={onOpenLog}
+            aria-label={`${label} seven day average ${formatMetricAvg(averages[key])}. Log metrics.`}
+            className="stat-orb flex-1 flex justify-center py-1"
+          >
+            <StatRing
+              label={label}
+              Icon={Icon}
+              value={averages[key]}
+              stroke={stroke}
+              textClass={text}
+            />
+          </button>
+        ))}
+      </div>
     </section>
   );
 };

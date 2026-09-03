@@ -16,27 +16,100 @@ bg-[radial-gradient(1000px_500px_at_20%_10%,rgba(0,245,212,0.10),transparent_60%
 
 Always keep `ParticleBackground` behind content (`absolute inset-0 z-0`). Content sits at `relative z-10`. Header is `fixed` with `z-50`.
 
-Layout: `max-w-6xl mx-auto px-4 sm:px-6 lg:px-8`, `space-y-4`. Default text is white / near-white.
+Layout: `max-w-6xl mx-auto px-4 sm:px-6 lg:px-8`. Spacing tokens in `:root`: `--space-xs: 8px`, `--space-sm: 16px`, `--space-md: 24px`, `--space-lg: 32px`.
 
-### Command HUD
+- Stat orbs → main task / dailies: `--space-lg`
+- Main task → Dailies (stacked mobile): `--space-lg`
+- Dailies heading → first row: `--space-sm`
+- Between daily rows: `--space-xs`
 
-Desktop (`lg+`):
+Default text is white / near-white. Avoid `text-slate-400` for muted UI — it is overridden to near-white in `index.css`. Use `text-white/40`–`text-white/55` instead.
 
-1. History control (top right)
-2. Metric strip — three compact `hud-card` orbs in a row. Orbs show **7-day averages** (`font-data`). Click opens the metric log modal (today / yesterday only).
-3. Two-column body: main task + its momentum (`lg:col-span-2`), dailies + three momentum rows (`lg:col-span-1`)
+`ParticleBackground` is an even, low-opacity (4–6%) starfield across the viewport: no link lines, no hover/click scatter. Slow drift + twinkle. `pointer-events-none`.
 
-Mobile: same order stacked.
+### Hierarchy (do not re-equalize)
 
-Metric orbs never show today's raw score on the HUD.
+Visual mass, heaviest first. Later UI must not put dailies or momentum back into `card-style` next to the rings.
+
+| Surface | Treatment |
+|---|---|
+| Stat rings | Heaviest. Floating 5-segment orbs on the wash (no boxes). Whitespace only between them. |
+| Main task | Amber/gold quest card (`.quest-card`). Not purple. ~2/3 width on desktop. |
+| Dailies | No outer card. Heading + stacked rows on the page wash. ~1/3 width. |
+| Momentum | No chrome. Inventory pips under the quest and under the dailies list. |
+
+Desktop (`lg+`): rings full width → amber quest `lg:col-span-2` + flattened dailies `lg:col-span-1`. Mobile: rings, quest, dailies.
+
+### Header
+
+Identity cluster on the left: `.rank-badge` (`RANK` Rajdhani + letter Orbitron, `--hud-amber`, letter-spacing, gold text-shadow). Logo is absolutely centered in the header bar. Action on the right only: `.login-btn` ghost outline (gradient on hover). Sign out is a quiet red outline, not a gradient.
+
+History (calendar) sits above the orbs, right-aligned. Scoring help lives only in the Day Editor as a labeled **How to score** control (`!`). Do not add a header `!`.
+
+### Stat rings
+
+Three floating orbs in `MetricStrip` — no rectangular wrappers, no vertical hairlines. History calendar is a right-aligned `.stats-util-btn` above the orbs (36px hit, 18px glyph). Scoring help is labeled **How to score** inside the Day Editor, not on the HUD.
+
+5-segment pip ring (58° arcs, **14° gaps**, 12 o’clock start). Dim tracks and fills use `stroke-linecap: butt`. Icons are Lucide outline at `strokeWidth={1.5}` (HeartPulse / Star / Brain). Fill from the 7-day average:
+
+- faint unbroken `.ring-track` behind everything (~7% opacity)
+- full segment: crisp arc + a thinner blurred copy underneath (glow cannot bridge the 14° gap)
+- fractional remainder: that segment half-lit via SVG mask (50% cut)
+- empty: same hue at 12% opacity, no glow
+- **radial ticks**: one short line in the center of each gap (5 total), same hue, 35% opacity, no glow, static
+
+Values use `font-variant-numeric: tabular-nums` and a little extra letter-spacing on decimals.
+
+Number under the ring (`font-data`): large white value + muted `/5` (`.stat-denominator`). Label `font-section` uppercase in the stat color.
+
+Mount: segments and number ease in ~700ms. On **7-day average increase** (metric log only — quest/daily checks do not write scores): segment sweep ~300ms, orb pulse `1 → 1.08 → 1`, number counts up ~400ms, one-shot ripple. `prefers-reduced-motion` skips. Click still opens the metric log modal. Rings never show today's raw score.
+
+### Main task (quest)
+
+Use `.quest-card` (`border-amber-400/50`, gold glow, `--hud-amber`). Heading `font-section` in amber. Input stays `font-body`.
+
+- Empty text: `.quest-empty-pulse` (slow, low-opacity amber border pulse — not alarm red)
+- Complete button: default is dark pill, outline circle, label **Check**, gold border on hover. Completed is solid gold fill, dark check, label **Complete**, 200ms fill, burst ripple (`.quest-complete-burst`)
+- Complete: `.quest-complete-pulse` on the card, `.quest-check-bounce` on the check, strikethrough via `.quest-strike` / `.quest-strike-on`
+- Carryover: quiet slate `RotateCcw`, not a warning color
+
+Quest momentum uses the amber inventory bar.
+
+### Dailies
+
+No outer `card-style`. Whole row is the tap target. Two explicit states (visual only — checking a daily does not write metric scores):
+
+- Unchecked: empty checkbox, **stat-colored habit icon**, full-opacity name, hollow dim outline dot
+- Checked: check in the box, same colored icon, name at ~55% opacity, solid glowing dot. Pulse `1 → 1.08 → 1` + row ripple on check.
+
+Color thread at both ends of the row:
+
+- Morning Activation → pink / Vitality
+- Ritual → violet / Sovereignty
+- Night Protocol → cyan / Clarity
+
+Do not wrap done rows in a second cyan/purple box.
 
 ### Momentum blocks
 
-14 cells, oldest left, today right. No numeric streak.
+14 cells, oldest left, today right. No numeric streak. Divider after 7 with labels **Last week** | **This week** and **Today →** at the far right (`0.65rem`, opacity 0.4). Extra `--space-md` between daily momentum blocks so week labels do not collide with the next habit name.
 
-- Filled: `h-3 flex-1 rounded-sm` + accent fill (`bg-cyan-400/80` / violet / pink) and a small matching glow
-- Empty: `border-white/10 bg-slate-950/50`
+- Empty: 8–10% fill of the accent (e.g. `bg-cyan-400/10`). Not a hollow stroke.
+- Filled: vertical gradient + soft glow. New fill pops `.slot-pop` (`scale 0.85 → 1`).
+- Main-task bar: amber. Daily bars: pink / violet / cyan.
 - Label: `text-[10px] uppercase tracking-widest font-section`
+
+### Rank (30-day, weekly freeze)
+
+Client-derived from hydrated entries. Mean of every logged Vitality / Sovereignty / Clarity value in the last 30 days (skip nulls; no quest/daily mixing). None logged → **D**. Persist `{ letter, weekKey }` on the dashboard store; recompute only when the ISO week changes.
+
+| Letter | Mean | Title |
+|---|---|---|
+| D | `< 2.0` | The Grounded Initiate |
+| C | `2.0–2.74` | The Steady Practitioner |
+| B | `2.75–3.49` | The Conscious Operator |
+| A | `3.50–4.24` | The Sovereign Adept |
+| S | `≥ 4.25` | The Lucid Architect |
 
 ## Fonts
 
@@ -52,6 +125,12 @@ Loaded in `index.html`. Tailwind families in `tailwind.config.js`.
 | Dates / technical | JetBrains Mono | `font-mono` |
 
 Headings: weight 700–800, `letter-spacing: 0.02em`. Section chips: uppercase, wide tracking (`tracking-widest`).
+
+HUD type map (no new font files):
+
+- Rank letter + value → `font-title` / `font-data`; `/5` uses `.stat-denominator`
+- HUD labels (Vitality, Dailies, RANK) → `font-section`
+- Task input and daily names → `font-body`
 
 ## Palette
 
@@ -75,17 +154,47 @@ Headings: weight 700–800, `letter-spacing: 0.02em`. Section chips: uppercase, 
 - Surfaces: `#0B0B1A`, `#1A1A2E`, `#16213E`
 - Borders: `white/10`, `purple-500/50`, `#2A2F5F`
 
-### Metric symbols (Body / Mind / Soul)
+### Metric symbols (Vitality / Sovereignty / Clarity)
 
-From `STAT_COLORS` in `src/constants/theme.ts`:
+Stored as `body` / `soul` / `mind`. HUD labels and 1–5 anchors:
 
-| Metric | Icon | Text | Chip | Border | Glow |
-|---|---|---|---|---|---|
-| Body | `HeartPulse` | `text-pink-400` | `bg-pink-500/20` | `border-pink-500/50` | `rgba(236, 72, 153, 0.6)` |
-| Mind | `Brain` | `text-cyan-400` | `bg-cyan-500/20` | `border-cyan-500/50` | `rgba(6, 182, 212, 0.5)` |
-| Soul | `Sparkles` | `text-purple-400` | `bg-purple-500/20` | `border-purple-500/50` | `rgba(168, 85, 247, 0.6)` |
+| Metric | Icon | Text | Chip | Border |
+|---|---|---|---|---|
+| Vitality | `HeartPulse` | `text-pink-400` | `bg-pink-500/20` | `border-pink-500/50` |
+| Sovereignty | `Star` | `text-purple-400` | `bg-purple-500/20` | `border-purple-500/50` |
+| Clarity | `Brain` | `text-cyan-400` | `bg-cyan-500/20` | `border-cyan-400/50` |
 
-Visible label is the symbol. Put the word in `aria-label` and a tiny uppercase caption if needed.
+Scores are **1–5** only (null = not logged). HUD rings show the 7-day average. The Day Editor mini ring shows the **draft 1–5** for that day, not the HUD average.
+
+## Day Editor
+
+One editor (`DayEditor`) for logging from the orbs and for a History day tap. Local draft; Save writes through the store. Today and yesterday can save; older History days are view-only (no Save, task/dailies read-only).
+
+Layout uses `--space-xs/sm/md`:
+
+1. Date label + Today / Yesterday / Past
+2. Log mode only: Today | Yesterday segmented control
+3. Labeled **How to score** + `!` (opens scoring anchors — not an escape-spiral flag)
+4. Three stats: icon + label + live mini 5-segment ring + `ScorePicker` pills
+5. Main task: input + Check/Complete when editable; read-only text + completed mark when Past
+6. Three dailies, pink / violet / cyan when on (same HUD mapping)
+7. Save: 200ms **Saved** + check, then close. Hidden when read-only
+
+Selected score pills use the stat color + glow (`data-stat` pink / violet / cyan). Keyboard `focus-visible` ring on pills.
+
+### History heatmap
+
+Browse-only until a day is tapped; then the same Day Editor slides in below. Month header: prev / **Today** / next. Tapping Today jumps to the current month and opens today. Tapping the selected day again collapses the editor.
+
+| State | Treatment |
+|---|---|
+| Today | Cyan outline |
+| Selected | Neutral white/gray fill (not Sovereignty purple) |
+| Has data | Low-opacity fill + small under-dot in the **dominant** logged stat color (highest of Vitality / Sovereignty / Clarity, skip nulls; ties prefer that order). Task/dailies only → muted gray dot |
+| No data | Muted number, no fill |
+| Future | Dimmed, disabled |
+
+Days before yesterday stay read-only so the archive is not rewritten.
 
 ## Glass recipe
 
@@ -94,7 +203,8 @@ Prefer these classes instead of new inline glass:
 - **`hud-card`**: HUD surface gradient, `rounded-2xl`, `border-white/10`, inset light-lip, drop shadow. Optional `hud-pulse` / `hud-pulse--cyan`.
 - **`card-base`**: `bg-slate-950/60 backdrop-blur-xl rounded-2xl` + light-lip inset.
 - **`glow-purple`**: `border-2 border-purple-500/50` + purple outer glow; stronger on hover.
-- **`card-style`**: `card-base` + `glow-purple` (default interactive card).
+- **`card-style`**: `card-base` + `glow-purple` (default interactive card — not for the HUD quest or dailies).
+- **`quest-card`**: amber border + gold glow for the main task only.
 
 Inner highlight (“light lip”): `inset 0 1px 0 0 rgba(255, 255, 255, 0.1)`.
 
@@ -104,14 +214,15 @@ Inputs: dark translucent field, `rounded-xl`, `border-white/10`, focus ring in t
 
 ## Buttons
 
-- Primary: `bg-gradient-to-r from-violet-600 to-cyan-600`, white text, `rounded-lg` / `rounded-xl`, `shadow-lg`. Hover darkens both stops.
+- Primary: reserved for rare payoffs (rank-up, milestone). Not Login.
+- Login: `.login-btn` ghost outline, gradient wash on hover only.
 - Ghost / complete toggle: translucent fill + tinted border (`border-cyan-400/40`, `bg-cyan-500/15` when on).
-- Sign out: `bg-red-500/15 border-red-400/40 text-red-200`.
+- Sign out: quiet red outline, transparent fill, `hover:bg-red-500/10`.
 - Framer Motion: `whileHover={{ scale: 1.05 }}`, `whileTap={{ scale: 0.95 }}`.
 
 ## Motion and accessibility
 
-Existing keyframes: `glow`, `hudPulse`, `hudPulseCyan`, `slide-up`, `fade-in`. Respect `prefers-reduced-motion: reduce` (already disables aura/hud pulse in CSS). Do not add heavy per-frame JS glow.
+Existing keyframes: `glow`, `hudPulse`, `hudPulseCyan`, `questEmptyPulse`, `questCompletePulse`, `questCheckBounce`, `slotPop`, `statOrbPulse`, `statOrbRipple`, `slide-up`, `fade-in`. Respect `prefers-reduced-motion: reduce` (disables aura, hud pulse, quest pulses, ring sweep, orb pulse/ripple, slot pop). Do not add heavy per-frame JS glow.
 
 ## Toasts
 
@@ -119,4 +230,6 @@ Glass row, `backdrop-blur-sm`, cyan/violet border for success/info, red/yellow f
 
 ## History calendar
 
-Glass `BaseModal` (`max-w-2xl`). Monday-first month grid. Selected day shows metrics, main task, and dailies. Days after today are disabled. Days before yesterday are read-only.
+Glass `BaseModal` (`max-w-2xl`) with the **same dashboard wash** (`#060610` radials) as the page — not a flatter `card-base` slab. Overlay is `bg-black/60` so the page starfield shows through; do not mount a second particle engine. Close hit target is **32×32**. Small viewports can drag the grabber down to dismiss.
+
+Monday-first heatmap. Selected day opens the Day Editor below the grid. Days after today are disabled. Days before yesterday are read-only.

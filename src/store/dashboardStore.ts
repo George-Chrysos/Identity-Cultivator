@@ -1,18 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AVERAGE_WINDOW, HISTORY_DAYS, MOMENTUM_WINDOW, STORE_KEYS } from '@/constants/storage';
-import { lastNDates, todayKey, isEditableDate } from '@/utils/date';
+import { lastNDates, todayKey, yesterdayKey, isEditableDate } from '@/utils/date';
+import { clampMetric } from '@/utils/metrics';
 import { emptyEntry } from '@/api/dashboardDatabase';
+import { nextRankSnapshot } from '@/utils/rank';
 import type { DailyEntry, DailyKey, DashboardStateShape, MetricKey, MomentumKey } from '@/types/dashboard';
 
 const now = () => Date.now();
-
-const clampMetric = (value: number | null): number | null => {
-  if (value === null) return null;
-  const n = Number.isFinite(value) ? Math.round(value) : NaN;
-  if (!Number.isFinite(n)) return null;
-  return Math.min(100, Math.max(0, n));
-};
 
 export const normalizeEntry = (partial: Partial<DailyEntry> & { date: string }): DailyEntry => ({
   ...emptyEntry(partial.date),
@@ -22,6 +17,7 @@ export const normalizeEntry = (partial: Partial<DailyEntry> & { date: string }):
   soul: clampMetric(partial.soul ?? null),
   mainTaskText: typeof partial.mainTaskText === 'string' ? partial.mainTaskText : '',
   mainTaskDone: Boolean(partial.mainTaskDone),
+  carriedOver: Boolean(partial.carriedOver),
   morningActivation: Boolean(partial.morningActivation),
   ritual: Boolean(partial.ritual),
   nightProtocol: Boolean(partial.nightProtocol),
@@ -33,6 +29,7 @@ const unique = (dates: string[]) => Array.from(new Set(dates));
 export const DEFAULT_DASHBOARD_STATE: DashboardStateShape = {
   entries: {},
   dirtyDates: [],
+  rank: null,
 };
 
 interface DashboardStoreState {
@@ -45,6 +42,8 @@ interface DashboardStoreState {
   setMainTaskText: (date: string, text: string) => void;
   toggleMainTask: (date: string) => void;
   toggleDaily: (date: string, key: DailyKey) => void;
+  applyQuestCarryover: () => void;
+  refreshRank: () => void;
 }
 
 export const useDashboardStore = create<DashboardStoreState>()(
@@ -66,10 +65,10 @@ export const useDashboardStore = create<DashboardStoreState>()(
             }
           }
         }
-        set({ dashboard: { entries: next, dirtyDates: unique(dirty) } });
+        set({ dashboard: { entries: next, dirtyDates: unique(dirty), rank: dashboard.rank } });
       },
 
-      resetDashboard: () => set({ dashboard: { entries: {}, dirtyDates: [] } }),
+      resetDashboard: () => set({ dashboard: { entries: {}, dirtyDates: [], rank: null } }),
 
       clearDirty: (dates) => {
         const { dashboard } = get();
@@ -95,11 +94,13 @@ export const useDashboardStore = create<DashboardStoreState>()(
           dashboard: {
             entries: { ...dashboard.entries, [date]: nextEntry },
             dirtyDates: unique([...dashboard.dirtyDates, date]),
+            rank: dashboard.rank,
           },
         });
       },
 
       setMetrics: (date, metrics) => {
+        // Metrics are manual 1–5 scores only. Quest/daily completion never writes these fields.
         get().patchEntry(date, {
           body: clampMetric(metrics.body),
           mind: clampMetric(metrics.mind),
@@ -108,7 +109,7 @@ export const useDashboardStore = create<DashboardStoreState>()(
       },
 
       setMainTaskText: (date, text) => {
-        get().patchEntry(date, { mainTaskText: text });
+        get().patchEntry(date, { mainTaskText: text, carriedOver: false });
       },
 
       toggleMainTask: (date) => {
@@ -119,6 +120,40 @@ export const useDashboardStore = create<DashboardStoreState>()(
       toggleDaily: (date, key) => {
         const current = get().dashboard.entries[date] ?? emptyEntry(date);
         get().patchEntry(date, { [key]: !current[key] });
+      },
+
+      applyQuestCarryover: () => {
+        const today = todayKey();
+        const yesterday = yesterdayKey();
+        const { dashboard } = get();
+        const prior = dashboard.entries[yesterday];
+        const priorText = prior?.mainTaskText.trim() ?? '';
+        if (!prior || !priorText || prior.mainTaskDone) return;
+
+        const todayEntry = dashboard.entries[today] ?? emptyEntry(today);
+        const todayText = todayEntry.mainTaskText.trim();
+        if (todayText && !todayEntry.carriedOver) return;
+        if (todayEntry.carriedOver && todayText === priorText) return;
+        if (todayText && todayText !== priorText) return;
+
+        get().patchEntry(today, {
+          mainTaskText: prior.mainTaskText,
+          mainTaskDone: false,
+          carriedOver: true,
+        });
+      },
+
+      refreshRank: () => {
+        const { dashboard } = get();
+        const next = nextRankSnapshot(dashboard, dashboard.rank);
+        if (
+          dashboard.rank &&
+          dashboard.rank.letter === next.letter &&
+          dashboard.rank.weekKey === next.weekKey
+        ) {
+          return;
+        }
+        set({ dashboard: { ...dashboard, rank: next } });
       },
     }),
     {
@@ -132,11 +167,19 @@ export const useDashboardStore = create<DashboardStoreState>()(
         for (const [date, entry] of Object.entries(p.dashboard.entries ?? {})) {
           entries[date] = normalizeEntry({ ...entry, date });
         }
+        const snap = p.dashboard.rank;
+        const letters = ['D', 'C', 'B', 'A', 'S'] as const;
+        const rank =
+          snap && letters.includes(snap.letter as (typeof letters)[number]) && typeof snap.weekKey === 'string'
+            ? snap
+            : null;
+
         return {
           ...cur,
           dashboard: {
             entries,
             dirtyDates: unique(p.dashboard.dirtyDates ?? []),
+            rank,
           },
         };
       },
@@ -147,6 +190,8 @@ export const useDashboardStore = create<DashboardStoreState>()(
 export const getEntry = (dashboard: DashboardStateShape, date: string): DailyEntry =>
   dashboard.entries[date] ?? emptyEntry(date);
 
+/** Mean of logged 1–5 scores only. Ignores quest/daily completion. */
+
 export const metricAverage = (
   dashboard: DashboardStateShape,
   key: MetricKey,
@@ -156,7 +201,8 @@ export const metricAverage = (
     .map((date) => dashboard.entries[date]?.[key])
     .filter((v): v is number => typeof v === 'number');
   if (values.length === 0) return null;
-  return Math.round(values.reduce((sum, v) => sum + v, 0) / values.length);
+  const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
+  return Math.round(avg * 10) / 10;
 };
 
 export const metricAverages7 = (dashboard: DashboardStateShape) => ({

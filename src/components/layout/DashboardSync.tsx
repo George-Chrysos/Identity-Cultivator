@@ -41,6 +41,8 @@ const DashboardSync = () => {
         const from = syncFrom(to);
         const remote = await dashboardDB.fetchRange(userId, from, to);
         hydrateEntries(remote, { markClean: true });
+        useDashboardStore.getState().applyQuestCarryover();
+        useDashboardStore.getState().refreshRank();
       } catch (error) {
         logger.error('DashboardSync hydrate failed', error);
       } finally {

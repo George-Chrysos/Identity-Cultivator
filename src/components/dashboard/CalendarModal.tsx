@@ -1,82 +1,132 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { BaseModal } from '@/components/common';
-import { METRIC_CONFIG } from './metricConfig';
-import { getEntry, useDashboardStore } from '@/store/dashboardStore';
-import { isEditableDate, monthGrid, monthLabel, todayKey } from '@/utils/date';
-import type { DailyEntry, DailyKey } from '@/types/dashboard';
+import { DayEditor } from './DayEditor';
+import { useDashboardStore } from '@/store/dashboardStore';
+import { monthGrid, monthLabel, todayKey } from '@/utils/date';
+import type { DailyEntry, MetricKey } from '@/types/dashboard';
 
 interface CalendarModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenHelp: () => void;
+  closeOnEscape?: boolean;
 }
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const DAILY_LABELS: { key: DailyKey; label: string }[] = [
-  { key: 'morningActivation', label: 'Morning Activation' },
-  { key: 'ritual', label: 'Ritual' },
-  { key: 'nightProtocol', label: 'Night Protocol' },
-];
+const STAT_DOT: Record<MetricKey | 'muted', string> = {
+  body: 'bg-pink-400 shadow-[0_0_6px_rgba(244,114,182,0.7)]',
+  soul: 'bg-violet-400 shadow-[0_0_6px_rgba(192,132,252,0.7)]',
+  mind: 'bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.7)]',
+  muted: 'bg-white/35',
+};
 
-const hasAny = (date: string, entries: Record<string, DailyEntry>) => {
-  const e = entries[date];
-  if (!e) return false;
+const STAT_WASH: Record<MetricKey, string> = {
+  body: 'bg-pink-500/15',
+  soul: 'bg-violet-500/15',
+  mind: 'bg-cyan-500/15',
+};
+
+const hasAny = (entry: DailyEntry | undefined) => {
+  if (!entry) return false;
   return (
-    e.body !== null ||
-    e.mind !== null ||
-    e.soul !== null ||
-    e.mainTaskDone ||
-    e.mainTaskText.trim().length > 0 ||
-    e.morningActivation ||
-    e.ritual ||
-    e.nightProtocol
+    entry.body !== null ||
+    entry.mind !== null ||
+    entry.soul !== null ||
+    entry.mainTaskDone ||
+    entry.mainTaskText.trim().length > 0 ||
+    entry.morningActivation ||
+    entry.ritual ||
+    entry.nightProtocol
   );
 };
 
-export const CalendarModal = ({ isOpen, onClose }: CalendarModalProps) => {
+/** Highest logged score; ties prefer Vitality, then Sovereignty, then Clarity. */
+const dominantStat = (entry: DailyEntry | undefined): MetricKey | 'muted' | null => {
+  if (!entry) return null;
+  const order: MetricKey[] = ['body', 'soul', 'mind'];
+  let best: MetricKey | null = null;
+  let bestVal = -1;
+  for (const key of order) {
+    const value = entry[key];
+    if (typeof value === 'number' && value > bestVal) {
+      best = key;
+      bestVal = value;
+    }
+  }
+  if (best) return best;
+  return hasAny(entry) ? 'muted' : null;
+};
+
+export const CalendarModal = ({ isOpen, onClose, onOpenHelp, closeOnEscape }: CalendarModalProps) => {
   const now = new Date();
   const [cursor, setCursor] = useState({ year: now.getFullYear(), month: now.getMonth() });
-  const [selected, setSelected] = useState(todayKey());
-  const dashboard = useDashboardStore((s) => s.dashboard);
-  const toggleDaily = useDashboardStore((s) => s.toggleDaily);
-  const toggleMainTask = useDashboardStore((s) => s.toggleMainTask);
-  const setMainTaskText = useDashboardStore((s) => s.setMainTaskText);
-  const setMetrics = useDashboardStore((s) => s.setMetrics);
+  const [selected, setSelected] = useState<string | null>(null);
+  const entries = useDashboardStore((s) => s.dashboard.entries);
 
   const cells = useMemo(() => monthGrid(cursor.year, cursor.month), [cursor]);
-  const entry = getEntry(dashboard, selected);
-  const editable = isEditableDate(selected);
   const today = todayKey();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const fresh = new Date();
+    setCursor({ year: fresh.getFullYear(), month: fresh.getMonth() });
+    setSelected(null);
+  }, [isOpen]);
 
   const shiftMonth = (delta: number) => {
     const date = new Date(cursor.year, cursor.month + delta, 1);
     setCursor({ year: date.getFullYear(), month: date.getMonth() });
   };
 
-  const parseMetric = (raw: string): number | null => {
-    if (raw.trim() === '') return null;
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return null;
-    return Math.min(100, Math.max(0, Math.round(n)));
+  const jumpToday = () => {
+    const fresh = new Date();
+    setCursor({ year: fresh.getFullYear(), month: fresh.getMonth() });
+    setSelected(todayKey());
   };
 
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} title="History" maxWidth="2xl">
-      <div className="p-5 sm:p-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+    <BaseModal isOpen={isOpen} onClose={onClose} title="History" maxWidth="2xl" closeOnEscape={closeOnEscape}>
+      <div className="p-[var(--space-md)] flex flex-col gap-[var(--space-md)]">
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <button type="button" onClick={() => shiftMonth(-1)} className="p-2 rounded-lg border border-white/10 text-slate-300 hover:text-white" aria-label="Previous month">
+          <div className="flex items-center justify-between gap-[var(--space-xs)] mb-[var(--space-sm)]">
+            <button
+              type="button"
+              onClick={() => shiftMonth(-1)}
+              className="p-2 rounded-lg border border-white/10 text-white/70 hover:text-white"
+              aria-label="Previous month"
+            >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <h3 className="text-sm uppercase tracking-widest font-section m-0">{monthLabel(cursor.year, cursor.month)}</h3>
-            <button type="button" onClick={() => shiftMonth(1)} className="p-2 rounded-lg border border-white/10 text-slate-300 hover:text-white" aria-label="Next month">
+            <div className="flex flex-col items-center gap-1">
+              <h3 className="text-sm uppercase tracking-widest font-section m-0">
+                {monthLabel(cursor.year, cursor.month)}
+              </h3>
+              <button
+                type="button"
+                onClick={jumpToday}
+                className="px-3 py-1 rounded-lg border border-cyan-400/40 text-[10px] uppercase tracking-widest font-section text-cyan-200 hover:bg-cyan-500/10"
+              >
+                Today
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => shiftMonth(1)}
+              className="p-2 rounded-lg border border-white/10 text-white/70 hover:text-white"
+              aria-label="Next month"
+            >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
           <div className="grid grid-cols-7 gap-1 mb-1">
             {WEEKDAYS.map((d) => (
-              <div key={d} className="text-center text-[10px] uppercase tracking-widest text-slate-400 font-section py-1">
+              <div
+                key={d}
+                className="text-center text-[10px] uppercase tracking-widest text-white/40 font-section py-1"
+              >
                 {d}
               </div>
             ))}
@@ -84,103 +134,67 @@ export const CalendarModal = ({ isOpen, onClose }: CalendarModalProps) => {
           <div className="grid grid-cols-7 gap-1">
             {cells.map((date, i) => {
               if (!date) return <div key={`pad-${i}`} />;
-              const marked = hasAny(date, dashboard.entries);
+              const entry = entries[date];
+              const marked = hasAny(entry);
+              const dominant = dominantStat(entry);
               const isSelected = date === selected;
               const isToday = date === today;
               const future = date > today;
+              const wash =
+                !isSelected && marked && dominant && dominant !== 'muted' ? STAT_WASH[dominant] : '';
+              const border = isToday
+                ? 'border-cyan-400/80'
+                : isSelected
+                  ? 'border-white/40'
+                  : marked
+                    ? 'border-white/10'
+                    : 'border-transparent';
+              const fill = isSelected
+                ? 'bg-white/15 text-white'
+                : marked
+                  ? `${wash || 'bg-white/[0.04]'} text-white`
+                  : 'bg-transparent text-white/40';
               return (
                 <button
                   key={date}
                   type="button"
                   disabled={future}
-                  onClick={() => setSelected(date)}
-                  className={`aspect-square rounded-lg text-xs font-data border ${
-                    isSelected
-                      ? 'border-cyan-400/70 bg-cyan-500/20 text-white'
-                      : isToday
-                        ? 'border-violet-400/50 bg-violet-500/10 text-white'
-                        : marked
-                          ? 'border-white/15 bg-slate-900/70 text-slate-100'
-                          : 'border-white/5 bg-slate-950/30 text-slate-400'
-                  } disabled:opacity-30 disabled:cursor-not-allowed`}
+                  onClick={() => setSelected((prev) => (prev === date ? null : date))}
+                  aria-pressed={isSelected}
+                  aria-label={`${date}${marked ? ', has data' : ''}${isToday ? ', today' : ''}`}
+                  className={`relative aspect-square rounded-lg text-xs font-data border flex flex-col items-center justify-center pb-1.5 disabled:opacity-30 disabled:cursor-not-allowed ${border} ${fill}`}
                 >
                   {Number(date.slice(8))}
+                  {dominant && (
+                    <span
+                      className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${STAT_DOT[dominant]}`}
+                    />
+                  )}
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className="space-y-4">
-          <p className="text-xs uppercase tracking-widest font-section text-slate-300 m-0">
-            {selected}
-            {!editable && <span className="ml-2 text-slate-500">read only</span>}
-          </p>
-
-          <div className="grid grid-cols-3 gap-2">
-            {METRIC_CONFIG.map(({ key, label, text, border, ring }) => (
-              <label key={key} className="flex flex-col gap-1">
-                <span className={`text-[10px] uppercase tracking-widest font-section ${text}`}>{label}</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  disabled={!editable}
-                  value={entry[key] ?? ''}
-                  onChange={(e) =>
-                    setMetrics(selected, {
-                      body: key === 'body' ? parseMetric(e.target.value) : entry.body,
-                      mind: key === 'mind' ? parseMetric(e.target.value) : entry.mind,
-                      soul: key === 'soul' ? parseMetric(e.target.value) : entry.soul,
-                    })
-                  }
-                  className={`w-full text-center font-data bg-slate-950/60 border ${border} rounded-xl px-2 py-1.5 text-white outline-none focus:ring-2 ${ring} disabled:opacity-60`}
-                />
-              </label>
-            ))}
-          </div>
-
-          <div className="space-y-2">
-            <span className="text-[10px] uppercase tracking-widest font-section text-violet-200">Main task</span>
-            <input
-              type="text"
-              disabled={!editable}
-              value={entry.mainTaskText}
-              onChange={(e) => setMainTaskText(selected, e.target.value)}
-              className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-white font-body outline-none focus:ring-2 focus:ring-violet-500/40 disabled:opacity-60"
-            />
-            <button
-              type="button"
-              disabled={!editable}
-              onClick={() => toggleMainTask(selected)}
-              className={`w-full py-2 rounded-xl text-xs uppercase tracking-widest font-section border ${
-                entry.mainTaskDone
-                  ? 'bg-cyan-500/15 border-cyan-400/40 text-cyan-200'
-                  : 'bg-slate-800/50 border-white/10 text-slate-300'
-              } disabled:opacity-60`}
+        <AnimatePresence>
+          {selected && (
+            <motion.div
+              key={selected}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.22 }}
+              className="border-t border-white/10 -mx-[var(--space-md)]"
             >
-              {entry.mainTaskDone ? 'Task done' : 'Mark task done'}
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {DAILY_LABELS.map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                disabled={!editable}
-                onClick={() => toggleDaily(selected, key)}
-                className={`w-full py-2 rounded-xl text-xs uppercase tracking-widest font-section border ${
-                  entry[key]
-                    ? 'bg-cyan-500/15 border-cyan-400/40 text-cyan-200'
-                    : 'bg-slate-800/50 border-white/10 text-slate-300'
-                } disabled:opacity-60`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+              <DayEditor
+                variant="history"
+                date={selected}
+                onOpenHelp={onOpenHelp}
+                onSaved={() => setSelected(null)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </BaseModal>
   );

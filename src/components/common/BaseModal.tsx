@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { X } from 'lucide-react';
 import { GPU_ACCELERATION_STYLES } from './usePerformanceStyles';
 
@@ -15,8 +15,8 @@ interface BaseModalProps {
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
   className?: string;
   overlayClassName?: string;
-  borderColor?: string; // Custom border color (e.g., '#e11d48' for warrior red)
-  glowColor?: string;   // Custom glow color for shadow
+  borderColor?: string;
+  glowColor?: string;
 }
 
 const MAX_WIDTH_CLASSES = {
@@ -28,15 +28,11 @@ const MAX_WIDTH_CLASSES = {
   full: 'max-w-full',
 } as const;
 
+const PANEL_WASH =
+  'relative w-full overflow-hidden rounded-2xl bg-[radial-gradient(1000px_500px_at_20%_10%,rgba(0,245,212,0.10),transparent_60%),radial-gradient(900px_500px_at_80%_20%,rgba(168,85,247,0.14),transparent_60%),linear-gradient(180deg,#060610_0%,#070716_35%,#070717_100%)]';
+
 /**
- * BaseModal - Shared modal component with portal, backdrop, and animations
- * 
- * Usage:
- * ```tsx
- * <BaseModal isOpen={isOpen} onClose={handleClose} title="My Modal">
- *   <div>Modal content here</div>
- * </BaseModal>
- * ```
+ * BaseModal - Shared modal. Panel wash matches the dashboard; page starfield shows through the dim overlay.
  */
 export const BaseModal = memo(({
   isOpen,
@@ -49,23 +45,32 @@ export const BaseModal = memo(({
   maxWidth = 'lg',
   className = '',
   overlayClassName = '',
-  borderColor = 'rgba(168, 85, 247, 0.5)', // Default purple
-  glowColor = 'rgba(76, 29, 149, 0.4)',    // Default purple glow
+  borderColor = 'rgba(168, 85, 247, 0.5)',
+  glowColor = 'rgba(76, 29, 149, 0.4)',
 }: BaseModalProps) => {
   const [isAnimating, setIsAnimating] = useState(true);
-  
+  const [allowDrag, setAllowDrag] = useState(false);
+  const dragControls = useDragControls();
+
   const handleAnimationComplete = useCallback(() => {
     setIsAnimating(false);
   }, []);
-  
-  // Reset animation state when modal opens
+
   useEffect(() => {
     if (isOpen) {
       setIsAnimating(true);
     }
   }, [isOpen]);
-  
-  // Handle escape key
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 640px)');
+    const sync = () => setAllowDrag(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
   useEffect(() => {
     if (!closeOnEscape || !isOpen) return;
 
@@ -79,7 +84,6 @@ export const BaseModal = memo(({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose, closeOnEscape]);
 
-  // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -121,7 +125,15 @@ export const BaseModal = memo(({
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.3, type: 'spring', damping: 25 }}
             onAnimationComplete={handleAnimationComplete}
-            className={`relative w-full ${MAX_WIDTH_CLASSES[maxWidth]} card-base overflow-hidden ${className}`}
+            drag={allowDrag ? 'y' : false}
+            dragControls={dragControls}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.05, bottom: 0.55 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 96 || info.velocity.y > 700) onClose();
+            }}
+            className={`${PANEL_WASH} ${MAX_WIDTH_CLASSES[maxWidth]} ${className}`}
             onClick={(e) => e.stopPropagation()}
             style={{
               ...GPU_ACCELERATION_STYLES,
@@ -129,25 +141,32 @@ export const BaseModal = memo(({
               boxShadow: `0 0 12px ${glowColor}, 0 4px 20px -5px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)`,
             }}
           >
-            {/* Close button - absolute positioned top-right */}
+            {allowDrag && (
+              <div
+                className="flex justify-center pt-2 pb-1 touch-none cursor-grab"
+                onPointerDown={(e) => dragControls.start(e)}
+              >
+                <span className="h-1 w-10 rounded-full bg-white/25" />
+              </div>
+            )}
+
             {showCloseButton && (
               <button
+                type="button"
                 onClick={handleCloseClick}
-                className="absolute top-4 right-4 z-10 p-1.5 rounded-lg border border-slate-600 hover:border-slate-500 hover:bg-slate-800/50 transition-all text-slate-400 hover:text-white"
+                className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-slate-600 hover:border-slate-500 hover:bg-slate-800/50 transition-all text-slate-400 hover:text-white"
                 aria-label="Close modal"
               >
                 <X className="w-4 h-4" />
               </button>
             )}
-            
-            {/* Header with title - flush to top */}
+
             {title && (
-              <div className="px-6 pt-3 pb-4 pr-14 border-b border-slate-700/50">
+              <div className="px-6 pt-3 pb-4 pr-14 border-b border-white/10">
                 <h2 className="text-xl font-bold text-white m-0 leading-tight">{title}</h2>
               </div>
             )}
 
-            {/* Modal content - scrollable with max height */}
             <div className="relative max-h-[calc(100vh-8rem)] overflow-y-auto">
               {children}
             </div>
@@ -157,7 +176,6 @@ export const BaseModal = memo(({
     </AnimatePresence>
   );
 
-  // Portal to body
   if (typeof document === 'undefined') return null;
   return createPortal(modalContent, document.body);
 });

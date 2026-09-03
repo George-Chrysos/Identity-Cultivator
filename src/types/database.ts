@@ -17,6 +17,7 @@ export interface DailyEntryRow {
   soul: number | null;
   main_task_text: string;
   main_task_done: boolean;
+  main_task_carried_over: boolean;
   morning_activation: boolean;
   ritual: boolean;
   night_protocol: boolean;

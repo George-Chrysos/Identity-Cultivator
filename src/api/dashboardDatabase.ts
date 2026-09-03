@@ -1,14 +1,8 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { logger } from '@/utils/logger';
+import { clampMetric } from '@/utils/metrics';
 import type { DailyEntryRow, ProfileRow } from '@/types/database';
 import type { DailyEntry } from '@/types/dashboard';
-
-const clampMetric = (value: unknown): number | null => {
-  if (value === null || value === undefined || value === '') return null;
-  const n = Number(value);
-  if (!Number.isFinite(n)) return null;
-  return Math.min(100, Math.max(0, Math.round(n)));
-};
 
 export const emptyEntry = (date: string): DailyEntry => ({
   date,
@@ -17,6 +11,7 @@ export const emptyEntry = (date: string): DailyEntry => ({
   soul: null,
   mainTaskText: '',
   mainTaskDone: false,
+  carriedOver: false,
   morningActivation: false,
   ritual: false,
   nightProtocol: false,
@@ -30,6 +25,7 @@ export const rowToEntry = (row: DailyEntryRow): DailyEntry => ({
   soul: clampMetric(row.soul),
   mainTaskText: row.main_task_text ?? '',
   mainTaskDone: Boolean(row.main_task_done),
+  carriedOver: Boolean(row.main_task_carried_over),
   morningActivation: Boolean(row.morning_activation),
   ritual: Boolean(row.ritual),
   nightProtocol: Boolean(row.night_protocol),
@@ -44,6 +40,7 @@ const entryToUpsert = (userId: string, entry: DailyEntry) => ({
   soul: entry.soul,
   main_task_text: entry.mainTaskText,
   main_task_done: entry.mainTaskDone,
+  main_task_carried_over: entry.carriedOver,
   morning_activation: entry.morningActivation,
   ritual: entry.ritual,
   night_protocol: entry.nightProtocol,

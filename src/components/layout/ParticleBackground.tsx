@@ -22,42 +22,20 @@ const ParticleBackground = () => {
         background: {
           opacity: 0,
         },
-        fpsLimit: 60,
+        fpsLimit: 30,
         interactivity: {
           events: {
-            onClick: {
-              enable: true,
-              mode: 'push',
-            },
-            onHover: {
-              enable: true,
-              mode: 'repulse',
-            },
-            resize: {
-              enable: true,
-              delay: 0.5,
-            },
-          },
-          modes: {
-            push: {
-              quantity: 2,
-            },
-            repulse: {
-              distance: 120,
-              duration: 0.4,
-            },
+            onClick: { enable: false },
+            onHover: { enable: false },
+            resize: { enable: true, delay: 0.5 },
           },
         },
         particles: {
           color: {
-            value: ['#a78bfa', '#22d3ee', '#c084fc', '#8b5cf6'],
+            value: '#e2e8f0',
           },
           links: {
-            color: '#8b5cf6',
-            distance: 150,
-            enable: true,
-            opacity: 0.15,
-            width: 1,
+            enable: false,
           },
           collisions: {
             enable: false,
@@ -66,31 +44,38 @@ const ParticleBackground = () => {
             direction: 'none',
             enable: true,
             outModes: {
-              default: 'bounce',
+              default: 'out',
             },
-            random: false,
-            speed: 0.5,
+            random: true,
+            speed: 0.12,
             straight: false,
           },
           number: {
             density: {
               enable: true,
+              width: 1920,
+              height: 1080,
             },
-            value: 80,
+            value: 110,
           },
           opacity: {
-            value: { min: 0.1, max: 0.3 },
+            value: { min: 0.04, max: 0.06 },
+            animation: {
+              enable: true,
+              speed: 0.25,
+              sync: false,
+            },
           },
           shape: {
             type: 'circle',
           },
           size: {
-            value: { min: 1, max: 3 },
+            value: { min: 0.6, max: 1.4 },
           },
         },
         detectRetina: true,
       }}
-      className="absolute inset-0 z-0"
+      className="absolute inset-0 z-0 pointer-events-none"
     />
   );
 };
