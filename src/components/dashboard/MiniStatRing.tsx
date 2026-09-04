@@ -4,11 +4,12 @@ import { MINI_RING, RING_EMPTY_OPACITY, pipFill } from './ringGeometry';
 interface MiniStatRingProps {
   value: number | null;
   stroke: string;
+  layout?: typeof MINI_RING;
 }
 
-export const MiniStatRing = ({ value, stroke }: MiniStatRingProps) => {
+export const MiniStatRing = ({ value, stroke, layout = MINI_RING }: MiniStatRingProps) => {
   const maskPrefix = useId().replace(/:/g, '');
-  const { size, center, radius, stroke: sw, pipPaths, ticks } = MINI_RING;
+  const { size, center, radius, stroke: sw, pipPaths, ticks } = layout;
 
   return (
     <svg

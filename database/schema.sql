@@ -45,6 +45,9 @@ drop table if exists public.xp_ledger cascade;
 drop table if exists public.sector_visits cascade;
 drop table if exists public.quest_completions cascade;
 drop table if exists public.main_quest_streaks cascade;
+drop table if exists public.finance_net_worth_snapshots cascade;
+drop table if exists public.finance_income_extras cascade;
+drop table if exists public.finance_income_base cascade;
 drop table if exists public.finance_expenses cascade;
 drop table if exists public.finance_accounts cascade;
 drop table if exists public.finance_debts cascade;
@@ -123,6 +126,111 @@ create policy "daily_entries_update_own"
 create policy "daily_entries_delete_own"
   on public.daily_entries for delete
   using (auth.uid() = user_id);
+
+create table public.finance_expenses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  entry_date date not null,
+  logged_at timestamptz not null default now(),
+  amount numeric(12, 2) not null check (amount > 0),
+  category text not null check (
+    category in ('food', 'business', 'utilities', 'groceries', 'shopping', 'bills', 'other')
+  ),
+  updated_at timestamptz not null default now()
+);
+
+create index finance_expenses_user_date_idx
+  on public.finance_expenses (user_id, entry_date desc);
+
+create table public.finance_income_base (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  amount numeric(12, 2) not null default 0 check (amount >= 0),
+  cadence text not null default 'monthly',
+  updated_at timestamptz not null default now()
+);
+
+create table public.finance_income_extras (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  entry_date date not null,
+  amount numeric(12, 2) not null check (amount > 0),
+  label text,
+  month text not null check (month ~ '^\d{4}-\d{2}$'),
+  updated_at timestamptz not null default now()
+);
+
+create index finance_income_extras_user_month_idx
+  on public.finance_income_extras (user_id, month desc);
+
+create table public.finance_budgets (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  caps jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+create table public.finance_net_worth_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  entry_date date not null,
+  savings numeric(12, 2) not null default 0 check (savings >= 0),
+  debt numeric(12, 2) not null default 0 check (debt >= 0),
+  assets jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+create index finance_net_worth_snapshots_user_date_idx
+  on public.finance_net_worth_snapshots (user_id, entry_date desc);
+
+alter table public.finance_expenses enable row level security;
+alter table public.finance_income_base enable row level security;
+alter table public.finance_income_extras enable row level security;
+alter table public.finance_budgets enable row level security;
+alter table public.finance_net_worth_snapshots enable row level security;
+
+create policy "finance_expenses_select_own"
+  on public.finance_expenses for select using (auth.uid() = user_id);
+create policy "finance_expenses_insert_own"
+  on public.finance_expenses for insert with check (auth.uid() = user_id);
+create policy "finance_expenses_update_own"
+  on public.finance_expenses for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "finance_expenses_delete_own"
+  on public.finance_expenses for delete using (auth.uid() = user_id);
+
+create policy "finance_income_base_select_own"
+  on public.finance_income_base for select using (auth.uid() = user_id);
+create policy "finance_income_base_insert_own"
+  on public.finance_income_base for insert with check (auth.uid() = user_id);
+create policy "finance_income_base_update_own"
+  on public.finance_income_base for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "finance_income_base_delete_own"
+  on public.finance_income_base for delete using (auth.uid() = user_id);
+
+create policy "finance_income_extras_select_own"
+  on public.finance_income_extras for select using (auth.uid() = user_id);
+create policy "finance_income_extras_insert_own"
+  on public.finance_income_extras for insert with check (auth.uid() = user_id);
+create policy "finance_income_extras_update_own"
+  on public.finance_income_extras for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "finance_income_extras_delete_own"
+  on public.finance_income_extras for delete using (auth.uid() = user_id);
+
+create policy "finance_budgets_select_own"
+  on public.finance_budgets for select using (auth.uid() = user_id);
+create policy "finance_budgets_insert_own"
+  on public.finance_budgets for insert with check (auth.uid() = user_id);
+create policy "finance_budgets_update_own"
+  on public.finance_budgets for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "finance_budgets_delete_own"
+  on public.finance_budgets for delete using (auth.uid() = user_id);
+
+create policy "finance_net_worth_snapshots_select_own"
+  on public.finance_net_worth_snapshots for select using (auth.uid() = user_id);
+create policy "finance_net_worth_snapshots_insert_own"
+  on public.finance_net_worth_snapshots for insert with check (auth.uid() = user_id);
+create policy "finance_net_worth_snapshots_update_own"
+  on public.finance_net_worth_snapshots for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "finance_net_worth_snapshots_delete_own"
+  on public.finance_net_worth_snapshots for delete using (auth.uid() = user_id);
 
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$

@@ -681,6 +681,26 @@ html[data-aura='neon-steady'] .aura-frame {
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
+.pulse-card {
+  @apply relative rounded-2xl backdrop-blur-xl;
+  background: linear-gradient(180deg, var(--hud-surface-2) 0%, var(--hud-surface-1) 100%);
+  border: 2px solid rgba(52, 211, 153, 0.5);
+  box-shadow:
+    0 0 22px rgba(52, 211, 153, 0.2),
+    0 10px 30px -18px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.worth-card {
+  @apply relative rounded-2xl backdrop-blur-xl;
+  background: linear-gradient(180deg, var(--hud-surface-2) 0%, var(--hud-surface-1) 100%);
+  border: 2px solid rgba(148, 163, 184, 0.5);
+  box-shadow:
+    0 0 22px rgba(148, 163, 184, 0.2),
+    0 10px 30px -18px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
 .quest-empty-pulse {
   animation: questEmptyPulse 2.8s ease-in-out infinite;
 }
@@ -802,8 +822,13 @@ html[data-aura='neon-steady'] .aura-frame {
     opacity 300ms var(--grim-easing-ritual);
 }
 
-.stat-orb-pulse {
-  animation: statOrbPulse 400ms var(--grim-easing-ritual);
+@keyframes capOverPulse {
+  0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.55); }
+  100% { box-shadow: 0 0 0 8px rgba(248, 113, 113, 0); }
+}
+
+.cap-over-pulse {
+  animation: capOverPulse 600ms var(--grim-easing-ritual, ease-out);
 }
 
 @keyframes statOrbPulse {

@@ -1,6 +1,7 @@
 import { Component, ReactNode } from 'react';
 import { ToastContainer } from './components/notifications/Toast';
 import DashboardSync from './components/layout/DashboardSync';
+import FinanceSync from './components/layout/FinanceSync';
 import Dashboard from './pages/Dashboard';
 
 interface ErrorBoundaryState {
@@ -55,6 +56,7 @@ function App() {
   return (
     <AppErrorBoundary>
       <DashboardSync />
+      <FinanceSync />
       <Dashboard />
       <ToastContainer />
     </AppErrorBoundary>

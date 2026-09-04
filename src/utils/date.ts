@@ -51,3 +51,51 @@ export const monthGrid = (year: number, monthIndex: number): (string | null)[] =
 
 export const monthLabel = (year: number, monthIndex: number): string =>
   new Date(year, monthIndex, 1).toLocaleString(undefined, { month: 'long', year: 'numeric' });
+
+/** Calendar month as YYYY-MM. */
+export const monthKey = (date = new Date()): string => todayKey(date).slice(0, 7);
+
+export const monthKeyFromDate = (dateKey: string): string => dateKey.slice(0, 7);
+
+export const parseMonthKey = (key: string): { year: number; month: number } => {
+  const [y, m] = key.split('-').map(Number);
+  return { year: y ?? 1970, month: (m ?? 1) - 1 };
+};
+
+export const shiftMonthKey = (key: string, delta: number): string => {
+  const { year, month } = parseMonthKey(key);
+  return monthKey(new Date(year, month + delta, 1));
+};
+
+export const monthShortLabel = (key: string): string => {
+  const { year, month } = parseMonthKey(key);
+  return new Date(year, month, 1).toLocaleString(undefined, { month: 'short', year: 'numeric' }).toUpperCase();
+};
+
+/** Days to include in a month-to-date window (1-based). Future months → 0. */
+export const daysElapsedInMonth = (key: string, today = todayKey()): number => {
+  const { year, month } = parseMonthKey(key);
+  const last = daysInMonth(year, month);
+  if (today < `${key}-01`) return 0;
+  if (today.startsWith(key)) return Number(today.slice(8));
+  return last;
+};
+
+/** ISO week Mon–Sun containing `date`. */
+export const isoWeekBounds = (date = new Date()): { start: string; end: string } => {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const mondayOffset = (d.getDay() + 6) % 7;
+  const start = new Date(d);
+  start.setDate(d.getDate() - mondayOffset);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { start: todayKey(start), end: todayKey(end) };
+};
+
+export const daysElapsedInRange = (start: string, end: string, today = todayKey()): number => {
+  if (today < start) return 0;
+  const last = today < end ? today : end;
+  const a = parseKey(start);
+  const b = parseKey(last);
+  return Math.round((b.getTime() - a.getTime()) / 86400000) + 1;
+};

@@ -6,7 +6,12 @@ import { MetricLogModal } from '@/components/dashboard/MetricLogModal';
 import { MetricHelpModal } from '@/components/dashboard/MetricHelpModal';
 import { MainTaskCard } from '@/components/dashboard/MainTaskCard';
 import { DailiesPanel } from '@/components/dashboard/DailiesPanel';
-import { CalendarModal } from '@/components/dashboard/CalendarModal';
+import { CalendarModal, type HistoryTab } from '@/components/dashboard/CalendarModal';
+import { FinancialPulseCard } from '@/components/finance/FinancialPulseCard';
+import { NetWorthCard } from '@/components/finance/NetWorthCard';
+import { QuickAddExpense } from '@/components/finance/QuickAddExpense';
+import { RecentExpenses } from '@/components/finance/RecentExpenses';
+import { FinanceSettingsModal } from '@/components/finance/FinanceSettingsModal';
 import { useDashboardStore } from '@/store/dashboardStore';
 
 const PAGE_BG =
@@ -16,6 +21,8 @@ const Dashboard = () => {
   const [logOpen, setLogOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [historyTab, setHistoryTab] = useState<HistoryTab>('stats');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const applyQuestCarryover = useDashboardStore((s) => s.applyQuestCarryover);
   const refreshRank = useDashboardStore((s) => s.refreshRank);
 
@@ -32,6 +39,11 @@ const Dashboard = () => {
     return persistApi.onFinishHydration(afterHydrate);
   }, [applyQuestCarryover, refreshRank]);
 
+  const openHistory = (tab: HistoryTab) => {
+    setHistoryTab(tab);
+    setCalendarOpen(true);
+  };
+
   return (
     <div className={PAGE_BG}>
       <ParticleBackground />
@@ -40,7 +52,7 @@ const Dashboard = () => {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16 relative z-10 flex flex-col gap-[var(--space-lg)]">
         <MetricStrip
           onOpenLog={() => setLogOpen(true)}
-          onOpenHistory={() => setCalendarOpen(true)}
+          onOpenHistory={() => openHistory('stats')}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--space-lg)] items-stretch">
@@ -51,6 +63,18 @@ const Dashboard = () => {
             <DailiesPanel />
           </div>
         </div>
+
+        <FinancialPulseCard
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenInsights={() => openHistory('insights')}
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--space-lg)]">
+          <QuickAddExpense />
+          <RecentExpenses onViewAll={() => openHistory('finance')} />
+        </div>
+
+        <NetWorthCard />
       </main>
 
       <MetricLogModal
@@ -64,8 +88,10 @@ const Dashboard = () => {
         onClose={() => setCalendarOpen(false)}
         onOpenHelp={() => setHelpOpen(true)}
         closeOnEscape={!helpOpen}
+        initialTab={historyTab}
       />
       <MetricHelpModal isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
+      <FinanceSettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 };

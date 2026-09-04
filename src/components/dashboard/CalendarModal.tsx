@@ -3,15 +3,20 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { BaseModal } from '@/components/common';
 import { DayEditor } from './DayEditor';
+import { FinanceHistory } from '@/components/finance/FinanceHistory';
+import { YearlyInsights } from '@/components/finance/YearlyInsights';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { monthGrid, monthLabel, todayKey } from '@/utils/date';
 import type { DailyEntry, MetricKey } from '@/types/dashboard';
+
+export type HistoryTab = 'stats' | 'finance' | 'insights';
 
 interface CalendarModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenHelp: () => void;
   closeOnEscape?: boolean;
+  initialTab?: HistoryTab;
 }
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -60,10 +65,17 @@ const dominantStat = (entry: DailyEntry | undefined): MetricKey | 'muted' | null
   return hasAny(entry) ? 'muted' : null;
 };
 
-export const CalendarModal = ({ isOpen, onClose, onOpenHelp, closeOnEscape }: CalendarModalProps) => {
+export const CalendarModal = ({
+  isOpen,
+  onClose,
+  onOpenHelp,
+  closeOnEscape,
+  initialTab = 'stats',
+}: CalendarModalProps) => {
   const now = new Date();
   const [cursor, setCursor] = useState({ year: now.getFullYear(), month: now.getMonth() });
   const [selected, setSelected] = useState<string | null>(null);
+  const [tab, setTab] = useState<HistoryTab>(initialTab);
   const entries = useDashboardStore((s) => s.dashboard.entries);
 
   const cells = useMemo(() => monthGrid(cursor.year, cursor.month), [cursor]);
@@ -74,7 +86,8 @@ export const CalendarModal = ({ isOpen, onClose, onOpenHelp, closeOnEscape }: Ca
     const fresh = new Date();
     setCursor({ year: fresh.getFullYear(), month: fresh.getMonth() });
     setSelected(null);
-  }, [isOpen]);
+    setTab(initialTab);
+  }, [isOpen, initialTab]);
 
   const shiftMonth = (delta: number) => {
     const date = new Date(cursor.year, cursor.month + delta, 1);
@@ -90,7 +103,31 @@ export const CalendarModal = ({ isOpen, onClose, onOpenHelp, closeOnEscape }: Ca
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} title="History" maxWidth="2xl" closeOnEscape={closeOnEscape}>
       <div className="p-[var(--space-md)] flex flex-col gap-[var(--space-md)]">
-        <div>
+        <div className="flex rounded-xl border border-white/10 overflow-hidden">
+          {([
+            ['stats', 'Stats'],
+            ['finance', 'Finance'],
+            ['insights', 'Insights'],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={`flex-1 py-2 text-xs uppercase tracking-widest font-section ${
+                tab === id ? 'bg-white/10 text-white' : 'bg-transparent text-white/45 hover:text-white'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'finance' ? (
+          <FinanceHistory />
+        ) : tab === 'insights' ? (
+          <YearlyInsights />
+        ) : (
+        <>
           <div className="flex items-center justify-between gap-[var(--space-xs)] mb-[var(--space-sm)]">
             <button
               type="button"
@@ -174,7 +211,6 @@ export const CalendarModal = ({ isOpen, onClose, onOpenHelp, closeOnEscape }: Ca
               );
             })}
           </div>
-        </div>
 
         <AnimatePresence>
           {selected && (
@@ -195,6 +231,8 @@ export const CalendarModal = ({ isOpen, onClose, onOpenHelp, closeOnEscape }: Ca
             </motion.div>
           )}
         </AnimatePresence>
+        </>
+        )}
       </div>
     </BaseModal>
   );

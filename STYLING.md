@@ -22,6 +22,8 @@ Layout: `max-w-6xl mx-auto px-4 sm:px-6 lg:px-8`. Spacing tokens in `:root`: `--
 - Main task → Dailies (stacked mobile): `--space-lg`
 - Dailies heading → first row: `--space-sm`
 - Between daily rows: `--space-xs`
+- Quest/dailies → Financial Pulse: `--space-lg`
+- Quick add / Recent → Net Worth: `--space-lg`
 
 Default text is white / near-white. Avoid `text-slate-400` for muted UI — it is overridden to near-white in `index.css`. Use `text-white/40`–`text-white/55` instead.
 
@@ -37,8 +39,10 @@ Visual mass, heaviest first. Later UI must not put dailies or momentum back into
 | Main task | Amber/gold quest card (`.quest-card`). Not purple. ~2/3 width on desktop. |
 | Dailies | No outer card. Heading + stacked rows on the page wash. ~1/3 width. |
 | Momentum | No chrome. Inventory pips under the quest and under the dailies list. |
+| Financial pulse | Emerald `.pulse-card` full width under quest/dailies. Not gold. Not purple. |
+| Net worth | Slate-blue/silver `.worth-card` (`#94A3B8`) full width after Quick add / Recent. Not emerald. Not pink/violet/cyan. |
 
-Desktop (`lg+`): rings full width → amber quest `lg:col-span-2` + flattened dailies `lg:col-span-1`. Mobile: rings, quest, dailies.
+Desktop (`lg+`): rings full width → amber quest `lg:col-span-2` + flattened dailies `lg:col-span-1` → Financial Pulse full width → Quick add | Recent → Net Worth. Mobile: rings, quest, dailies, pulse, quick add, recent, net worth.
 
 ### Header
 
@@ -205,6 +209,8 @@ Prefer these classes instead of new inline glass:
 - **`glow-purple`**: `border-2 border-purple-500/50` + purple outer glow; stronger on hover.
 - **`card-style`**: `card-base` + `glow-purple` (default interactive card — not for the HUD quest or dailies).
 - **`quest-card`**: amber border + gold glow for the main task only.
+- **`pulse-card`**: emerald border + glow (`#34D399`) for Financial Pulse only. Not purple. Not gold.
+- **`worth-card`**: slate-blue/silver border + glow (`#94A3B8`) for Net Worth only. Do not mix this silver with Pulse emerald or stat pink/violet/cyan.
 
 Inner highlight (“light lip”): `inset 0 1px 0 0 rgba(255, 255, 255, 0.1)`.
 
@@ -232,4 +238,42 @@ Glass row, `backdrop-blur-sm`, cyan/violet border for success/info, red/yellow f
 
 Glass `BaseModal` (`max-w-2xl`) with the **same dashboard wash** (`#060610` radials) as the page — not a flatter `card-base` slab. Overlay is `bg-black/60` so the page starfield shows through; do not mount a second particle engine. Close hit target is **32×32**. Small viewports can drag the grabber down to dismiss.
 
-Monday-first heatmap. Selected day opens the Day Editor below the grid. Days after today are disabled. Days before yesterday are read-only.
+Monday-first heatmap. Selected day opens the Day Editor below the grid. Days after today are disabled. Days before yesterday are read-only. Tabs: **Stats** | **Finance** | **Insights**. Finance lists the month's expenses. Insights shows yearly category averages (excluding Business and Utilities) and the net-worth trend for that year.
+
+## Financial pulse
+
+Emerald `.pulse-card`. Amounts are **EUR**. Header: **Week | Month** pill (same segmented control as Day Editor) + chart (Insights) + gear (Settings). Income denominator is always **base salary + extras this calendar month**, even in Week view. Week window is ISO Monday–Sunday.
+
+Smooth continuous ring (not 5-segment): green `<70%`, amber `70–95%`, red `>95%`. No income → empty ring and `—`.
+
+Caps are display-only color states (`<80%` safe, `<100%` warning amber, `>=100%` over red). No banners, no blocking. Over segments get a thin red outline and a one-shot pulse when they first cross.
+
+Settings (gear): **Income** (base monthly + extra-income numpad, green) | **Caps** (seven plain fields). Not part of the daily grid.
+
+Quick add: 7 category glyphs (4+3) → themed numpad → 600ms confirm → back to the grid. Logs **now**.
+
+| Category | Icon | Hex |
+|---|---|---|
+| Food/Drinks | `Utensils` | `#F59E0B` |
+| Business | `Briefcase` | `#6366F1` |
+| Utilities | `Lightbulb` | `#FACC15` |
+| Groceries | `ShoppingCart` | `#84CC16` |
+| Shopping | `ShoppingBag` | `#A78BFA` |
+| Social | 🎉 | `#78716C` |
+| Other | `Plus` | `#64748B` |
+
+Yearly Insights averages exclude Business and Utilities. Pulse **Avg/day** uses the same filter. Total avg/month and avg savings use that filtered spend. Ring / spent-of-income still counts every category.
+
+## Net worth
+
+Slate-blue/silver `.worth-card` (`#94A3B8`) after Quick add and Recent. Not emerald. Not pink/violet/cyan.
+
+Manual dated snapshots only: `netWorth = savings + sum(assets) − debt`. Debt is one number; assets are itemized and unlimited. Never derive savings from Pulse (income − expenses). **Save Snapshot** always **appends** a new dated row (`todayKey()`); it never overwrites. Latest by `date` then `updatedAt` is the displayed position. Delta vs the previous snapshot: white/silver if up, muted rose only if net dropped.
+
+Composition bars (Savings, Assets sum, Debt) scale to the **largest of the three**. Debt track is muted rose `#F87171` at low opacity so it reads as subtracted.
+
+Edit form: same low-touch Caps style — Savings, one Debt field, asset rows (label + EUR + remove), Add asset.
+
+Insights: SVG area/polyline net-worth trend for the selected year (no chart library). Points are snapshots in that year. Empty: “Save a snapshot on the Net Worth card.” Y-axis from data min/max; month ticks.
+
+

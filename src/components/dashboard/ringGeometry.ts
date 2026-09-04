@@ -45,3 +45,4 @@ export const makeRingLayout = (size: number, radius: number, stroke: number, tic
 
 export const HUD_RING = makeRingLayout(132, 50, 10, 6);
 export const MINI_RING = makeRingLayout(44, 16, 4, 3);
+export const PULSE_RING = makeRingLayout(96, 36, 8, 4);
