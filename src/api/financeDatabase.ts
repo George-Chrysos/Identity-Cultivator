@@ -62,26 +62,35 @@ const rowToSnapshot = (row: FinanceNetWorthSnapshotRow): NetWorthSnapshot | null
     updatedAt: Date.parse(row.updated_at) || Date.now(),
   });
 
+const isMissingRelation = (error: { code?: string; message?: string } | null): boolean => {
+  if (!error) return false;
+  const code = error.code ?? '';
+  const msg = (error.message ?? '').toLowerCase();
+  return (
+    code === 'PGRST205' ||
+    code === '42P01' ||
+    msg.includes('schema cache') ||
+    msg.includes('does not exist') ||
+    msg.includes('could not find the table')
+  );
+};
+
+export type FinanceFetchResult = {
+  expenses?: Expense[];
+  incomeBase?: IncomeBase;
+  extras?: IncomeExtra[];
+  caps?: FinanceCaps;
+  snapshots?: NetWorthSnapshot[];
+  incomplete: boolean;
+};
+
 export const financeDB = {
   isReady(): boolean {
     return isSupabaseConfigured();
   },
 
-  async fetchAll(userId: string, fromDate: string): Promise<{
-    expenses: Expense[];
-    incomeBase: IncomeBase;
-    extras: IncomeExtra[];
-    caps: FinanceCaps;
-    snapshots: NetWorthSnapshot[];
-  }> {
-    const empty = {
-      expenses: [] as Expense[],
-      incomeBase: normalizeIncomeBase(),
-      extras: [] as IncomeExtra[],
-      caps: {} as FinanceCaps,
-      snapshots: [] as NetWorthSnapshot[],
-    };
-    if (!this.isReady()) return empty;
+  async fetchAll(userId: string, fromDate: string): Promise<FinanceFetchResult> {
+    if (!this.isReady()) return { incomplete: true };
 
     const [expRes, baseRes, extraRes, capRes, snapRes] = await Promise.all([
       supabase
@@ -100,54 +109,66 @@ export const financeDB = {
         .order('entry_date', { ascending: true }),
     ]);
 
+    const result: FinanceFetchResult = { incomplete: false };
+    const note = (label: string, error: { code?: string; message?: string }) => {
+      result.incomplete = true;
+      logger.error(`finance fetch ${label} failed`, error);
+      if (isMissingRelation(error)) {
+        logger.warn(`finance table missing or not in schema cache: ${label}`);
+      }
+    };
+
     if (expRes.error) {
-      logger.error('finance fetch expenses failed', expRes.error);
-      throw expRes.error;
+      note('expenses', expRes.error);
+    } else {
+      result.expenses = ((expRes.data as FinanceExpenseRow[]) ?? [])
+        .map(rowToExpense)
+        .filter((e): e is Expense => Boolean(e));
     }
+
     if (baseRes.error) {
-      logger.error('finance fetch income base failed', baseRes.error);
-      throw baseRes.error;
+      note('income base', baseRes.error);
+    } else {
+      const baseRow = baseRes.data as FinanceIncomeBaseRow | null;
+      result.incomeBase = normalizeIncomeBase(
+        baseRow
+          ? { amount: Number(baseRow.amount), updatedAt: Date.parse(baseRow.updated_at) || Date.now() }
+          : undefined
+      );
     }
+
     if (extraRes.error) {
-      logger.error('finance fetch extras failed', extraRes.error);
-      throw extraRes.error;
+      note('extras', extraRes.error);
+    } else {
+      result.extras = ((extraRes.data as FinanceIncomeExtraRow[]) ?? [])
+        .map((row) =>
+          normalizeExtra({
+            id: row.id,
+            date: row.entry_date,
+            amount: Number(row.amount),
+            label: row.label ?? undefined,
+            month: row.month,
+            updatedAt: Date.parse(row.updated_at) || Date.now(),
+          })
+        )
+        .filter((e): e is IncomeExtra => Boolean(e));
     }
+
     if (capRes.error) {
-      logger.error('finance fetch budgets failed', capRes.error);
-      throw capRes.error;
+      note('budgets', capRes.error);
+    } else {
+      result.caps = ((capRes.data as FinanceBudgetRow | null)?.caps ?? {}) as FinanceCaps;
     }
+
     if (snapRes.error) {
-      logger.error('finance fetch net worth snapshots failed', snapRes.error);
-      throw snapRes.error;
+      note('net worth snapshots', snapRes.error);
+    } else {
+      result.snapshots = ((snapRes.data as FinanceNetWorthSnapshotRow[]) ?? [])
+        .map(rowToSnapshot)
+        .filter((s): s is NetWorthSnapshot => Boolean(s));
     }
 
-    const expenses = ((expRes.data as FinanceExpenseRow[]) ?? [])
-      .map(rowToExpense)
-      .filter((e): e is Expense => Boolean(e));
-    const baseRow = baseRes.data as FinanceIncomeBaseRow | null;
-    const incomeBase = normalizeIncomeBase(
-      baseRow
-        ? { amount: Number(baseRow.amount), updatedAt: Date.parse(baseRow.updated_at) || Date.now() }
-        : undefined
-    );
-    const extras = ((extraRes.data as FinanceIncomeExtraRow[]) ?? [])
-      .map((row) =>
-        normalizeExtra({
-          id: row.id,
-          date: row.entry_date,
-          amount: Number(row.amount),
-          label: row.label ?? undefined,
-          month: row.month,
-          updatedAt: Date.parse(row.updated_at) || Date.now(),
-        })
-      )
-      .filter((e): e is IncomeExtra => Boolean(e));
-    const caps = ((capRes.data as FinanceBudgetRow | null)?.caps ?? {}) as FinanceCaps;
-    const snapshots = ((snapRes.data as FinanceNetWorthSnapshotRow[]) ?? [])
-      .map(rowToSnapshot)
-      .filter((s): s is NetWorthSnapshot => Boolean(s));
-
-    return { expenses, incomeBase, extras, caps, snapshots };
+    return result;
   },
 
   async upsertExpense(userId: string, expense: Expense): Promise<void> {

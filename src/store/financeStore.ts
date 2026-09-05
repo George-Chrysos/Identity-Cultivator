@@ -323,7 +323,7 @@ export const useFinanceStore = create<FinanceStoreState>()(
 
         let caps = finance.caps;
         let capsDirty = finance.capsDirty;
-        if (incoming.caps && (incoming.markClean || !capsDirty)) {
+        if (incoming.caps && !capsDirty) {
           caps = sanitizeCaps(incoming.caps);
           if (incoming.markClean) capsDirty = false;
         }
@@ -464,3 +464,13 @@ export const financeExpenseList = (finance: FinanceStateShape): Expense[] =>
 
 export const financeExtraList = (finance: FinanceStateShape): IncomeExtra[] =>
   Object.values(finance.extras).sort((a, b) => b.updatedAt - a.updatedAt);
+
+export const financeDirtyCount = (finance: FinanceStateShape): number =>
+  finance.dirtyExpenseIds.length +
+  finance.deletedExpenseIds.length +
+  finance.dirtyExtraIds.length +
+  finance.deletedExtraIds.length +
+  finance.dirtySnapshotIds.length +
+  finance.deletedSnapshotIds.length +
+  (finance.incomeBaseDirty ? 1 : 0) +
+  (finance.capsDirty ? 1 : 0);
