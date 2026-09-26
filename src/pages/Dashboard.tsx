@@ -12,7 +12,6 @@ import { NetWorthCard } from '@/components/finance/NetWorthCard';
 import { QuickAddExpense } from '@/components/finance/QuickAddExpense';
 import { RecentExpenses } from '@/components/finance/RecentExpenses';
 import { FinanceSettingsModal } from '@/components/finance/FinanceSettingsModal';
-import { Link } from 'react-router-dom';
 import { useDashboardStore } from '@/store/dashboardStore';
 
 const PAGE_BG =
@@ -51,16 +50,6 @@ const Dashboard = () => {
       <Header />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16 relative z-10 flex flex-col gap-[var(--space-lg)]">
-        <Link
-          to="/concord"
-          className="block rounded-2xl border border-purple-500/30 bg-slate-950/50 px-5 py-4 transition-colors hover:border-cyan-400/50"
-        >
-          <span className="font-section text-xs uppercase tracking-[0.16em] text-cyan-300">Register</span>
-          <span className="mt-1 block font-title text-lg text-white">Concord</span>
-          <span className="mt-1 block text-sm text-slate-300">
-            Charge, Current, and Mind/Will, read across neidan, the Hermetic art, and the Qabalah.
-          </span>
-        </Link>
         <MetricStrip
           onOpenLog={() => setLogOpen(true)}
           onOpenHistory={() => openHistory('stats')}

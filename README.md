@@ -14,7 +14,7 @@ npm run dev -- --host 0.0.0.0 --port 4327
 - Dashboard: `http://127.0.0.1:4327/`
 - Concord: `http://127.0.0.1:4327/concord`
 
-The dashboard header and the register card both open Concord. From Concord, Dashboard returns to the tracker.
+Open Concord by visiting `/concord` directly. The dashboard does not link to it, and Concord does not link back.
 
 Search the register with the search field, `Ctrl`/`Cmd`+`K`, or `/`. Searching Jing opens Charge, with Salt and Malkuth on the same entry.
 

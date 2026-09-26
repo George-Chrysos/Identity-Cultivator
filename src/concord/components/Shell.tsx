@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { SearchButton, SearchProvider } from "@/concord/components/Search";
 import { SidebarNav } from "@/concord/components/Sidebar";
@@ -32,12 +32,6 @@ export function ConcordShell() {
               >
                 {navOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
               </button>
-              <Link
-                to="/"
-                className="hidden shrink-0 font-body text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-cinnabar sm:inline"
-              >
-                Identity Cultivator
-              </Link>
               <SearchButton />
             </header>
             <main className="px-4 py-8 sm:px-6 lg:px-10">

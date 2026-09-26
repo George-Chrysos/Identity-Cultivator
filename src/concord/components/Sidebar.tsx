@@ -31,13 +31,6 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6" aria-label="Register">
         <div>
           <Link
-            to="/"
-            onClick={onNavigate}
-            className="block rounded-lg px-2 py-1.5 font-body text-sm text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-          >
-            Dashboard
-          </Link>
-          <Link
             to={CONCORD_HOME}
             onClick={onNavigate}
             className={cn(
