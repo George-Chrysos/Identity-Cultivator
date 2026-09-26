@@ -1,8 +1,17 @@
 import { Component, ReactNode } from 'react';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ToastContainer } from './components/notifications/Toast';
 import DashboardSync from './components/layout/DashboardSync';
 import FinanceSync from './components/layout/FinanceSync';
 import Dashboard from './pages/Dashboard';
+import { ConcordShell } from './concord/components/Shell';
+import {
+  CategoryView,
+  ConceptView,
+  ConcordHome,
+  MatrixPage,
+  MissingPage,
+} from './concord/views';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -55,10 +64,21 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryS
 function App() {
   return (
     <AppErrorBoundary>
-      <DashboardSync />
-      <FinanceSync />
-      <Dashboard />
-      <ToastContainer />
+      <BrowserRouter>
+        <DashboardSync />
+        <FinanceSync />
+        <Routes>
+          <Route path="/concord" element={<ConcordShell />}>
+            <Route index element={<ConcordHome />} />
+            <Route path="concepts/:id" element={<ConceptView />} />
+            <Route path="category/:category" element={<CategoryView />} />
+            <Route path="matrix" element={<MatrixPage />} />
+            <Route path="*" element={<MissingPage />} />
+          </Route>
+          <Route path="*" element={<Dashboard />} />
+        </Routes>
+        <ToastContainer />
+      </BrowserRouter>
     </AppErrorBoundary>
   );
 }

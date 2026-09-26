@@ -18,6 +18,7 @@ export default {
         section: ['Rajdhani', 'sans-serif'],
         // Monospaced - JetBrains Mono (technical, dates)
         mono: ['JetBrains Mono', 'monospace'],
+        serif: ['Newsreader', 'Georgia', 'serif'],
       },
       colors: {
         // Dark futuristic theme
@@ -71,7 +72,19 @@ export default {
           expert: '#f59e0b',
           master: '#8b5cf6',
           legend: '#ef4444',
-        }
+        },
+        // Concord register, scoped by class names used only on /concord
+        cinnabar: '#9c3b2e',
+        bronze: '#8a5a2b',
+        'indigo-ink': '#24356d',
+        foreground: '#1c1917',
+        background: '#f4efe6',
+        card: '#fffdf8',
+        border: '#e6ddd0',
+        muted: {
+          DEFAULT: '#efe8dc',
+          foreground: '#6d645b',
+        },
       },
       animation: {
         'level-up': 'levelUp 0.6s ease-in-out',

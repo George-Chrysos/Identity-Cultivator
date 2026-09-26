@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogIn, LogOut } from 'lucide-react';
+import { BookOpen, LogIn, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { RANK_TITLES } from '@/utils/rank';
@@ -32,6 +33,13 @@ const Header = () => {
               {title}
             </span>
           </div>
+          <Link
+            to="/concord"
+            className="ml-3 inline-flex items-center gap-1.5 rounded-lg border border-cyan-400/30 px-2.5 py-1 font-section text-[0.7rem] uppercase tracking-[0.14em] text-cyan-100 hover:bg-cyan-400/10"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Concord</span>
+          </Link>
         </div>
 
         <div

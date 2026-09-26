@@ -885,3 +885,18 @@ html[data-aura='neon-steady'] .aura-frame {
   0% { transform: scale(0.85); }
   100% { transform: scale(1); }
 }
+
+@keyframes concord-dash {
+  to { stroke-dashoffset: -24; }
+}
+
+.concord-dash {
+  stroke-dasharray: 4 6;
+  animation: concord-dash 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .concord-dash {
+    animation: none;
+  }
+}
